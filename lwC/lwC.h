@@ -126,9 +126,9 @@ lwc_result_t lwc_create(lwc_resource_spec_t specs, uint64_t options); // -> equi
  */
 lwc_result_t lwc_switch(lwc_context_t l, void* args); // -> equivalent to yield.
 
-//API for mememory access
+//API for memory access
 /**
- * @brief      { function_description }
+ * @brief      Allows fine-grained control over resource allocation in l.
  *
  * @param[in]  	l 
  * 
@@ -148,7 +148,7 @@ void lwc_restrict(lwc_context_t l, lwc_resource_spec_t specs); // probably mempr
  * Dynamically maps ("overlays" in paper) resources from another lwC 
  * into the current address space.
  * 
- * @param[in]  l      { parameter_description }
+ * @param[in]  l      lwC containing the memory to map.
  * 
  * @param[in]  specs  Specifies which resource type (memory or file descriptor) 
  * are to be shared, and if it should be copied or shared.
