@@ -7,16 +7,10 @@
 
 #define NB_ENTRIES_PTE 512
 
-
 /*Helper functions*/
 ptent_t* deep_copy_pgroot(ptent_t *pgroot, ptent_t *cppgroot);
 
-/*lwC Sharing options*/
-#define LWC_COW 	0
-#define LWC_UNMAP	1
-#define LWC_SHARED 	2
-
-/*lwC types*/
+/*lwC create options.*/
 
 /*TODO not sure what they are supposed to be*/
 //See section 3.8 in the paper.
@@ -31,39 +25,79 @@ ptent_t* deep_copy_pgroot(ptent_t *pgroot, ptent_t *cppgroot);
 //Parent gets system call number and args.
 #define LWS_SYSTRAP -2
 
+/*lwC types*/
+
 //Supposed to be an fd.
 //Associated with capabilities.
 typedef uint64_t* lwc_context_t;
+//TODO define
+typedef uint64_t lwc_syscall_t;
+//TODO define
+typedef uint64_t* lwc_file_descriptor_t;
+//TODO define
+typedef uint64_t lwc_credentials_t;
 
-//TODO array of C unions where element is either range of fd
+
+/*Descriptive types in the resource specs.*/
+typedef enum __lwc_type_tag {
+	VIRTUAL_ADDRESS = 1,
+	FILE_DESCRIPTOR = 2,
+	CREDENTIAL = 3,
+	SYSCALL = 4
+} lwc_type_tag;
+
+/*lwC Sharing options*/
+typedef enum __lwc_range_option {
+	LWC_COW = 1,
+	LWC_SHARED = 2,
+	LWC_UNMAP = 3
+} lwc_range_option_t;
+
+/*Actual types inside the resource specs.*/
+typedef union __lwc_resource_type{
+	void* address;
+	lwc_file_descriptor_t fd; 		
+	lwc_syscall_t syscall; 	//Not sure about this one.
+	lwc_credentials_t credentials;//Not sure either.
+} lwc_resource_type_t;
+
+/*Defines a range as an entry in resource specs.*/
+typedef struct __lwc_range {
+	lwc_resource_type_t start;
+	lwc_resource_type_t end;
+	
+	lwc_type_tag type;
+	lwc_range_option_t options;
+} lwc_range_t;
+
+//Description in paper: array of C unions where element is either range of fd
 //virtual addresses or credentials/ syscall numbers.
 //for each range, can specify one of these options:
 //LWC_COW -> logical copy of range of ressources.
 //LWC_SHARED -> shared between child and parent.
 //LWC_UNMAP -> not mapped inside children.
-typedef uint64_t lwc_resource_spec;
+typedef struct __lwc_resource_spec {
+	size_t length;
+	lwc_range_t *entries;
+} lwc_resource_spec_t;
 
-typedef struct __lwc_desc {
+
+/*Return type for lwc_create and lwc_switch*/
+typedef struct __lwc_result {
 	lwc_context_t *newC;
 	uint64_t caller;
 	void	*args;
-} lwc_desc_t;
-
-
-typedef struct __lwc_switch {
-	uint64_t caller;
-	void *args;
-} lwc_switch_t;
+} lwc_result_t;
 
 /*lwC's API*/
 
 //Creation and switching
-
 /**
  * @brief      	Similar to posix fork, creates a copy of the VA etc.
  * except descriptors. 
  * 				
  * @param[in]  	specs
+ * @param[in]  	options
  *
  * @return     	{fd_new, -1, args} at first call.
  * 				{parent, caller, args} when first switch.
@@ -73,19 +107,26 @@ typedef struct __lwc_switch {
  * 			Mappings must be copy-on-write.
  * 			Need to pass on the stack, code, synch variables and other deps.
  */
-lwc_desc_t lwc_create(lwc_resource_spec specs); // -> equivalent to fork.
+lwc_result_t lwc_create(lwc_resource_spec_t specs, uint64_t options); // -> equivalent to fork.
 
 /**
- * @brief      
+ * @brief      Switch to target context l with specified arguments.
  *
- * @return     { description_of_the_return_value }
+ * @param[in]  l     Target context.
+ * @param      args  
+ *
+ * @return     lwc_result_t: {NULL, caller, args}
+ * caller points to the target.
+ * args is a pointer to the args passed.
  * 
  * @TODO		Need (targert, args) as arguments.
  * 				Compared to process switch, kernel thread switch
  * 				POSIX user thread switch (getContext setContext).
+ * 				newC is null in the result.
  */
-lwc_switch_t lwc_switch(void); // -> equivalent to yield.
+lwc_result_t lwc_switch(lwc_context_t l, void* args); // -> equivalent to yield.
 
+//API for mememory access
 /**
  * @brief      { function_description }
  *
@@ -100,7 +141,7 @@ lwc_switch_t lwc_switch(void); // -> equivalent to yield.
  * 				TODO understand if it is black list or white list.
  * 				The paper is not clear about that.
  */
-void lwc_restrict(lwc_context_t l, lwc_resource_spec specs); // probably memprotect
+void lwc_restrict(lwc_context_t l, lwc_resource_spec_t specs); // probably memprotect
 
 /**
  * @brief      		  Map memory from foreign lwC to current lwC.
@@ -117,7 +158,7 @@ void lwc_restrict(lwc_context_t l, lwc_resource_spec specs); // probably memprot
  * 					  A successful call unmaps existing ressources at
  * 					  specified addresses in the caller's address space.
  */
-void lwc_share_memory(lwc_context_t l, lwc_resource_spec specs);
+void lwc_share_memory(lwc_context_t l, lwc_resource_spec_t specs);
 
 /**
  * @brief      Enables an lwC to execute syscalls on behalf of another (target).
