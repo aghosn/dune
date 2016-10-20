@@ -6,9 +6,15 @@
 
 
 #define NB_ENTRIES_PTE 512
+#define PTE_MAKE_COW(pte) (((pte) & (~PTE_W)) | PTE_COW)
+
+struct copy_root_t {
+	ptent_t *root;
+	ptent_t *cproot;
+};
 
 /*Helper functions*/
-ptent_t* deep_copy_pgroot(ptent_t *pgroot, ptent_t *cppgroot);
+ptent_t* lwc_cow_pgroot(ptent_t* root, ptent_t *cproot);
 
 /*lwC create options.*/
 
@@ -90,6 +96,14 @@ typedef struct __lwc_result {
 } lwc_result_t;
 
 /*lwC's API*/
+
+/**
+ * @brief      Initializes the lwC.
+ * 
+ * @TODO		Create lwC root.
+ * 				Register new dune pgfault handler.
+ */
+void lwc_init();
 
 //Creation and switching
 /**
@@ -180,6 +194,6 @@ void lwc_share_memory(lwc_context_t l, lwc_resource_spec_t specs);
  * @Example		Enable lwC to append bytes or read a file for which it does not
  * 				have any access.
  */
-void lwc_syscall(lwc_context_t tgt, uint64_t mask, uint64_t syscall, void* args); //TODO not sure about this.
+void lwc_syscall(lwc_context_t tgt, uint64_t mask, uint64_t syscall, void* args); //TODO not sure about this. Do not implement for the moment.
 
 #endif

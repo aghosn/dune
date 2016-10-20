@@ -5,9 +5,8 @@ int main(void) {
 	
 	dune_init(false);
 	dune_enter();
-	
 	ptent_t* copy = NULL;
-	copy = deep_copy_pgroot(pgroot, copy);
-	printf("Hello world! %p\n", copy) ;
+	copy = lwc_cow_pgroot(pgroot, copy);
+	printf("Hello world!\n") ;
 	return 0;
 }
