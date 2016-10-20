@@ -49,7 +49,7 @@ int lwc_page_walk(ptent_t *dir, void *start_va, void *end_va, lwc_page_cb cb,
 		ptent_t *pte = &dir[i];
 
 		if (level == 2) {
-			if (create == CREATE_BIG_1GB || 
+			if (create & LWC_CREATE_BIG_1GB || 
 						(pte_present(*pte) && pte_big(*pte))) {
 				if ((ret = cb(arg, pte, cur_va, level)))
 					return ret;
@@ -58,7 +58,7 @@ int lwc_page_walk(ptent_t *dir, void *start_va, void *end_va, lwc_page_cb cb,
 		}
 
 		if (level == 1) {
-			if (create == CREATE_BIG || (pte_present(*pte) && pte_big(*pte))) {
+			if (create & LWC_CREATE_BIG || (pte_present(*pte) && pte_big(*pte))) {
 				if ((ret = cb(arg, pte, cur_va, level)))
 					return ret;
 				continue;
@@ -66,7 +66,7 @@ int lwc_page_walk(ptent_t *dir, void *start_va, void *end_va, lwc_page_cb cb,
 		}
 
 		if (level == 0) {
-			if (create == CREATE_NORMAL || pte_present(*pte)) {
+			if (create & LWC_CREATE_NORMAL || pte_present(*pte)) {
 				if((ret = cb(arg, pte, cur_va, level)))
 					return ret;
 				continue;
@@ -76,7 +76,7 @@ int lwc_page_walk(ptent_t *dir, void *start_va, void *end_va, lwc_page_cb cb,
 		if (!pte_present(*pte)) {
 			ptent_t *new_pte;
 
-			if (!create)
+			if (!(create & LWC_CREATE_NORMAL))
 				continue;
 
 			new_pte = alloc_page();
@@ -90,7 +90,7 @@ int lwc_page_walk(ptent_t *dir, void *start_va, void *end_va, lwc_page_cb cb,
 		n_end_va = (i == end_idx)? end_va : cur_va + PDADDR(level, 1) -1;
 
 		ret = lwc_page_walk((ptent_t *) PTE_ADDR(dir[i]), n_start_va, n_end_va,
-							 cb, arg, level - 1, create);
+							 cb, arg, create, level - 1);
 
 		if (ret)
 			return ret;
@@ -100,7 +100,7 @@ int lwc_page_walk(ptent_t *dir, void *start_va, void *end_va, lwc_page_cb cb,
 }
 
 //TODO make static.
-int __lwc_cow_helper(const void *arg, ptent_t *_pte, void *va, int level) {
+static int __lwc_cow_helper(const void *arg, ptent_t *_pte, void *va, int level) {
 	int i, j, k, l;
 
 	struct copy_root_t *stroot = (struct copy_root_t *) arg;
@@ -146,6 +146,8 @@ int __lwc_cow_helper(const void *arg, ptent_t *_pte, void *va, int level) {
 		pdpte[j] = PTE_ADDR(pde) | PTE_FLAGS(o_pdpte[j]);
 	}
 
+	if (!pte_present(o_pde[k]))
+		printf("The level %d\n", level);
 	
 	assert(pte_present(o_pde[k]));
 	o_pte = (ptent_t*)(PTE_ADDR(o_pde[k]));
@@ -174,63 +176,14 @@ int __lwc_cow_helper(const void *arg, ptent_t *_pte, void *va, int level) {
 //TODO optimize and/or rewrite with page_walk
 ptent_t* lwc_cow_pgroot(ptent_t* pgroot, ptent_t *cppgroot) {
 	cppgroot = alloc_page();
+	memset(cppgroot, 0, PGSIZE);
 
-	ptent_t *o_pml4 = pgroot, *o_pdpte, *o_pde, *o_pte;
-	ptent_t *pml4 = cppgroot, *pdpte, *pde, *pte;
+	struct copy_root_t cow = {pgroot, cppgroot};
+	
+	lwc_page_walk(pgroot, VA_START, VA_END, &__lwc_cow_helper, &cow, 
+		LWC_CREATE_BIG | LWC_CREATE_BIG_1GB | LWC_CREATE_NONE, 3);
 
-	for (int i = 0; i < NPTENTRIES; i++) {
-		if (!pte_present(o_pml4[i])) {
-			pml4[i] = o_pml4[i];
-			continue;
-		}
-
-		o_pdpte = (ptent_t*) PTE_ADDR(o_pml4[i]);
-		pdpte = alloc_page();
-		pml4[i] = PTE_ADDR(pdpte) | PTE_FLAGS(o_pml4[i]);
-
-		for (int j = 0; j < NPTENTRIES; j++) {
-			if (!pte_present(o_pdpte[j])) {
-				pdpte[j] = o_pdpte[i];
-				continue;
-			}
-
-			if (pte_big(o_pdpte[j])) {
-				pdpte[j] = o_pdpte[j] = PTE_MAKE_COW(o_pdpte[j]);
-				continue;
-			}
-
-			o_pde = (ptent_t*) PTE_ADDR(o_pdpte[j]);
-			pde = alloc_page();
-			pdpte[j] = PTE_ADDR(pde) | PTE_FLAGS(o_pdpte[j]);
-
-			for (int k = 0; k < NPTENTRIES; k++) {
-				if (!pte_present(o_pde[k])) {
-					pde[k] = o_pde[k];
-					continue;
-				}
-
-				if (pte_big(o_pde[k])) {
-					pde[k] = o_pde[k] = PTE_MAKE_COW(o_pde[k]);
-					continue;
-				}
-
-				o_pte = (ptent_t*) PTE_ADDR(o_pde[k]);
-				pte = alloc_page();
-				pde[k] = PTE_ADDR(pte) | PTE_FLAGS(o_pde[k]);
-				
-				for (int l = 0; l < NPTENTRIES; l++) {
-					if (!pte_present(o_pte[l])) {
-						pte[l] = o_pte[l];
-						continue;
-					}
-
-					pte[l] = o_pte[l] = PTE_MAKE_COW(pte[l]);
-				}	
-			}
-		}
-	}
-
-	return cppgroot;
+	return cow.copy;
 }
 
 lwc_result_t lwc_create(lwc_resource_spec_t specs, uint64_t options) {
