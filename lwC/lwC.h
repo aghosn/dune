@@ -4,13 +4,16 @@
 #include <sys/types.h>
 #include <dune.h>
 
-
-#define NB_ENTRIES_PTE 512
+//TODO replace with NPTENTRIES
+#define PTE_DEF_FLAGS	(PTE_P | PTE_W | PTE_U)
 #define PTE_MAKE_COW(pte) (((pte) & (~PTE_W)) | PTE_COW)
+#define PDADDR(n, i)	(((unsigned long) (i)) << PDSHIFT(n))
+
+typedef int (*lwc_page_cb)(const void *arg, ptent_t *ptep, void *va, int level);
 
 struct copy_root_t {
-	ptent_t *root;
-	ptent_t *cproot;
+	ptent_t *original;
+	ptent_t *copy;
 };
 
 /*Helper functions*/
