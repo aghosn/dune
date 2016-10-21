@@ -29,7 +29,7 @@ all: $(APPS)
 
 $(APPS): $(LIBDUNE)/libdune.a
 
-$(APPS): %: %.o lwC.o
+$(APPS): %: %.o lwc_vm.o lwC.o
 	$(CC) $(CFLAGS) $^ -o $@
 
 clean:

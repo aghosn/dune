@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "lwC.h"
+#include "lwc_vm.h"
 
 int main(void) {
 	
