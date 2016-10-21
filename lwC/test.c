@@ -5,8 +5,10 @@ int main(void) {
 	
 	dune_init(false);
 	dune_enter();
-	ptent_t* copy = NULL;
-	copy = lwc_cow_pgroot(pgroot, copy);
+	ptent_t* copy = lwc_copy_pgroot(pgroot);
+	if (copy == NULL)
+		return 1;
+	load_cr3((unsigned long)copy);
 	printf("Hello world!\n") ;
 	return 0;
 }

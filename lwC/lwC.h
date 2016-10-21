@@ -22,7 +22,8 @@ struct copy_root_t {
 };
 
 /*Helper functions*/
-ptent_t* lwc_cow_pgroot(ptent_t* root, ptent_t *cproot);
+ptent_t* lwc_cow_pgroot(ptent_t* root);
+ptent_t* lwc_copy_pgroot(ptent_t* root);
 
 /*lwC create options.*/
 
