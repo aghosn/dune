@@ -170,7 +170,7 @@ static int __lwc_copy_pgroot_helper(const void *arg, ptent_t *_pte, void *va,
 	return 0;
 }
 
-//TODO make the page count increase.
+
 static int __lwc_cow_helper(const void *arg, ptent_t *pte, void *va, int level) {
 	ptent_t* root = (ptent_t*) arg;
 
@@ -223,7 +223,7 @@ ptent_t* lwc_copy_pgroot(ptent_t* root) {
 } 
 
 //Creates a copy of pgroot and makes it COW.
-ptent_t* lwc_cow_pgroot(ptent_t* pgroot) {
+ptent_t* lwc_cow_copy_pgroot(ptent_t* pgroot) {
 	ptent_t* cppgroot = alloc_page();
 	memset(cppgroot, 0, PGSIZE);
 
