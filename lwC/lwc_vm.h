@@ -26,5 +26,4 @@ struct copy_root_t {
 ptent_t* lwc_cow_copy_pgroot(ptent_t* root);
 ptent_t* lwc_copy_pgroot(ptent_t* root);
 
-
 #endif

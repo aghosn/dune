@@ -168,7 +168,12 @@ static int __lwc_copy_pgroot_helper(const void *arg, ptent_t *_pte, void *va,
 	}
 
 	pte[l] = o_pte[l];
-	dune_page_get(dune_pa2page((physaddr_t)PTE_ADDR(o_pte[l])));
+	// printf("The value %p\n", PTE_ADDR(dune_pa2page((physaddr_t)PTE_ADDR(o_pte[l]))));
+	// printf("The value %p\n", PTE_ADDR(dune_pa2page((physaddr_t)(o_pte[l]))));
+	if (dune_page_isfrompool(PTE_ADDR(o_pte[l]))) {
+		printf("I'm from the pool !\n");
+		dune_page_get(dune_pa2page((physaddr_t)PTE_ADDR(o_pte[l])));
+	}
 	return 0;
 }
 
