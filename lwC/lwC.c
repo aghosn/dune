@@ -23,4 +23,22 @@ lwc_result_t lwc_switch(lwc_context_t l, void* args) {
 	return t;
 }
 
+/*******************************************************************************
+ *                      TODO Required for the syscalls.
+*******************************************************************************/
+//Original defined in dp/core/syscall.
+bool sys_spawn_cores;
+
+//Original defined in dp/core/syscall.c
+void do_syscall(struct dune_tf *tf, uint64_t sysnr) {
+
+}
+
+
+//Original defined in dp/core/init.c
+int init_do_spawn(void *args) {
+    //TODO
+    return 0;
+}
+
 
