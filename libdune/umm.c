@@ -38,7 +38,7 @@
 #include <sys/shm.h>
 #include <stdlib.h>
 
-#include "lwc_sandbox.h"
+#include "sandbox.h"
 
 #define USE_BIG_MEM 1
 

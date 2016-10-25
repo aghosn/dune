@@ -1,39 +1,53 @@
-#ifndef __LWC_SANDBOX_H__
-#define __LWC_SANDBOX_H__
+/*
+ * Copyright 2013-16 Board of Trustees of Stanford University
+ * Copyright 2013-16 Ecole Polytechnique Federale Lausanne (EPFL)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
 
-#include <stdio.h>
+/*
+ * sandbox.h - the main local header
+ */
+
+#ifndef __LIBDUNE_SANDBOX_H__
+#define __LIBDUNE_SANDBOX_H__
+
 #include <errno.h>
 #include <sys/types.h>
 #include <stdint.h>
-#include <dune.h>
 
+#include "mem.h"
+#include "dune.h"
+
+//TODO aghosn: not copied from anywhere, replacing kstats.h
 #define log_err(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #define log_info(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #define log_debug(fmt, ...) printf(fmt, ##__VA_ARGS__)
 
+//TODO aghosn: replacing KSTATS
+#define KSTATS_PUSH(a, b)	
+#define KSTATS_POP(a)
+
+
+
 #define LOADER_VADDR_OFF	0x6F000000
 #define APP_STACK_SIZE		0x800000 /* 8 megabytes */
-
-
-//TODO change this at some point + might fail right now.
-#define MEM_IX_BASE_ADDR		0x70000000   /* the IX ELF is loaded here */
-#define MEM_PHYS_BASE_ADDR		0x4000000000 /* memory is allocated here (2MB going up, 1GB going down) */
-#define MEM_USER_DIRECT_BASE_ADDR	0x7000000000 /* start of direct user mappings (P = V) */
-#define MEM_USER_DIRECT_END_ADDR	0x7F00000000 /* end of direct user mappings (P = V) */
-#define MEM_USER_IOMAPM_BASE_ADDR	0x8000000000 /* user mappings controlled by IX */
-#define MEM_USER_IOMAPM_END_ADDR	0x100000000000 /* end of user mappings controlled by IX */
-#define MEM_USER_IOMAPK_BASE_ADDR	0x100000000000 /* batched system calls and network mbuf's */
-#define MEM_USER_IOMAPK_END_ADDR	0x101000000000 /* end of batched system calls and network mbuf's */
-
-#define MEM_USER_START			MEM_USER_DIRECT_BASE_ADDR
-#define MEM_USER_END			MEM_USER_IOMAPM_END_ADDR
-
-#define MEM_ZC_USER_START		MEM_USER_IOMAPM_BASE_ADDR
-#define MEM_ZC_USER_END			MEM_USER_IOMAPK_END_ADDR
-
-#ifndef MAP_FAILED
-#define MAP_FAILED	((void *) -1)
-#endif
 
 /**
  * mem_ref_is_safe - determines if a memory range belongs to the sandboxed app
@@ -87,5 +101,5 @@ extern void *umm_mremap(void *old_address, size_t old_size,
 
 extern int trap_init(void);
 
+#endif /* __LIBDUNE_SANDBOX_H__ */
 
-#endif

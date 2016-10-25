@@ -1,14 +1,38 @@
+/*
+ * Copyright 2013-16 Board of Trustees of Stanford University
+ * Copyright 2013-16 Ecole Polytechnique Federale Lausanne (EPFL)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
 #define _GNU_SOURCE
 
+#include <stdio.h>
 #include <errno.h>
 #include <string.h>
 #include <stdint.h>
 
-#include "lwc_sandbox.h"
+#include "sandbox.h"
 
 #define NUM_AUX 14
 
-//TODO aghosn: adding this until proper fix.
+//TODO aghosn: added to satisfy missing dependency. Need proper fix.
 #define CFG_LOADER_PATH "/lib64/ld-linux-x86-64.so.2"
 
 struct elf_data {
@@ -24,43 +48,41 @@ static int process_elf_ph(struct dune_elf *elf, Elf64_Phdr *phdr)
 	off_t off;
 
 	if (phdr->p_type == PT_INTERP) {
-		log_err("lwc_sandbox: .interp sections are not yet supported.\n");
+		log_err("sandbox: .interp sections are not yet supported\n");
 		return -EINVAL;
 	}
 
 	if (phdr->p_type != PT_LOAD)
-		return 0; // continue to next section.
+		return 0; // continue to next section
 
-	log_info("lwc_sandbox info: loading segment -va 0x%09lx, len %lx\n",
-		phdr->p_vaddr, phdr->p_memsz);
+	log_info("sandbox: loading segment - va 0x%09lx, len %lx\n",
+		 phdr->p_vaddr, phdr->p_memsz);
 
 	if (elf->hdr.e_type == ET_DYN)
 		off = LOADER_VADDR_OFF;
-	else 
+	else
 		off = 0;
 
 	if (phdr->p_vaddr + off + phdr->p_memsz > MEM_IX_BASE_ADDR ||
-		phdr->p_memsz > MEM_IX_BASE_ADDR || // for overflow
-		phdr->p_filesz > phdr->p_memsz) {
-		log_err("lwc_sandbox: segment address is insecure.\n");
+	    phdr->p_memsz > MEM_IX_BASE_ADDR || // for overflow
+	    phdr->p_filesz > phdr->p_memsz) {
+		log_err("sandbox: segment address is insecure\n");
 		return -EINVAL;
 	}
 
-	//TODO might want to change this.
 	ret = dune_vm_map_phys(pgroot,
-		(void *)(phdr->p_vaddr + off),
-		phdr->p_memsz,
-		(void *)(phdr->p_vaddr + off),
-		PERM_R | PERM_W);
-
+			       (void *)(phdr->p_vaddr + off),
+			       phdr->p_memsz,
+			       (void *)(phdr->p_vaddr + off),
+			       PERM_R | PERM_W);
 	if (ret) {
-		log_err("lwc_sandbox: segment mapping failed.\n");
+		log_err("sandbox: segment mapping failed\n");
 		return ret;
 	}
 
 	ret = dune_elf_load_ph(elf, phdr, off);
 	if (ret) {
-		log_err("lwc_sandbox: segment load failed.\n");
+		log_err("sandbox: segment load failed\n");
 		return ret;
 	}
 
@@ -71,17 +93,15 @@ static int process_elf_ph(struct dune_elf *elf, Elf64_Phdr *phdr)
 	if (phdr->p_flags & PF_W)
 		perm |= PERM_W;
 
-	ret = dune_vm_mprotect(pgroot, (void*) (phdr->p_vaddr + off),
-		phdr->p_memsz, perm);
-
+	ret = dune_vm_mprotect(pgroot, (void *)(phdr->p_vaddr + off),
+			       phdr->p_memsz, perm);
 	if (ret) {
-		log_err("lwc_sandbox: segment protection failed.\n");
+		log_err("sandbox: segment protection failed\n");
 		return ret;
 	}
 
 	return 0;
 }
-
 
 static int load_elf(const char *path, struct elf_data *data)
 {
@@ -93,22 +113,23 @@ static int load_elf(const char *path, struct elf_data *data)
 		return ret;
 
 	if (elf.hdr.e_type != ET_EXEC &&
-		elf.hdr.e_type != ET_DYN) {
-		log_err("lwc_sandbox: ELF header is not a valid type.\n");
+	    elf.hdr.e_type != ET_DYN) {
+		log_err("sandbox: ELF header is not a valid type\n");
 		ret = -EINVAL;
-		goto out; 
+		goto out;
 	}
 
 	ret = dune_elf_iter_ph(&elf, &process_elf_ph);
 	if (ret)
 		goto out;
 
+
 	if (elf.hdr.e_type == ET_DYN) {
 		data->entry = (uintptr_t)(elf.hdr.e_entry + LOADER_VADDR_OFF);
 		data->phdr = (Elf64_Phdr *)(elf.hdr.e_phoff + LOADER_VADDR_OFF);
 	} else {
 		data->entry = (uintptr_t) elf.hdr.e_entry;
-		// FIXME: could probably make this more robust.
+		// FIXME: could probably make this more robust
 		data->phdr = (Elf64_Phdr *)(elf.hdr.e_phoff + 0x400000);
 	}
 	data->phnum = elf.hdr.e_phnum;
@@ -130,12 +151,11 @@ static void count_args(char *argv[], int *argc, size_t *arglen)
 		*arglen = 0;
 		return;
 	}
-	// Locate (quickly) string null termination. Unpredictable if no match.
+
 	*arglen = (size_t) rawmemchr(argv[i - 1], 0) -
 		  (size_t) argv[0] + 1;
 }
 
-// Enable to transfer kernel level informations to user processes.
 static Elf64_auxv_t *find_aux_entry(Elf64_auxv_t *aux, uint64_t type)
 {
 	while (aux->a_type) {
@@ -315,8 +335,7 @@ int sandbox_init(int argc, char *argv[])
 		return ret;
 	}
 
-	//TODO aghosn: modified this.
-	sp = setup_arguments(sp, "/lib64/ld-linux-x86-64.so.2", &argv[0], environ, data);
+	sp = setup_arguments(sp, CFG_LOADER_PATH, &argv[0], environ, data);
 	if (!sp) {
 		log_err("sandbox: failed to setup arguments\n");
 		return -EINVAL;

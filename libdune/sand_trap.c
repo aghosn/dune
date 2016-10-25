@@ -55,10 +55,9 @@
 #include <linux/futex.h>
 #include <linux/unistd.h>
 
-#include "lwc_sandbox.h"
-#include <cpu-x86.h>
+#include "sandbox.h"
+#include "cpu-x86.h"
 
-//#include "ix/kstats.h"
 
 struct thread_arg {
 	pthread_cond_t	ta_cnd;
@@ -647,11 +646,11 @@ static void syscall_handler(struct dune_tf *tf)
 	if (syscall_check_params(tf) == -1)
 		return;
 
-	//KSTATS_POP(NULL);
-	//KSTATS_PUSH(posix_syscall, NULL);
+	KSTATS_POP(NULL);
+	KSTATS_PUSH(posix_syscall, NULL);
 	syscall_do(tf);
-	//KSTATS_POP(NULL);
-	//KSTATS_PUSH(user, NULL);
+	KSTATS_POP(NULL);
+	KSTATS_PUSH(user, NULL);
 }
 
 int trap_init(void)
