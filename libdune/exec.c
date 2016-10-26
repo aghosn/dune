@@ -188,7 +188,7 @@ exec_execev(const char *filename, char *const argv[], char *const envp[])
 
 #ifdef TEST_EXEC
 
-int main(int argc, char *argv[])
+/*int main(int argc, char *argv[])
 {
 	char *const args[] = { NULL };
 
@@ -196,7 +196,7 @@ int main(int argc, char *argv[])
 	//exec_execev("test.sh", args, environ);
 
 	return 0;
-}
+}*/
 
 #endif /* TEST_EXEC */
 

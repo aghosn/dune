@@ -184,4 +184,6 @@ void lwc_share_memory(lwc_context_t l, lwc_resource_spec_t specs);
  */
 void lwc_syscall(lwc_context_t tgt, uint64_t mask, uint64_t syscall, void* args); //TODO not sure about this. Do not implement for the moment.
 
+void do_syscall(struct dune_tf *tf, uint64_t sysnr);
+
 #endif

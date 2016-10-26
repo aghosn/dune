@@ -2,7 +2,7 @@
 #include "lwC.h"
 #include "lwc_vm.h"
 
-int main(void) {
+int main(int argc, char *argv[]) {
 	
 	dune_init(false);
 	dune_enter();
@@ -13,8 +13,12 @@ int main(void) {
 	if (copy == NULL)
 		return 1;
 
+	do_syscall(NULL, 1);
+	sandbox_init(argc, argv);
+	printf("After the do syscall.\n");
+	/*
 	load_cr3((unsigned long)copy);
 
-	printf("Hello world!\n") ;
+	printf("Hello world!\n") ;*/
 	return 0;
 }
