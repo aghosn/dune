@@ -25,5 +25,6 @@ struct copy_root_t {
 /*Helper functions*/
 ptent_t* lwc_cow_copy_pgroot(ptent_t* root);
 ptent_t* lwc_copy_pgroot(ptent_t* root);
+void lwc_has_user_mappings(ptent_t* root, int *result);
 
 #endif

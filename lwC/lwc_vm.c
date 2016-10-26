@@ -247,3 +247,23 @@ ptent_t* lwc_cow_copy_pgroot(ptent_t* pgroot) {
 
 	return cppgroot;
 }
+
+static int __lwc_has_user_mappings(const void *arg, ptent_t *pte, void *va,
+																	int level) {
+	int *result = (int *) arg;
+
+	if (*pte & (1 << 2)) {
+		*result += 1;
+	}
+
+	return 0;
+}
+
+void lwc_has_user_mappings(ptent_t* root, int *result) {
+	assert(result != NULL);
+	*result = 0;
+
+	lwc_page_walk(root, VA_START, VA_END, &__lwc_has_user_mappings, result,
+		LWC_CREATE_NONE, 3);
+}
+

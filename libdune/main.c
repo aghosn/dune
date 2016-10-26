@@ -33,7 +33,7 @@
 #define NUM_AUX 14
 
 //TODO aghosn: added to satisfy missing dependency. Need proper fix.
-#define CFG_LOADER_PATH "/lib64/ld-linux-x86-64.so.2"
+//#define CFG_LOADER_PATH "/lib64/ld-linux-x86-64.so.2"
 
 struct elf_data {
 	uintptr_t entry;
@@ -298,12 +298,21 @@ static int run_app(uintptr_t sp, uintptr_t e_entry)
 	tf.rsp = sp;
 	tf.rflags = 0x0;
 
+	printf("The e_entry %p\n", e_entry);
+	printf("The stack: %p\n", sp);
+	fflush(stdout);
+	
+	//uint64_t* ptr =(uint64_t*)(sp);
+	//*(ptr + 1) = 0xdeadbeef;
+	//memset(ptr, 2, sizeof(uint64_t)*2);
+
+	//printf("After the memset !!!!\n\n");
 	return dune_jump_to_user(&tf);
 }
 
 extern char **environ;
 
-int sandbox_init(int argc, char *argv[])
+int sandbox_init(char *loader, int argc, char *argv[])
 {
 	int ret;
 	uintptr_t sp;
@@ -315,7 +324,12 @@ int sandbox_init(int argc, char *argv[])
 	log_debug("sandbox: env = '%s'\n", environ[0]);
 
 
-	ret = load_elf(CFG_LOADER_PATH, &data);
+	printf("Printing the arguments:\n");
+	for (int i = 0; i < argc; i++) {
+		printf("An argument: %s\n",argv[i]);
+	} 
+
+	ret = load_elf(loader, &data);
 	if (ret)
 		return ret;
 
@@ -335,12 +349,13 @@ int sandbox_init(int argc, char *argv[])
 		return ret;
 	}
 
-	sp = setup_arguments(sp, CFG_LOADER_PATH, &argv[0], environ, data);
+	sp = setup_arguments(sp, loader, &argv[0], environ, data);
 	if (!sp) {
 		log_err("sandbox: failed to setup arguments\n");
 		return -EINVAL;
 	}
 
+	//printf("The data.entry %p\n", data.entry);
 	ret = run_app(sp, data.entry);
 
 	return ret;

@@ -37,9 +37,13 @@ int init_do_spawn(void *arg) {
     return 0;
     
 }
-
-
 /******************************************************************************/
+
+
+
+
+
+
 lwc_result_t lwc_create(lwc_resource_spec_t specs, uint64_t options) {
     
     //TODO copy memory
@@ -62,4 +66,5 @@ lwc_result_t lwc_switch(lwc_context_t l, void* args) {
 
 void do_syscall(struct dune_tf *tf, uint64_t sysnr) {
     printf("In do syscall\n");
+    fflush(stdout);
 }
