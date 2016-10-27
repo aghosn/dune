@@ -74,8 +74,17 @@ void do_syscall(struct dune_tf *tf, uint64_t sysnr) {
  *                         Entry point.
  ******************************************************************************/
 
-int main(int arc, char *argv[]) {
-    printf("TODO: implement.\n");
+int main(int argc, char *argv[]) {
+    printf("Welcome to lwc!\n");
+    
+    dune_init(false);
+    dune_enter();
+    printf("Initialized dune.\n");
+
+    printf("Will load the sandbox now.\n");
+    sandbox_init("/lib64/ld-linux-x86-64.so.2", argc, argv);
+
+    printf("Should never print.\n");
     return 0;
 }
 

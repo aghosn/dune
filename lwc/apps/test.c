@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
 	//sandbox_init("/lib64/ld-linux-x86-64.so.2", argc, argv);
 
 
-	printf("Should never print.\n");
+	printf("Hello world\n");
 	/*
 	load_cr3((unsigned long)copy);
 
