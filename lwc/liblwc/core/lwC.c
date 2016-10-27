@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
     printf("Initialized dune.\n");
 
     printf("Will load the sandbox now.\n");
-    sandbox_init("/lib64/ld-linux-x86-64.so.2", argc, argv);
+    sandbox_init("/lib64/ld-linux-x86-64.so.2", argc - 1, &argv[1]);
 
     printf("Should never print.\n");
     return 0;
