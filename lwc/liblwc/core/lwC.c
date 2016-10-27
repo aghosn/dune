@@ -65,6 +65,21 @@ lwc_result_t lwc_switch(lwc_context_t l, void* args) {
 }
 
 void do_syscall(struct dune_tf *tf, uint64_t sysnr) {
+    
     printf("In do syscall\n");
     fflush(stdout);
 }
+
+/*******************************************************************************
+ *                         Entry point.
+ ******************************************************************************/
+
+int main(int arc, char *argv[]) {
+    printf("TODO: implement.\n");
+    return 0;
+}
+
+
+
+
+

@@ -1,0 +1,8 @@
+core/lwc_vm.o: core/lwc_vm.c ../..//kern/dune.h core/lwc_vm.h \
+ ../..//libdune/dune.h ../..//libdune/sandbox.h ../..//libdune/mem.h \
+ ../..//libdune/mmu.h ../..//libdune/types.h ../..//libdune/mmu-x86.h \
+ ../..//libdune/elf.h ../..//libdune/fpu.h
+core/lwC.o: core/lwC.c ../..//kern/dune.h core/lwC.h \
+ ../..//libdune/dune.h ../..//libdune/sandbox.h ../..//libdune/mem.h \
+ ../..//libdune/mmu.h ../..//libdune/types.h ../..//libdune/mmu-x86.h \
+ ../..//libdune/elf.h ../..//libdune/fpu.h core/lwc_vm.h

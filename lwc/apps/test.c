@@ -1,6 +1,6 @@
 #include <stdio.h>
-#include "lwC.h"
-#include "lwc_vm.h"
+//#include "lwC.h"
+//#include "lwc_vm.h"
 
 // static void pgflt_handler(uintptr_t addr, uint64_t fec, struct dune_tf *tf)
 // {
@@ -29,8 +29,8 @@
 
 int main(int argc, char *argv[]) {
 	
-	dune_init(false);
-	dune_enter();
+	//dune_init(false);
+	//dune_enter();
 	// ptent_t* copy = lwc_copy_pgroot(pgroot);
 	// ptent_t* cowcopy = lwc_cow_copy_pgroot(copy);
 	// printf("I have two COW copies and one that can write.\n");
@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
 	// dune_register_pgflt_handler(&pgflt_handler);
 
 	
-	sandbox_init("../lwC/app", argc, argv);
+	//sandbox_init("/lib64/ld-linux-x86-64.so.2", argc, argv);
 
 
 	printf("Should never print.\n");
