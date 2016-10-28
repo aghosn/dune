@@ -63,8 +63,8 @@ static int process_elf_ph(struct dune_elf *elf, Elf64_Phdr *phdr)
 	else
 		off = 0;
 
-	if (phdr->p_vaddr + off + phdr->p_memsz > MEM_IX_BASE_ADDR ||
-	    phdr->p_memsz > MEM_IX_BASE_ADDR || // for overflow
+	if (phdr->p_vaddr + off + phdr->p_memsz > MEM_SANDBOX_BASE_ADDR ||
+	    phdr->p_memsz > MEM_SANDBOX_BASE_ADDR || // for overflow
 	    phdr->p_filesz > phdr->p_memsz) {
 		log_err("sandbox: segment address is insecure\n");
 		return -EINVAL;
