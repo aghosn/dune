@@ -1,15 +1,19 @@
 CC      = gcc
 CFLAGS  = -Wall -g -O3 -MD
 LDFLAGS = -static -L. -ldune
-OBJ     = entry.o dune.o vsyscall.o elf.o vm.o util.o page.o procmap.o debug.o sandbox/exec.o sandbox/sandbox.o sandbox/trap.o sandbox/umm.o
+
+SANDBOX_OBJS = $(patsubst %.c, %.o, $(wildcard **/*.c))
+OBJ     = entry.o dune.o vsyscall.o elf.o vm.o util.o page.o procmap.o debug.o 
 NOFPU_OBJ = trap.o
+
+#$(info $$SANDBOX_OBJS is [${SANDBOX_OBJS}])
 
 $(NOFPU_OBJ): EXTRA_FLAGS := -mno-sse -mno-mmx -mno-sse2 -mno-3dnow -msoft-float
 
 all: libdune.a
 
-libdune.a: $(OBJ) $(NOFPU_OBJ)
-	$(AR) crD $(@) $(OBJ) $(NOFPU_OBJ)
+libdune.a: $(OBJ) $(NOFPU_OBJ) $(SANDBOX_OBJS)
+	$(AR) crD $(@) $(OBJ) $(NOFPU_OBJ) $(SANDBOX_OBJS)
 
 clean:
 	rm -f *.o test *.d libdune.a
