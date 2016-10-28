@@ -32,7 +32,7 @@
 #include <sys/types.h>
 #include <stdint.h>
 
-#include "mem.h"
+//#include "mem.h"
 #include "../dune.h"
 
 //TODO aghosn: not copied from anywhere, replacing kstats.h
@@ -54,27 +54,27 @@
  * @ptr: the base address
  * @len: the length
  */
-static inline bool mem_ref_is_safe(const void *ptr, size_t len)
-{
-	uintptr_t begin = (uintptr_t) ptr;
-	uintptr_t end = (uintptr_t)(ptr + len);
-
-	/* limit possible overflows */
-	if (len > MEM_USER_DIRECT_END_ADDR - MEM_USER_DIRECT_BASE_ADDR)
-		return false;
-
-	/* allow ELF data */
-	if (begin < MEM_SANDBOX_BASE_ADDR && end < MEM_SANDBOX_BASE_ADDR)
-		return true;
-
-	/* allow the user direct memory area */
-	if (begin >= MEM_USER_DIRECT_BASE_ADDR &&
-	    end <= MEM_USER_DIRECT_END_ADDR)
-		return true;
-
-	/* default deny everything else */
-	return false;
-}
+//static inline bool mem_ref_is_safe(const void *ptr, size_t len)
+//{
+//	uintptr_t begin = (uintptr_t) ptr;
+//	uintptr_t end = (uintptr_t)(ptr + len);
+//
+//	/* limit possible overflows */
+//	if (len > MEM_USER_DIRECT_END_ADDR - MEM_USER_DIRECT_BASE_ADDR)
+//		return false;
+//
+//	/* allow ELF data */
+//	if (begin < MEM_SANDBOX_BASE_ADDR && end < MEM_SANDBOX_BASE_ADDR)
+//		return true;
+//
+//	/* allow the user direct memory area */
+//	if (begin >= MEM_USER_DIRECT_BASE_ADDR &&
+//	    end <= MEM_USER_DIRECT_END_ADDR)
+//		return true;
+//
+//	/* default deny everything else */
+//	return false;
+//}
 
 extern int check_extent(const void *ptr, size_t len);
 extern int check_string(const void *ptr);

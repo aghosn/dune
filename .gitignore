@@ -5,8 +5,14 @@
 *.hi
 *.cmd
 *.out
+*.DS_Store
+*._.DS_Store
+*.depend
 dist
 apps/sandbox/sandbox
+lwc/liblwc/lwc
+lwc/apps/test
+lwc/apps/app
 apps/ufirewall/ufirewall
 apps/ufirewall/firewall_test
 apps/wedge/bench
