@@ -355,7 +355,7 @@ int sandbox_init(char *loader, int argc, char *argv[])
 		return -EINVAL;
 	}
 
-	//printf("The data.entry %p\n", data.entry);
+	printf("Just before the run app.\n");
 	ret = run_app(sp, data.entry);
 
 	return ret;

@@ -638,31 +638,30 @@ extern void do_syscall(struct dune_tf *tf, uint64_t sysnr);
 
 static void syscall_handler(struct dune_tf *tf)
 {
-//	printf("Syscall No. %d\n", tf->rax);
+	printf("Syscall No. %d\n", tf->rax);
 
 	if (tf->rax >= SYSCALL_START)
-		return do_syscall(tf, tf->rax - SYSCALL_START);
+	 	return do_syscall(tf, tf->rax - SYSCALL_START);
 
 	if (syscall_check_params(tf) == -1)
-		return;
+	 	return;
 
-	KSTATS_POP(NULL);
-	KSTATS_PUSH(posix_syscall, NULL);
-	syscall_do(tf);
-	KSTATS_POP(NULL);
-	KSTATS_PUSH(user, NULL);
+	// KSTATS_POP(NULL);
+	// KSTATS_PUSH(posix_syscall, NULL);
+	 syscall_do(tf);
+	// KSTATS_POP(NULL);
+	// KSTATS_PUSH(user, NULL);
 }
 
 int trap_init(void)
 {
 	pthread_mutexattr_t attr;
 
-	pthread_mutexattr_init(&attr);
-	pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_NORMAL);
+	// pthread_mutexattr_init(&attr);
+	// pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_NORMAL);
 
-	if (pthread_mutex_init(&_syscall_mtx, &attr))
-		return -1;
-
+	// if (pthread_mutex_init(&_syscall_mtx, &attr))
+	// 	return -1;
 	dune_register_syscall_handler(&syscall_handler);
 
 	return 0;

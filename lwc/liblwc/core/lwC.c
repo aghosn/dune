@@ -64,15 +64,17 @@ lwc_result_t lwc_switch(lwc_context_t l, void* args) {
 	return t;
 }
 
-void do_syscall(struct dune_tf *tf, uint64_t sysnr) {
-    
-    printf("In do syscall\n");
-    fflush(stdout);
-}
+
 
 /*******************************************************************************
  *                         Entry point.
  ******************************************************************************/
+void do_syscall(struct dune_tf *tf, uint64_t sysnr) {   
+    printf("In do syscall\n");
+    fflush(stdout);
+    // tf->rax = (uint64_t) sys_tbl[sysnr](tf->rdi, tf->rsi, tf->rdx,
+                        // tf->rcx, tf->r8, tf->r9);
+}
 
 int main(int argc, char *argv[]) {
     printf("Welcome to lwc!\n");
@@ -84,7 +86,7 @@ int main(int argc, char *argv[]) {
     printf("Will load the sandbox now.\n");
     sandbox_init("/lib64/ld-linux-x86-64.so.2", argc - 1, &argv[1]);
 
-    printf("Should never print.\n");
+    printf("Sandbox finished execution.\n");
     return 0;
 }
 
