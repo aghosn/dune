@@ -19,7 +19,7 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-# A Makefile for LWC.
+# A Makefile for sandbox.
 #
 # path for this Makefile to work properly.
 
@@ -30,7 +30,7 @@ CC = gcc
 CFLAGS = -g -Wall -fno-dwarf2-cfi-asm -fno-asynchronous-unwind-tables -O3 -mno-red-zone $(INC) -D__KERNEL__ $(EXTRA_CFLAGS)
 
 LD = gcc
-LDFLAGS = -T lwc.ld
+LDFLAGS = -T sandbox.ld
 LDLIBS = -lrt -lpthread -lm -lnuma -ldl -lconfig
 
 SRCS = 
@@ -46,7 +46,7 @@ include $(patsubst %, %/dir.mk, $(DIRS))
 %.generated.S: %.c
 	$(CC) $(CFLAGS) -o $@ -S $<
 
-all: lwc
+all: sandbox
 
 OBJS=$(subst .c,.o,$(SRCS))
 
@@ -61,11 +61,11 @@ ifneq ($(MAKECMDGOALS),clean)
 -include .depend
 endif
 
-lwc: $(DEPENDENCY) $(OBJS) $(DUNE_LIB) lwc.ld
-	$(LD) $(LDFLAGS) -o lwc $(OBJS) $(DUNE_LIB) $(LDLIBS)
+sandbox: $(DEPENDENCY) $(OBJS) $(DUNE_LIB) sandbox.ld
+	$(LD) $(LDFLAGS) -o sandbox $(OBJS) $(DUNE_LIB) $(LDLIBS)
 
 clean:
-	rm -f $(OBJS) lwc .depend
+	rm -f $(OBJS) sandbox .depend
 
 dist-clean: clean
 	rm *~

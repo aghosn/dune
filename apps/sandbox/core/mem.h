@@ -6,7 +6,6 @@
 #define MEM_USER_DIRECT_BASE_ADDR	0x7000000000 /* start of direct user mappings (P = V) */
 #define MEM_USER_DIRECT_END_ADDR	0x7F00000000 /* end of direct user mappings (P = V) */
 
-
 /**
  * mem_ref_is_safe - determines if a memory range belongs to the sandboxed app
  * @ptr: the base address
@@ -33,4 +32,6 @@ static inline bool mem_ref_is_safe(const void *ptr, size_t len)
 	/* default deny everything else */
 	return false;
 }
+
+
 #endif /*__LIBDUNE_MEM_H__*/
