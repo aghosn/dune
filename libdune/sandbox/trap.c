@@ -56,7 +56,7 @@
 #include <linux/unistd.h>
 
 #include "sandbox.h"
-#include "cpu-x86.h"
+#include "../cpu-x86.h"
 
 
 struct thread_arg {
@@ -87,8 +87,8 @@ int check_string(const void *ptr)
 	void *pos;
 	size_t maxlen;
 
-	if ((uintptr_t) ptr < MEM_IX_BASE_ADDR)
-		maxlen = MEM_IX_BASE_ADDR - ((uintptr_t) ptr);
+	if ((uintptr_t) ptr < MEM_SANDBOX_BASE_ADDR)
+		maxlen = MEM_SANDBOX_BASE_ADDR - ((uintptr_t) ptr);
 	else if ((uintptr_t) ptr >= MEM_USER_DIRECT_BASE_ADDR) {
 		if ((uintptr_t) ptr >= MEM_USER_DIRECT_END_ADDR)
 			goto fault;
@@ -655,7 +655,7 @@ static void syscall_handler(struct dune_tf *tf)
 
 int trap_init(void)
 {
-	pthread_mutexattr_t attr;
+	//pthread_mutexattr_t attr;
 
 	// pthread_mutexattr_init(&attr);
 	// pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_NORMAL);

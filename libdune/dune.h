@@ -7,7 +7,6 @@
 #include <sys/queue.h>
 #include <stdbool.h>
 
-#include "sandbox.h"
 #include "mmu.h"
 #include "elf.h"
 #include "fpu.h"

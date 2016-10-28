@@ -33,7 +33,7 @@
 #include <stdint.h>
 
 #include "mem.h"
-#include "dune.h"
+#include "../dune.h"
 
 //TODO aghosn: not copied from anywhere, replacing kstats.h
 #define log_err(fmt, ...) printf(fmt, ##__VA_ARGS__)
@@ -64,7 +64,7 @@ static inline bool mem_ref_is_safe(const void *ptr, size_t len)
 		return false;
 
 	/* allow ELF data */
-	if (begin < MEM_IX_BASE_ADDR && end < MEM_IX_BASE_ADDR)
+	if (begin < MEM_SANDBOX_BASE_ADDR && end < MEM_SANDBOX_BASE_ADDR)
 		return true;
 
 	/* allow the user direct memory area */
