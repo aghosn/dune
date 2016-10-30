@@ -295,15 +295,6 @@ static int run_app(uintptr_t sp, uintptr_t e_entry)
 	tf.rsp = sp;
 	tf.rflags = 0x0;
 
-	printf("The e_entry %p\n", e_entry);
-	printf("The stack: %p\n", sp);
-	fflush(stdout);
-	
-	//uint64_t* ptr =(uint64_t*)(sp);
-	//*(ptr + 1) = 0xdeadbeef;
-	//memset(ptr, 2, sizeof(uint64_t)*2);
-
-	//printf("After the memset !!!!\n\n");
 	return dune_jump_to_user(&tf);
 }
 
