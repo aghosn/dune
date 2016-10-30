@@ -52,15 +52,12 @@ void lwc_init(int argc, char *argv[]) {
     //Create the lwc_root with pgroot.
     __lwc_root.pml4 = pgroot;
 
-    //return to main for the run app.
+    sandbox_run_app(sp, entry);    
 }
 
 lwc_result_t lwc_create(lwc_resource_spec_t specs, uint64_t options) {
-    
     //Copy memory
-    
     //should trap
-
     //TODO copy credentials
     //TODO copy syscall
     //TODO get filedescriptor.
@@ -71,7 +68,16 @@ lwc_result_t lwc_create(lwc_resource_spec_t specs, uint64_t options) {
 
 lwc_result_t lwc_switch(lwc_context_t l, void* args) {
 	//TODO implement. Need to load vm, and registers.
-	
+	struct dune_tf tf;
+
+    tf.rip = l.rip;
+    tf.rsp = l.rsp;
+    tf.rflags = 0x0;
+
+    int ret = dune_jump_to_user(&tf);
+    //TODO just to avoid warning.
+    printf("The return value %d\n", ret);
+    //TODO use the trap frame to return the correct result.
 	lwc_result_t t;
 	return t;
 }
@@ -93,8 +99,10 @@ int main(int argc, char *argv[]) {
     dune_enter();
     printf("Initialized dune.\n");
 
-    printf("Will load the sandbox now.\n");
-    sandbox_init_run("/lib64/ld-linux-x86-64.so.2", argc - 1, &argv[1]);
+    printf("Initialize the sandbox and lwc root.\n");
+    lwc_init(argc-1, &argv[1]);
+    
+    //sandbox_init_run("/lib64/ld-linux-x86-64.so.2", argc - 1, &argv[1]);
 
     printf("Sandbox finished execution.\n");
     return 0;

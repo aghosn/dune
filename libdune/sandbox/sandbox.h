@@ -76,6 +76,6 @@ int sandbox_init_run(char *loader, int argc, char *argv[]);
 
 int sandbox_init(char *loader, int argc, char *argv[], 
 											uintptr_t *sp, uintptr_t *entry);
-int run_app(uintptr_t sp, uintptr_t e_entry);
+int sandbox_run_app(uintptr_t sp, uintptr_t e_entry);
 #endif /* __LIBDUNE_SANDBOX_H__ */
 

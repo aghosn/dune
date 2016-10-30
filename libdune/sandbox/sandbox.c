@@ -286,7 +286,7 @@ setup_arguments(uintptr_t sp, const char *path,
 	return sp - len;
 }
 
-int run_app(uintptr_t sp, uintptr_t e_entry)
+int sandbox_run_app(uintptr_t sp, uintptr_t e_entry)
 {
 	struct dune_tf tf;
 
@@ -337,7 +337,7 @@ int sandbox_init_run(char *loader, int argc, char *argv[])
 		return -EINVAL;
 	}
 
-	ret = run_app(sp, data.entry);
+	ret = sandbox_run_app(sp, data.entry);
 
 	return ret;
 }

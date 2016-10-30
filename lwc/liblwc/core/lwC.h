@@ -31,6 +31,8 @@ typedef uint64_t lwc_credentials_t;
 //Associated with capabilities.
 typedef struct lwc_context {
 	ptent_t* pml4;
+	uint64_t rsp;
+	uint64_t rip;
 } lwc_context_t;
 
 //Root context.
