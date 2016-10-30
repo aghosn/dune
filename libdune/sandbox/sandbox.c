@@ -286,7 +286,7 @@ setup_arguments(uintptr_t sp, const char *path,
 	return sp - len;
 }
 
-static int run_app(uintptr_t sp, uintptr_t e_entry)
+int run_app(uintptr_t sp, uintptr_t e_entry)
 {
 	struct dune_tf tf;
 
@@ -300,7 +300,7 @@ static int run_app(uintptr_t sp, uintptr_t e_entry)
 
 extern char **environ;
 
-int sandbox_init(char *loader, int argc, char *argv[])
+int sandbox_init_run(char *loader, int argc, char *argv[])
 {
 	int ret;
 	uintptr_t sp;
@@ -310,12 +310,6 @@ int sandbox_init(char *loader, int argc, char *argv[])
 		return -EINVAL;
 
 	log_debug("sandbox: env = '%s'\n", environ[0]);
-
-
-	printf("Printing the arguments:\n");
-	for (int i = 0; i < argc; i++) {
-		printf("An argument: %s\n",argv[i]);
-	} 
 
 	ret = load_elf(loader, &data);
 	if (ret)
@@ -343,8 +337,49 @@ int sandbox_init(char *loader, int argc, char *argv[])
 		return -EINVAL;
 	}
 
-	printf("Just before the run app.\n");
 	ret = run_app(sp, data.entry);
 
 	return ret;
 }
+
+int sandbox_init(char *loader, int argc, char *argv[], 
+											uintptr_t *spp, uintptr_t *entry) {
+	int ret;
+	uintptr_t sp;
+	struct elf_data data;
+
+	if (argc < 1)
+		return -EINVAL;
+
+	log_debug("sandbox: env = '%s'\n", environ[0]);
+
+	ret = load_elf(loader, &data);
+	if (ret)
+		return ret;
+
+	log_debug("sandbox: entry addr is %lx\n", data.entry);
+
+	dune_set_user_fs(0); // default starting fs
+
+	ret = trap_init();
+	if (ret) {
+		log_err("sandbox: failed to initialize trap handlers\n");
+		return ret;
+	}
+
+	ret = umm_alloc_stack(&sp);
+	if (ret) {
+		log_err("sandbox: failed to alloc stack\n");
+		return ret;
+	}
+
+	sp = setup_arguments(sp, loader, &argv[0], environ, data);
+	if (!sp) {
+		log_err("sandbox: failed to setup arguments\n");
+		return -EINVAL;
+	}
+	*spp = sp;
+	*entry = data.entry;
+	return 0;
+}
+

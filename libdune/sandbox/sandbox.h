@@ -44,8 +44,6 @@
 #define KSTATS_PUSH(a, b)	
 #define KSTATS_POP(a)
 
-
-
 #define LOADER_VADDR_OFF	0x6F000000
 #define APP_STACK_SIZE		0x800000 /* 8 megabytes */
 
@@ -71,10 +69,13 @@ extern void *umm_shmat(int shmid, void *addr, int shmflg);
 extern int umm_alloc_stack(uintptr_t *stack_top);
 extern void *umm_mremap(void *old_address, size_t old_size,
 			size_t new_size, int flags, void *new_address);
-
 extern int trap_init(void);
-
 extern int MEMORY_BASE_ADDR;
 
+int sandbox_init_run(char *loader, int argc, char *argv[]);
+
+int sandbox_init(char *loader, int argc, char *argv[], 
+											uintptr_t *sp, uintptr_t *entry);
+int run_app(uintptr_t sp, uintptr_t e_entry);
 #endif /* __LIBDUNE_SANDBOX_H__ */
 

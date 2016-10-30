@@ -42,10 +42,8 @@ int init_do_spawn(void *arg) {
  *                         Entry point.
  ******************************************************************************/
 void do_syscall(struct dune_tf *tf, uint64_t sysnr) {   
-    printf("In do syscall\n");
+    printf("User-defined system calls are handled here.\n");
     fflush(stdout);
-    // tf->rax = (uint64_t) sys_tbl[sysnr](tf->rdi, tf->rsi, tf->rdx,
-                        // tf->rcx, tf->r8, tf->r9);
 }
 
 int main(int argc, char *argv[]) {
@@ -56,7 +54,7 @@ int main(int argc, char *argv[]) {
     printf("Initialized dune.\n");
 
     printf("Will load the sandbox now.\n");
-    sandbox_init("/lib64/ld-linux-x86-64.so.2", argc - 1, &argv[1]);
+    sandbox_init_run("/lib64/ld-linux-x86-64.so.2", argc - 1, &argv[1]);
 
     printf("Sandbox finished execution.\n");
     return 0;

@@ -20,10 +20,6 @@
 #define LWS_SYSTRAP -2
 
 /*lwC types*/
-
-//Supposed to be an fd.
-//Associated with capabilities.
-typedef uint64_t* lwc_context_t;
 //TODO define
 typedef uint64_t lwc_syscall_t;
 //TODO define
@@ -31,6 +27,14 @@ typedef uint64_t* lwc_file_descriptor_t;
 //TODO define
 typedef uint64_t lwc_credentials_t;
 
+//Supposed to be an fd.
+//Associated with capabilities.
+typedef struct lwc_context {
+	ptent_t* pml4;
+} lwc_context_t;
+
+//Root context.
+extern lwc_context_t __lwc_root;
 
 /*Descriptive types in the resource specs.*/
 typedef enum __lwc_type_tag {
@@ -91,7 +95,7 @@ typedef struct __lwc_result {
  * @TODO		Create lwC root.
  * 				Register new dune pgfault handler.
  */
-void lwc_init();
+void lwc_init(int argc, char *argv[]);
 
 //Creation and switching
 /**
