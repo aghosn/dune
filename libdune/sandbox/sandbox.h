@@ -74,5 +74,7 @@ extern void *umm_mremap(void *old_address, size_t old_size,
 
 extern int trap_init(void);
 
+extern int MEMORY_BASE_ADDR;
+
 #endif /* __LIBDUNE_SANDBOX_H__ */
 

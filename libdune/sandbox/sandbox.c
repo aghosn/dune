@@ -32,9 +32,6 @@
 
 #define NUM_AUX 14
 
-//TODO aghosn: added to satisfy missing dependency. Need proper fix.
-//#define CFG_LOADER_PATH "/lib64/ld-linux-x86-64.so.2"
-
 struct elf_data {
 	uintptr_t entry;
 	Elf64_Phdr *phdr;
@@ -63,8 +60,8 @@ static int process_elf_ph(struct dune_elf *elf, Elf64_Phdr *phdr)
 	else
 		off = 0;
 
-	if (phdr->p_vaddr + off + phdr->p_memsz > MEM_SANDBOX_BASE_ADDR ||
-	    phdr->p_memsz > MEM_SANDBOX_BASE_ADDR || // for overflow
+	if (phdr->p_vaddr + off + phdr->p_memsz > MEMORY_BASE_ADDR ||
+	    phdr->p_memsz > MEMORY_BASE_ADDR || // for overflow
 	    phdr->p_filesz > phdr->p_memsz) {
 		log_err("sandbox: segment address is insecure\n");
 		return -EINVAL;
