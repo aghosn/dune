@@ -46,7 +46,10 @@ static wrap_vm_area_t* wrap_area(vm_area_t* area) {
 }
 
 static void mm_add_area(mm_t* mm, uint64_t start, uint64_t end, unsigned long flags) {
-	//TODO. Should we check first if we have such a region?
+	vm_area_t *area = create_vm_area(start, end, flags);
+	wrap_vm_area_t *wrapper = wrap_area(area);
+
+	Q_INSERT_TAIL(&(mm->mmap), wrapper, lk_lwc);
 }
 
 void mm_init() {

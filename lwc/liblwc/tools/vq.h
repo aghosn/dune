@@ -2,7 +2,7 @@
 #define __LWC_VQ_H__
 
 #define Q_NEW_HEAD(Q_HEAD_TYPE, Q_ELEM_TYPE) \
-	typedef struct{ \
+	typedef struct Q_HEAD_TYPE { \
 		struct Q_ELEM_TYPE* head; \
 		struct Q_ELEM_TYPE* last; \
 	} Q_HEAD_TYPE;

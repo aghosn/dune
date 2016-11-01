@@ -30,7 +30,7 @@ typedef struct wrap_vm_area_t {
 	vm_area_t 	*vm_area;
 
 	/*Maintainance*/
-	Q_NEW_LINK(vm_area_t) lk_lwc;	/*List of regions within lwc.*/
+	Q_NEW_LINK(wrap_vm_area_t) lk_lwc;	/*List of regions within lwc.*/
 } wrap_vm_area_t;
 
 /*Define a list of vma wrappers as l_wrap_vm_areas.*/
