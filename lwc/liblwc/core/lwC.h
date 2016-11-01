@@ -29,7 +29,7 @@ typedef uint64_t lwc_credentials_t;
 
 //Supposed to be an fd.
 //Associated with capabilities.
-typedef struct lwc_context {
+typedef struct __lwc_context {
 	ptent_t* pml4;
 	uint64_t rsp;
 	uint64_t rip;
@@ -114,6 +114,17 @@ void lwc_init(int argc, char *argv[]);
  * 			Needs per thread information cloned too.
  * 			Mappings must be copy-on-write.
  * 			Need to pass on the stack, code, synch variables and other deps.
+ *
+ * @Implementation
+ * Take current lwc (how?) and copy VMAs.
+ *	1. Need to ID VMA that is kernel and shared.
+ *	2. Need to make COW on the user space.
+ *	3. Prepare stack for the return from the child.
+ *		3.1. Push all registers on the stack. 
+ *		3.2. In child, push parent caller and args.
+ *		3.3. In child, rsp and rip must be there.
+ *		3.4. Must return from there.
+ *	4. Opt:Add lwc to some parent-only accessible structure and return to parent.
  */
 lwc_result_t lwc_create(lwc_resource_spec_t specs, uint64_t options); // -> equivalent to fork.
 
