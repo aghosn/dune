@@ -6,6 +6,7 @@
 #include <sandbox/sandbox.h>
 /*******************************************************************************
  *                      Needed for sandbox.
+ *                      TODO: move it somewhere else.
 *******************************************************************************/
 bool sys_spawn_cores;
 
@@ -50,7 +51,7 @@ void lwc_init(int argc, char *argv[]) {
     sandbox_init("/lib64/ld-linux-x86-64.so.2", argc, argv, &sp, &entry);
     
     //Create the lwc_root with pgroot.
-    __lwc_root.pml4 = pgroot;
+    //__lwc_root.pml4 = pgroot;
 
     sandbox_run_app(sp, entry);    
 }

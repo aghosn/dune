@@ -4,6 +4,9 @@
 #include <sys/types.h>
 #include <dune.h>
 
+#include "../tools/vq.h"
+#include "../vm/mm_types.h"
+
 /*lwC create options.*/
 
 /*TODO not sure what they are supposed to be*/
@@ -27,34 +30,38 @@ typedef uint64_t* lwc_file_descriptor_t;
 //TODO define
 typedef uint64_t lwc_credentials_t;
 
+/*******************************************************************************
+ *						Definition of a context.
+ ******************************************************************************/
+
 //Supposed to be an fd.
 //Associated with capabilities.
-typedef struct __lwc_context {
-	ptent_t* pml4;
-	uint64_t rsp;
-	uint64_t rip;
+typedef struct lwc_context_t {
+	mm_t* vm_mm;
+	struct dune_tf tf;
+	Q_NEW_LINK(lwc_context_t) link_ctx;
 } lwc_context_t;
 
 //Root context.
 extern lwc_context_t __lwc_root;
 
 /*Descriptive types in the resource specs.*/
-typedef enum __lwc_type_tag {
+typedef enum lwc_type_tag_t {
 	VIRTUAL_ADDRESS = 1,
 	FILE_DESCRIPTOR = 2,
 	CREDENTIAL = 3,
 	SYSCALL = 4
-} lwc_type_tag;
+} lwc_type_tag_t;
 
 /*lwC Sharing options*/
-typedef enum __lwc_range_option {
+typedef enum lwc_range_option_t {
 	LWC_COW = 1,
 	LWC_SHARED = 2,
 	LWC_UNMAP = 3
 } lwc_range_option_t;
 
 /*Actual types inside the resource specs.*/
-typedef union __lwc_resource_type{
+typedef union lwc_resource_type_t {
 	void* address;
 	lwc_file_descriptor_t fd; 		
 	lwc_syscall_t syscall; 	//Not sure about this one.
@@ -62,11 +69,11 @@ typedef union __lwc_resource_type{
 } lwc_resource_type_t;
 
 /*Defines a range as an entry in resource specs.*/
-typedef struct __lwc_range {
+typedef struct lwc_range_t {
 	lwc_resource_type_t start;
 	lwc_resource_type_t end;
 	
-	lwc_type_tag type;
+	lwc_type_tag_t type;
 	lwc_range_option_t options;
 } lwc_range_t;
 
@@ -76,14 +83,14 @@ typedef struct __lwc_range {
 //LWC_COW -> logical copy of range of ressources.
 //LWC_SHARED -> shared between child and parent.
 //LWC_UNMAP -> not mapped inside children.
-typedef struct __lwc_resource_spec {
+typedef struct lwc_resource_spec_t {
 	size_t length;
 	lwc_range_t *entries;
 } lwc_resource_spec_t;
 
 
 /*Return type for lwc_create and lwc_switch*/
-typedef struct __lwc_result {
+typedef struct lwc_result_t {
 	lwc_context_t *newC;
 	uint64_t caller;
 	void	*args;
