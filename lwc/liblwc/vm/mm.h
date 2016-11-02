@@ -1,6 +1,8 @@
 #ifndef __LWC_LIBLWC_VM_MM_H__
 #define __LWC_LIBLWC_VM_MM_H__
 
+#include <mmu-x86.h>
+
 #include "mm_types.h"
 
 /*Returns the virtual address corresponding to these indices.*/
@@ -13,6 +15,7 @@
 #define PGSIZE_2MB (1 << (PGSHIFT + NPTBITS))
 #define PGSIZE_1GB (1 << (PGSHIFT + NPTBITS + NPTBITS))
 
+#define PTE_PERMS(x) ((x & PTE_U) | (x & PTE_W))
 
 static inline int pte_present(ptent_t pte)
 {

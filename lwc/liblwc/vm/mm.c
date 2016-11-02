@@ -87,7 +87,7 @@ mm_t* mm_init() {
 			continue;
 		}
 
-		if (in_vma && PTE_FLAGS(pml4[i]) != flags) {
+		if (in_vma && PTE_PERMS(pml4[i]) != flags) {
 			mm_add_area(mm, va_start, va_end, flags);
 			in_vma = false;
 		}
@@ -103,7 +103,7 @@ mm_t* mm_init() {
 			}
 
 			//TODO check this.
-			if (in_vma && PTE_FLAGS(pdpte[j]) != flags) {
+			if (in_vma && PTE_PERMS(pdpte[j]) != flags) {
 				mm_add_area(mm, va_start, va_end, flags);
 				in_vma = false;
 			}
@@ -111,7 +111,7 @@ mm_t* mm_init() {
 			if (pte_big(pdpte[j])) {
 				if (!in_vma) {
 					va_start = RPDX(i, j, 0, 0);
-					flags = PTE_FLAGS(pdpte[j]);
+					flags = PTE_PERMS(pdpte[j]);
 					in_vma = true;
 				}
 				va_end = RPDX(i, j, 0, 0) + PGSIZE_1GB;
@@ -128,7 +128,7 @@ mm_t* mm_init() {
 					continue;
 				}
 
-				if (in_vma && PTE_FLAGS(pde[k]) != flags) {
+				if (in_vma && PTE_PERMS(pde[k]) != flags) {
 					mm_add_area(mm, va_start, va_end, flags);
 					in_vma = false;
 				}
@@ -136,7 +136,7 @@ mm_t* mm_init() {
 				if (pte_big(pde[k])) {
 					if (!in_vma) {
 						va_start = RPDX(i, j, k, 0);
-						flags = PTE_FLAGS(pde[k]);
+						flags = PTE_PERMS(pde[k]);
 						in_vma = true;
 					}
 					va_end = RPDX(i, j, k, 0) + PGSIZE_2MB;
@@ -153,14 +153,14 @@ mm_t* mm_init() {
 						continue;
 					}
 
-					if (in_vma && PTE_FLAGS(pte[l]) != flags) {
+					if (in_vma && PTE_PERMS(pte[l]) != flags) {
 						mm_add_area(mm, va_start, va_end, flags);
 						in_vma = false;
 					}
 
 					if (!in_vma) {
 						va_start = RPDX(i, j, k, l);
-						flags = PTE_FLAGS(pte[l]);
+						flags = PTE_PERMS(pte[l]);
 						in_vma = true;
 					}
 					va_end = RPDX(i, j, k, l) + PGSIZE_4K;
