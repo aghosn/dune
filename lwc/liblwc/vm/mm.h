@@ -22,15 +22,17 @@ static inline int pte_big(ptent_t pte)
 
 extern l_vm_areas_t *vm_areas;
 
-extern mm_t* current;
+extern mm_t* mm_current;
 
-void mm_init();
+mm_t* mm_init();
 
 mm_t* mm_create(ptent_t *root);
 
 mm_t* mm_clone(mm_t *mm_root);
 
 void mm_free(mm_t *mm);
+
+void mm_dump_mm(mm_t* mm);
 
 #endif /*__LWC_LIBLWC_VM_MM_H__*/
 

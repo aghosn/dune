@@ -1,9 +1,13 @@
 #include <stdio.h>
 #include <pthread.h>
+#include <sandbox/sandbox.h>
+
+#include <dune.h>
 
 #include "lwC.h"
 #include "lwc_vm.h"
-#include <sandbox/sandbox.h>
+#include "../vm/mm.h"
+#include "../vm/mm_types.h"
 /*******************************************************************************
  *                      Needed for sandbox.
  *                      TODO: move it somewhere else.
@@ -49,9 +53,12 @@ void lwc_init(int argc, char *argv[]) {
     //Init of the sandbox but don't run it just yet.
     uintptr_t sp, entry;
     sandbox_init("/lib64/ld-linux-x86-64.so.2", argc, argv, &sp, &entry);
-    
-    //Create the lwc_root with pgroot.
-    //__lwc_root.pml4 = pgroot;
+
+    mm_t* mm_root = mm_init();
+    assert(mm_root != NULL);
+    mm_dump_mm(mm_root);
+
+    dune_procmap_dump();
 
     sandbox_run_app(sp, entry);    
 }
