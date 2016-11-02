@@ -53,10 +53,6 @@ int mm_create_mapping(	mm_struct *mm,
 						vm_addrptr va_end, 
 						void* pa, 
 						unsigned long perm) {
-	//TODO check if it exists.
-	//if it doesn't, create it
-	//insert it.
-	//call the pgroot mapping.
 	vm_area_struct *current = NULL, *vma = NULL;
 	Q_FOREACH(current, mm->mmap, lk_areas) {
 		if (current->vm_start == va_start &&
@@ -73,6 +69,19 @@ int mm_create_mapping(	mm_struct *mm,
 	}
 	if (vma)
 		return 0;
+	/*Must create it now.*/
+	vma = malloc(sizeof(vm_area_struct));
+	if (!vma)
+		return -ENOMEM;
 
+	Q_INIT_ELEM(vma, lk_areas);
+	vma->vm_start = va_start;
+	vma->vm_end = va_end;
+	vma->vm_mm = mm; 
+	vma->vm_flags = perm;	//TODO change permissions.
+
+	//TODO actually map the pages.
+	
+	Q_INSERT_TAIL(mm->mmap, vma, lk_areas);
 	return 0;
 }
