@@ -9,6 +9,11 @@
 (uintptr_t)((UL(i) << PDSHIFT(3)) | (UL(j) << PDSHIFT(2)) \
 	| (UL(k) << PDSHIFT(1)) | (UL(l) << PDSHIFT(0)))
 
+#define PGSIZE_4K (1 << PGSHIFT)
+#define PGSIZE_2MB (1 << (PGSHIFT + NPTBITS))
+#define PGSIZE_1GB (1 << (PGSHIFT + NPTBITS + NPTBITS))
+
+
 static inline int pte_present(ptent_t pte)
 {
 	return (PTE_FLAGS(pte) & PTE_P);

@@ -57,9 +57,6 @@ static void mm_add_area(mm_t* mm, uint64_t start, uint64_t end, unsigned long fl
 }
 
 mm_t* mm_init() {
-	//TODO should be in dune mode.
-	//dune init and enter should have been called before.
-	//TODO Check that current is NULL.
 	
 	vm_areas = malloc(sizeof(l_vm_areas_t));
 	Q_INIT_HEAD(vm_areas);
@@ -117,7 +114,7 @@ mm_t* mm_init() {
 					flags = PTE_FLAGS(pdpte[j]);
 					in_vma = true;
 				}
-				va_end = RPDX(i, j, 0, 0);
+				va_end = RPDX(i, j, 0, 0) + PGSIZE_1GB;
 				continue;
 			}
 
@@ -142,7 +139,7 @@ mm_t* mm_init() {
 						flags = PTE_FLAGS(pde[k]);
 						in_vma = true;
 					}
-					va_end = RPDX(i, j, k, 0);
+					va_end = RPDX(i, j, k, 0) + PGSIZE_2MB;
 					continue;
 				}
 
@@ -166,8 +163,7 @@ mm_t* mm_init() {
 						flags = PTE_FLAGS(pte[l]);
 						in_vma = true;
 					}
-
-					va_end = RPDX(i, j, k, l);
+					va_end = RPDX(i, j, k, l) + PGSIZE_4K;
 				}
 			}
 		}
