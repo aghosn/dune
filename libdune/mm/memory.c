@@ -41,7 +41,7 @@ int dune_memory_init(bool map_full) {
 		goto err;
 	}
 	Q_INIT_HEAD(mm_queue);
-	Q_INSERT_FRONT(mm_queue, mm_root,  lk_mms);
+	Q_INSERT_FRONT(mm_queue, mm_root, lk_mms);
 
 	if (ret = dune_page_init()) {
 		printf("dune: unable to initialize page manager.\n");

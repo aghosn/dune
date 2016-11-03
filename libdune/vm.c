@@ -255,7 +255,7 @@ int dune_vm_map_phys(ptent_t *root, void *va, size_t len, void *pa, int perm)
 	int ret;
 	struct map_phys_data data;
 	int create;
-
+	printf("S: 0x%016lx, E: 0x%016lx, PA: 0x%016lx\n", va, (void*)(va + len), pa);
 //	if (!(perm & PERM_R) && (perm & ~(PERM_R)))
 //		return -EINVAL;
 
