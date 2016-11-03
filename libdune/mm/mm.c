@@ -317,7 +317,8 @@ int mm_apply_to_pgroot_precise(vm_area_struct *vma, void* pa)
 		return -EINVAL;
 	
 	//TODO call proper dune page_walk of dune_map_phys or whatev'.
-	return 0;
+	return dune_map_phys(vma->vm_mm->pml4, (void*)vma->vm_start,
+		(size_t)(vma->vm_end - vma->vm_start), pa, vma->vm_flags);
 }
 
 int mm_apply_to_pgroot(vm_area_struct *vma)
@@ -325,5 +326,6 @@ int mm_apply_to_pgroot(vm_area_struct *vma)
 	if (!vma || !(vma->vm_mm) || !(vma->vm_mm->pml4))
 		return -EINVAL;
 	//TODO call allocator.
+	assert(0); //should never be called for the moment.
 	return 0;
 }
