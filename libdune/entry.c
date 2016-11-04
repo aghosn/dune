@@ -610,40 +610,19 @@ int dune_init(bool map_full)
 		goto fail_open;
 	}
 
-	// pgroot = memalign(PGSIZE, PGSIZE);
-	// if (!pgroot) {
-	// 	ret = -ENOMEM;
-	// 	goto fail_pgroot;
-	// }
-	// memset(pgroot, 0, PGSIZE);
+	struct dune_layout layout;
+	ret = ioctl(dune_fd, DUNE_GET_LAYOUT, &layout);
+	if (ret)
+		return ret;
 
-	// if ((ret = dune_page_init())) {
-	// 	printf("dune: unable to initialize page manager\n");
-	// 	goto err;
-	// }
-
-	// if ((ret = setup_mappings(map_full))) {
-	// 	printf("dune: unable to setup memory layout\n");
-	// 	goto err;
-	// }
+	phys_limit = layout.phys_limit;
+	mmap_base = layout.base_map;
+	stack_base = layout.base_stack;
+	
 	if ((ret = dune_memory_init())) {
 		printf("dune: unable to init memory.\n");
 		goto err;
 	}
-	// printf("Now the other.\n");
-	// pgroot = memalign(PGSIZE, PGSIZE);
-	// memset(pgroot, 0, PGSIZE);
-
-	setup_mappings(map_full);
-	//printf("Right after the dune_memory_init.\n");
-	//dune_procmap_dump();
-	//mm_dump(mm_root);
-	assert(mm_root->pml4 == pgroot);
-	int res = 0;
-	if ((res =vm_compare_mappings(mm_root->pml4, pgroot)))
-		printf("------------------DIFFERENT%d--------------\n", res);
-	else
-		printf("------------------SAME--------------\n");
 
 	if ((ret = setup_syscall())) {
 		printf("dune: unable to setup system calls\n");

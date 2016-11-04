@@ -61,20 +61,6 @@ static int mm_delete_region(mm_struct *mm,
 }
 
 #define VSYSCALL_ADDR 0xffffffffff600000
-static void __mm_setup_vsyscall(void)
-{
-	ptent_t *pte;
-	dune_vm_lookup(pgroot, (void *)VSYSCALL_ADDR, 1, &pte);
-	*pte = PTE_ADDR(dune_va_to_pa(&__dune_vsyscall_page)) | PTE_P | PTE_U;
-}
-
-static void setup_vsyscall(void)
-{
-	ptent_t *pte;
-
-	dune_vm_lookup(pgroot, (void *) VSYSCALL_ADDR, 1, &pte);
-	*pte = PTE_ADDR(dune_va_to_pa(&__dune_vsyscall_page)) | PTE_P | PTE_U;
-}
 
 static void __mm_setup_mappings_cb(const struct dune_procmap_entry *ent)
 {
@@ -89,11 +75,8 @@ static void __mm_setup_mappings_cb(const struct dune_procmap_entry *ent)
 		void * pa =(void *)dune_va_to_pa(&__dune_vsyscall_page);
 		unsigned long perm = PTE_P | PTE_U;
 		ret = mm_create_phys_mapping(mm_root, start, end, pa, perm);
-		__mm_setup_vsyscall(); //TODO check if lookup modifies the address space.
+								//TODO check if lookup modifies the address space.
 		  		              // and if so must modify it.
-		//setup_vsyscall();
-		
-		//assert(ret == 0);
 		return;
 	}
 
@@ -136,15 +119,6 @@ int mm_init()
 	int ret;
 	void *start = NULL, *end = NULL, *pa = NULL;
 	unsigned long perm = 0;
-	// struct dune_layout layout;
-	
-	//TODO move this somewhere else.
-	// if (ret = ioctl(dune_fd, DUNE_GET_LAYOUT, &layout))
-	//  	return ret;
-	
-	// phys_limit = layout.phys_limit;
-	// mmap_base = layout.base_map;
-	// stack_base = layout.base_stack;
 
 	/* Map the page base. */
 	start = (void*) PAGEBASE;
@@ -152,13 +126,12 @@ int mm_init()
 	pa = (void*) dune_va_to_pa((void*)PAGEBASE);
 	perm = PERM_R | PERM_W | PERM_BIG;
 
-	if ((ret = mm_create_phys_mapping(mm_root,(vm_addrptr) start,
-		(vm_addrptr) end, pa, perm)))
-		return ret;
+	 if ((ret = mm_create_phys_mapping(mm_root,(vm_addrptr) start,
+	 	(vm_addrptr) end, pa, perm)))
+	 	return ret;
 
 	/*Map the procmap.*/
 	dune_procmap_iterate(&__mm_setup_mappings_cb);
-
 	return 0;
 }
 
@@ -167,7 +140,7 @@ int mm_init()
  * This is due to dune puting the physical address in hard
  * for everything that is set using dune_vm_map_phys.
  * TODO refactor.*/
-int mm_create_phys_mapping(	mm_struct *mm, 
+int mm_create_phys_mapping(mm_struct *mm, 
 							vm_addrptr va_start, 
 							vm_addrptr va_end, 
 							void* pa, 
