@@ -75,8 +75,7 @@ static void __mm_setup_mappings_cb(const struct dune_procmap_entry *ent)
 		void * pa =(void *)dune_va_to_pa(&__dune_vsyscall_page);
 		unsigned long perm = PTE_P | PTE_U;
 		ret = mm_create_phys_mapping(mm_root, start, end, pa, perm);
-								//TODO check if lookup modifies the address space.
-		  		              // and if so must modify it.
+		assert(ret == 0);
 		return;
 	}
 
