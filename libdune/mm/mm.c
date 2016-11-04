@@ -65,7 +65,15 @@ static void __mm_setup_vsyscall(void)
 {
 	ptent_t *pte;
 	dune_vm_lookup(pgroot, (void *)VSYSCALL_ADDR, 1, &pte);
-	*pte = PTE_ADDR(dune_va_to_pa(&__dune_vsyscall_page) | PTE_P | PTE_U);
+	*pte = PTE_ADDR(dune_va_to_pa(&__dune_vsyscall_page)) | PTE_P | PTE_U;
+}
+
+static void setup_vsyscall(void)
+{
+	ptent_t *pte;
+
+	dune_vm_lookup(pgroot, (void *) VSYSCALL_ADDR, 1, &pte);
+	*pte = PTE_ADDR(dune_va_to_pa(&__dune_vsyscall_page)) | PTE_P | PTE_U;
 }
 
 static void __mm_setup_mappings_cb(const struct dune_procmap_entry *ent)
@@ -81,9 +89,11 @@ static void __mm_setup_mappings_cb(const struct dune_procmap_entry *ent)
 		void * pa =(void *)dune_va_to_pa(&__dune_vsyscall_page);
 		unsigned long perm = PTE_P | PTE_U;
 		ret = mm_create_phys_mapping(mm_root, start, end, pa, perm);
-		//__mm_setup_vsyscall(); //TODO check if lookup modifies the address space.
-		  		              //and if so must modify it.
-		assert(ret == 0);
+		__mm_setup_vsyscall(); //TODO check if lookup modifies the address space.
+		  		              // and if so must modify it.
+		//setup_vsyscall();
+		
+		//assert(ret == 0);
 		return;
 	}
 
@@ -92,7 +102,6 @@ static void __mm_setup_mappings_cb(const struct dune_procmap_entry *ent)
 	void *pa = (void *)dune_va_to_pa((void*) ent->begin);
 	unsigned int perm = PERM_NONE;
 
-	printf("0x%016lx - 0x%016lx\n", start, end);
 	if (ent->type == PROCMAP_TYPE_VDSO) {
 		perm |= PERM_U | PERM_R | PERM_X;
 		ret = mm_create_phys_mapping(mm_root, start, end, pa, perm);
@@ -127,7 +136,7 @@ int mm_init()
 	int ret;
 	void *start = NULL, *end = NULL, *pa = NULL;
 	unsigned long perm = 0;
-	struct dune_layout layout;
+	// struct dune_layout layout;
 	
 	//TODO move this somewhere else.
 	// if (ret = ioctl(dune_fd, DUNE_GET_LAYOUT, &layout))
@@ -147,7 +156,7 @@ int mm_init()
 		(vm_addrptr) end, pa, perm)))
 		return ret;
 
-	/*TODO map the procmap.*/
+	/*Map the procmap.*/
 	dune_procmap_iterate(&__mm_setup_mappings_cb);
 
 	return 0;
@@ -209,9 +218,11 @@ int mm_create_phys_mapping(	mm_struct *mm,
 				return -ENOMEM;
 			Q_INSERT_BEFORE(mm->mmap, current, vma, lk_areas);
 			ret = mm_apply_to_pgroot_precise(vma, pa);
-			break;
+			return ret;
 		}
 	}
+	/*Should never come here.*/
+	assert(0);
 	return ret;
 }
 
@@ -345,7 +356,7 @@ int mm_apply_to_pgroot_precise(vm_area_struct *vma, void* pa)
 {
 	if (!vma || !(vma->vm_mm) || !(vma->vm_mm->pml4))
 		return -EINVAL;
-	
+
 	//TODO call proper dune page_walk of dune_map_phys or whatev'.
 	return dune_vm_map_phys(vma->vm_mm->pml4, (void*)vma->vm_start,
 		(size_t)(vma->vm_end - vma->vm_start), pa, vma->vm_flags);
@@ -367,4 +378,18 @@ void mm_dump(mm_struct *mm)
 	Q_FOREACH(current, mm->mmap, lk_areas) {
 		printf("0x%016lx - 0x%016lx\n", current->vm_start, current->vm_end);
 	}
-} 
+}
+
+void mm_verify_mappings(mm_struct *mm)
+{
+	assert(mm);
+	assert(mm->mmap);
+	assert(pgroot == mm->pml4);
+	vm_area_struct *current = NULL;
+	Q_FOREACH(current, mm->mmap, lk_areas) {
+		int mapped = dune_vm_has_mapping(mm->pml4, (void *) current->vm_start);
+		vm_addrptr middle = (current->vm_start + current->vm_end) / 2;
+		mapped += dune_vm_has_mapping(mm->pml4, (void *) middle);
+		assert(mapped == 0);
+	}
+}

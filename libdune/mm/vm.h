@@ -11,6 +11,11 @@
 #define PGSIZE_2MB		(1 << (PGSHIFT + NPTBITS))
 #define PGSIZE_1GB		(1 << (PGSHIFT + NPTBITS + NPTBITS))
 
+#define UL(i)	((uint64_t) i)
+#define RPDX(i, j, k, l) \
+(uintptr_t)((UL(i) << PDSHIFT(3)) | (UL(j) << PDSHIFT(2)) \
+	| (UL(k) << PDSHIFT(1)) | (UL(l) << PDSHIFT(0)))
+
 typedef int (*page_walk_cb)(const void *arg, ptent_t *ptep, void *va);
 
 static inline int pte_big(ptent_t pte) {
@@ -38,4 +43,6 @@ ptent_t *dune_vm_clone(ptent_t *root);
 void dune_vm_free(ptent_t *root);
 void dune_vm_unmap(ptent_t *root, void *va, size_t len);
 void dune_vm_default_pgflt_handler(uintptr_t addr, uint64_t fec);
+int dune_vm_has_mapping(ptent_t *root, void *va);
+int vm_compare_mappings(ptent_t *first, ptent_t *second);
 #endif /*__LIBDUNE_MM_VM_H__*/

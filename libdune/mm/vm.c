@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
@@ -423,5 +424,139 @@ void dune_vm_unmap(ptent_t *root, void *va, size_t len)
 	}
 }
 
+int dune_vm_has_mapping(ptent_t *root, void *va)
+{
+	int i, j, k, l;
+	ptent_t *pml4 = (ptent_t*) root, *pdpte, *pde, *pte;
 
+	i = PDX(3, va);
+	j = PDX(2, va);
+	k = PDX(1, va);
+	l = PDX(0, va);
+
+	if (!pte_present(pml4[i])) {
+		// printf("pdpte is Not present.");
+		return 1;
+	} 
+
+	// printf("The value for i: %d\n", i);
+	pdpte = (ptent_t*) PTE_ADDR(pml4[i]);
+	// printf("Now pdpte is %p\n", pdpte);
+
+	if (!pte_present(pdpte[j])){
+		// printf("The pde is not present!\n");
+		return 1;
+	}
+
+
+	// printf("The pde is present.\n");
+	if (pte_big(pdpte[j])) {
+		// printf("Using the big scheme.\n");
+		return 0;
+	}
+
+	pde = (ptent_t*) PTE_ADDR(pdpte[j]);
+	// printf("The pde %p \n", pde);
+
+	if (!pte_present(pde[k])) {
+		// printf("The pte is not present.\n");
+		return 1;
+	}
+
+	if (pte_big(pde[k])) {
+		// printf("Using the big scheme.\n");
+		return 0;
+	}
+
+	pte = (ptent_t *) PTE_ADDR(pde[k]);
+	// printf("pte is present and is %p.\n", pte);
+	
+	ptent_t* out = &pte[l];
+	// printf("The l is %d", l);
+	// printf("The result is %p\n", out);
+
+	return 0;
+}
+
+
+int vm_compare_mappings(ptent_t *first, ptent_t *second)
+{
+	int ret = 0;
+	ptent_t *f_pml4 = first, *f_pdpte, *f_pde, *f_pte;
+	ptent_t *s_pml4 = second, *s_pdpte, *s_pde, *s_pte;
+
+	for (int i = 0; i < NPTENTRIES; i++) {
+		if (!pte_present(f_pml4[i]) && !pte_present(s_pml4[i]))
+			continue;
+		if (pte_present(f_pml4[i]) != pte_present(s_pml4[i]))
+			return 1;
+
+		if (PTE_FLAGS(f_pml4[i]) != PTE_FLAGS(s_pml4[i]))
+			return 2;
+
+		f_pdpte = (ptent_t *) PTE_ADDR(f_pml4[i]);
+		s_pdpte = (ptent_t *) PTE_ADDR(s_pml4[i]);
+
+		for (int j = 0; j < NPTENTRIES; j++) {
+			if (!pte_present(f_pdpte[j]) && !pte_present(s_pdpte[j]))
+				continue;
+
+			if (pte_present(f_pdpte[j]) != pte_present(s_pdpte[j]))
+				return 3;
+
+			if (PTE_FLAGS(f_pdpte[j]) != PTE_FLAGS(s_pdpte[j]))
+				return 4;
+
+			if (pte_big(f_pdpte[j]) && pte_big(s_pdpte[j]))
+				continue;
+
+			if (pte_big(f_pdpte[j]) != pte_big(s_pdpte[j]))
+				return 5;
+
+			f_pde = (ptent_t *)PTE_ADDR(f_pdpte[j]);
+			s_pde = (ptent_t *)PTE_ADDR(s_pdpte[j]);
+			for (int k = 0; k < NPTENTRIES; k++) {
+				if (!pte_present(f_pde[k]) && !pte_present(s_pde[k]))
+					continue;
+
+				if ((pte_present(f_pde[k]) != pte_present(s_pde[k])))
+					return 6;
+
+				//TODO check flags.
+				if (PTE_FLAGS(f_pde[k]) != PTE_FLAGS(s_pde[k]))
+					return 7;
+
+				if (pte_big(f_pde[k]) && pte_big(s_pde[k]))
+					continue;
+
+				if (pte_big(f_pde[k]) != pte_big(s_pde[k]))
+					return 8;
+
+				f_pte = (ptent_t*)PTE_ADDR(f_pde[k]);
+				s_pte = (ptent_t*)PTE_ADDR(s_pde[k]);
+
+				for (int l = 0; l < NPTENTRIES; l++) {
+					if (!pte_present(f_pte[l]) && !pte_present(s_pte[l]))
+						continue;
+
+					//TODO compare flags;
+					if (pte_present(f_pte[l]) != pte_present(s_pte[l])) {
+						printf("%d, %d, %d, %d\n", i, j, k, l);
+						printf("0x%016lx\n", RPDX(i, j, k, l));
+						printf("First %d second %d\n", pte_present(f_pte[l]), pte_present(s_pte[l]));
+						return 9;
+					}
+
+					if (PTE_FLAGS(f_pte[l]) != PTE_FLAGS(s_pte[l])) {
+						printf("0x%016lx \n", RPDX(i, j, k, l));
+						printf("Flags: 0x%016lx and 0x%016lx\n", PTE_FLAGS(f_pte[l]), PTE_FLAGS(s_pte[l]));
+						return 10;
+					}
+				}
+			}
+		}
+	}
+
+	return ret;
+}
 

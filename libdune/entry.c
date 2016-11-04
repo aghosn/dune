@@ -556,6 +556,7 @@ int dune_enter_ex(void *percpu)
 		return ret;
 	}
 
+	assert(pgroot != NULL);
 	return do_dune_enter(pcpu);
 }
 
@@ -629,9 +630,20 @@ int dune_init(bool map_full)
 		printf("dune: unable to init memory.\n");
 		goto err;
 	}
-	printf("Right after the dune_memory_init.\n");
-	dune_procmap_dump();
-	mm_dump(mm_root);
+	// printf("Now the other.\n");
+	// pgroot = memalign(PGSIZE, PGSIZE);
+	// memset(pgroot, 0, PGSIZE);
+
+	setup_mappings(map_full);
+	//printf("Right after the dune_memory_init.\n");
+	//dune_procmap_dump();
+	//mm_dump(mm_root);
+	assert(mm_root->pml4 == pgroot);
+	int res = 0;
+	if ((res =vm_compare_mappings(mm_root->pml4, pgroot)))
+		printf("------------------DIFFERENT%d--------------\n", res);
+	else
+		printf("------------------SAME--------------\n");
 
 	if ((ret = setup_syscall())) {
 		printf("dune: unable to setup system calls\n");
