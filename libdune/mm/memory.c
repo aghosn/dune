@@ -12,7 +12,7 @@ mm_struct *mm_root = NULL;
 l_mm *mm_queue = NULL;
 
 
-int dune_memory_init(bool map_full) {
+int dune_memory_init() {
 	int ret;
 	pgroot = memalign(PGSIZE, PGSIZE);
 	if (!pgroot) {
@@ -29,6 +29,7 @@ int dune_memory_init(bool map_full) {
 	Q_INIT_ELEM(mm_root, lk_mms);
 	mm_root->pml4 = pgroot;
 	mm_root->mmap = malloc(sizeof(l_vm_area));
+	Q_INIT_HEAD(mm_root->mmap);
 
 	if(!mm_root->mmap) {
 		ret = -ENOMEM;
@@ -47,8 +48,8 @@ int dune_memory_init(bool map_full) {
 		printf("dune: unable to initialize page manager.\n");
 		goto err;
 	}
-
-	if (ret = mm_init(map_full)) {
+	
+	if ((ret = mm_init())) {
 		printf("dune: unable to setup memory layout.\n");
 		goto err;
 	}

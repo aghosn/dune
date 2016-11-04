@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 
+#include "../local.h"
 #include "../dune.h"
 #include "mm.h"
 #include "mm_types.h"
@@ -60,26 +61,38 @@ static int mm_delete_region(mm_struct *mm,
 }
 
 #define VSYSCALL_ADDR 0xffffffffff600000
+static void __mm_setup_vsyscall(void)
+{
+	ptent_t *pte;
+	dune_vm_lookup(pgroot, (void *)VSYSCALL_ADDR, 1, &pte);
+	*pte = PTE_ADDR(dune_va_to_pa(&__dune_vsyscall_page) | PTE_P | PTE_U);
+}
+
 static void __mm_setup_mappings_cb(const struct dune_procmap_entry *ent)
 {
 	int ret;
-
 	/* page region already mapped*/
 	if (ent->begin == (unsigned long) PAGEBASE)
 		return;
 
 	if (ent->begin == (unsigned long) VSYSCALL_ADDR) {
-		setup_vsyscall(); //TODO check if lookup modifies the address space.
-		                  //and if so must modify it.
+		vm_addrptr start = VSYSCALL_ADDR;
+		vm_addrptr end = VSYSCALL_ADDR + PGSIZE;
+		void * pa =(void *)dune_va_to_pa(&__dune_vsyscall_page);
+		unsigned long perm = PTE_P | PTE_U;
+		ret = mm_create_phys_mapping(mm_root, start, end, pa, perm);
+		//__mm_setup_vsyscall(); //TODO check if lookup modifies the address space.
+		  		              //and if so must modify it.
+		assert(ret == 0);
 		return;
 	}
-
 
 	vm_addrptr start = (vm_addrptr) ent->begin;
 	vm_addrptr end = (vm_addrptr) ent->end;
 	void *pa = (void *)dune_va_to_pa((void*) ent->begin);
 	unsigned int perm = PERM_NONE;
 
+	printf("0x%016lx - 0x%016lx\n", start, end);
 	if (ent->type == PROCMAP_TYPE_VDSO) {
 		perm |= PERM_U | PERM_R | PERM_X;
 		ret = mm_create_phys_mapping(mm_root, start, end, pa, perm);
@@ -116,12 +129,13 @@ int mm_init()
 	unsigned long perm = 0;
 	struct dune_layout layout;
 	
-	if (ret = ioctl(dune_fd, DUNE_GET_LAYOUT, &layout))
-	 	return ret;
+	//TODO move this somewhere else.
+	// if (ret = ioctl(dune_fd, DUNE_GET_LAYOUT, &layout))
+	//  	return ret;
 	
-	phys_limit = layout.phys_limit;
-	mmap_base = layout.base_map;
-	stack_base = layout.base_stack;
+	// phys_limit = layout.phys_limit;
+	// mmap_base = layout.base_map;
+	// stack_base = layout.base_stack;
 
 	/* Map the page base. */
 	start = (void*) PAGEBASE;
@@ -142,7 +156,8 @@ int mm_init()
 /* Only colisions expected are complete coverage.
  * If that is not the case, the result will be wrong.
  * This is due to dune puting the physical address in hard
- * for everything that is set using dune_vm_map_phys.*/
+ * for everything that is set using dune_vm_map_phys.
+ * TODO refactor.*/
 int mm_create_phys_mapping(	mm_struct *mm, 
 							vm_addrptr va_start, 
 							vm_addrptr va_end, 
@@ -151,21 +166,26 @@ int mm_create_phys_mapping(	mm_struct *mm,
 {
 	int ret = 0;
 	vm_area_struct *current = NULL;
+	assert(mm->mmap);
 	if(!(mm->mmap))
 		return -EINVAL;
 	/* Fast paths*/
-	if (mm->mmap->head == NULL || mm->mmap->head->vm_start > va_end) {
+	if (mm->mmap->head == NULL || mm->mmap->head->vm_start >= va_end) {
 		vm_area_struct *vma = mm_alloc_vma(mm, va_start, va_end, perm);
+		if (!vma)
+			return -ENOMEM;
 		Q_INSERT_FRONT(mm->mmap, vma, lk_areas);
-		//TODO mapping in pgroot.
-		return 0;
+		ret = mm_apply_to_pgroot_precise(vma, pa);
+		return ret;
 	}
-
-	if (mm->mmap->last->vm_end < va_start) {
+	
+	if (mm->mmap->last->vm_end <= va_start) {
 		vm_area_struct *vma = mm_alloc_vma(mm, va_start, va_end, perm);
+		if (!vma)
+			return -ENOMEM;
 		Q_INSERT_TAIL(mm->mmap, vma, lk_areas);
-		//TODO mapping in pgroot.
-		return 0;
+		ret = mm_apply_to_pgroot_precise(vma, pa);
+		return ret;
 	}
 
 	/* Slow path*/
@@ -181,15 +201,24 @@ int mm_create_phys_mapping(	mm_struct *mm,
 			ret = mm_split_or_merge(mm, current, va_start, va_end, perm, pa);
 			break;
 		}
-	}
 
+		/*Try to insert*/
+		if (current->vm_start >=  va_end) {
+			vm_area_struct *vma = mm_alloc_vma(mm, va_start, va_end, perm);
+			if (!vma)
+				return -ENOMEM;
+			Q_INSERT_BEFORE(mm->mmap, current, vma, lk_areas);
+			ret = mm_apply_to_pgroot_precise(vma, pa);
+			break;
+		}
+	}
 	return ret;
 }
 
 
 int mm_overlap(vm_area_struct *vma, vm_addrptr start, vm_addrptr end)
 {
-	int dont_overlap = (vma->vm_end) < (start) || (vma->vm_start) >(end);
+	int dont_overlap = (vma->vm_end) <= (start) || (vma->vm_start) >= (end);
 	return !(dont_overlap);
 }
 
@@ -204,7 +233,7 @@ int mm_split_or_merge(	mm_struct *mm,
 	assert(start <= end);
 	int ret;
 	vm_area_struct *iter = NULL, *last = vma;
-	
+
 	/* Find the last conflicting block.*/
 	for (iter = vma->lk_areas.next; iter != NULL; iter = iter->lk_areas.next) {
 		if (!mm_overlap(iter, start, end)) {
@@ -268,15 +297,16 @@ alloc:
 		goto create;
 
 	/*Map phys is not supposed to generate these types of overlap.*/
-	assert(!s_vma && !t_vma);
+	assert(!t_vma);
+	assert(!s_vma);
 	
 	/* Physical address is given.*/
-	if ((ret = mm_apply_to_pgroot_precise(f_vma, (void*) 0)))
+	if ((ret = mm_apply_to_pgroot_precise(f_vma, args)))
 		goto err;
 
 	// if (s_vma && (ret = mm_apply_to_pgroot_precise(s_vma, (void *) 0)))
 	// 	goto err;
-	// if (t_vma && (ret = mm_apply_to_pgroot_pprecise(t_vma, (void *) 0)))
+	// if (t_vma && (ret = mm_apply_to_pgroot_precise(t_vma, (void *) 0)))
 	// 	goto err;
 
 	goto clean;
@@ -317,7 +347,7 @@ int mm_apply_to_pgroot_precise(vm_area_struct *vma, void* pa)
 		return -EINVAL;
 	
 	//TODO call proper dune page_walk of dune_map_phys or whatev'.
-	return dune_map_phys(vma->vm_mm->pml4, (void*)vma->vm_start,
+	return dune_vm_map_phys(vma->vm_mm->pml4, (void*)vma->vm_start,
 		(size_t)(vma->vm_end - vma->vm_start), pa, vma->vm_flags);
 }
 
@@ -329,3 +359,12 @@ int mm_apply_to_pgroot(vm_area_struct *vma)
 	assert(0); //should never be called for the moment.
 	return 0;
 }
+
+void mm_dump(mm_struct *mm)
+{
+	assert(mm);
+	vm_area_struct *current = NULL;
+	Q_FOREACH(current, mm->mmap, lk_areas) {
+		printf("0x%016lx - 0x%016lx\n", current->vm_start, current->vm_end);
+	}
+} 

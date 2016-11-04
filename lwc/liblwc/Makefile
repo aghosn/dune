@@ -34,7 +34,7 @@ LDFLAGS = -T lwc.ld
 LDLIBS = -lrt -lpthread -lm -lnuma -ldl -lconfig
 
 SRCS = 
-DIRS = syscalls vm core
+DIRS = syscalls core
 
 
 define register_dir

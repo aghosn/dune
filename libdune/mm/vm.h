@@ -32,7 +32,7 @@ int dune_vm_page_walk(	ptent_t *root,
 						const void *arg);
 int dune_vm_lookup(ptent_t *root, void *va, int create, ptent_t **pte_out);
 int dune_vm_mprotect(ptent_t *root, void *va, size_t len, int perm);
-int dune_map_phys(ptent_t *root, void *va, size_t len, void *pa, int perm);
+int dune_vm_map_phys(ptent_t *root, void *va, size_t len, void *pa, int perm);
 int dune_vm_map_pages(ptent_t* root, void *va, size_t len, int perm);
 ptent_t *dune_vm_clone(ptent_t *root);
 void dune_vm_free(ptent_t *root);

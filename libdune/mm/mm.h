@@ -27,4 +27,5 @@ int mm_split_or_merge(	mm_struct *mm,
 
 int mm_apply_to_pgroot_precise(vm_area_struct *vma, void* pa);
 int mm_apply_to_pgroot(vm_area_struct *vma);
+void mm_dump(mm_struct *mm);
 #endif /*__LIBDUNE_MM_MM_H__*/

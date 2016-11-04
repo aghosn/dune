@@ -28,9 +28,11 @@
 #include "local.h"
 #include "debug.h"
 
+#include "mm/memory.h"
+
 #define BUILD_ASSERT(cond) do { (void) sizeof(char [1 - 2*!(cond)]); } while(0)
 
-ptent_t *pgroot;
+//ptent_t *pgroot;
 uintptr_t phys_limit;
 uintptr_t mmap_base;
 uintptr_t stack_base;
@@ -607,22 +609,29 @@ int dune_init(bool map_full)
 		goto fail_open;
 	}
 
-	pgroot = memalign(PGSIZE, PGSIZE);
-	if (!pgroot) {
-		ret = -ENOMEM;
-		goto fail_pgroot;
-	}
-	memset(pgroot, 0, PGSIZE);
+	// pgroot = memalign(PGSIZE, PGSIZE);
+	// if (!pgroot) {
+	// 	ret = -ENOMEM;
+	// 	goto fail_pgroot;
+	// }
+	// memset(pgroot, 0, PGSIZE);
 
-	if ((ret = dune_page_init())) {
-		printf("dune: unable to initialize page manager\n");
+	// if ((ret = dune_page_init())) {
+	// 	printf("dune: unable to initialize page manager\n");
+	// 	goto err;
+	// }
+
+	// if ((ret = setup_mappings(map_full))) {
+	// 	printf("dune: unable to setup memory layout\n");
+	// 	goto err;
+	// }
+	if ((ret = dune_memory_init())) {
+		printf("dune: unable to init memory.\n");
 		goto err;
 	}
-
-	if ((ret = setup_mappings(map_full))) {
-		printf("dune: unable to setup memory layout\n");
-		goto err;
-	}
+	printf("Right after the dune_memory_init.\n");
+	dune_procmap_dump();
+	mm_dump(mm_root);
 
 	if ((ret = setup_syscall())) {
 		printf("dune: unable to setup system calls\n");

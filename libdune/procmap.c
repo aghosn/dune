@@ -81,7 +81,6 @@ void dune_procmap_iterate(dune_procmap_cb cb)
 	char read, write, execute, private;
 	char line[512];
 	char path[256];
-
 	map = fopen("/proc/self/maps", "r");
 	if (map == NULL) {
 		printf("Could not open /proc/self/maps!\n");
