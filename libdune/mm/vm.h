@@ -1,6 +1,5 @@
 #ifndef __LIBDUNE_MM_VM_H__
 #define __LIBDUNE_MM_VM_H__
-#include <stdlib.h>
 
 #include "../dune.h"
 #include "../mmu.h"
@@ -11,7 +10,7 @@
 #define PGSIZE_2MB		(1 << (PGSHIFT + NPTBITS))
 #define PGSIZE_1GB		(1 << (PGSHIFT + NPTBITS + NPTBITS))
 
-#define UL(i)	((uint64_t) i)
+#define UL(i) ((uint64_t) i)
 #define RPDX(i, j, k, l) \
 (uintptr_t)((UL(i) << PDSHIFT(3)) | (UL(j) << PDSHIFT(2)) \
 	| (UL(k) << PDSHIFT(1)) | (UL(l) << PDSHIFT(0)))

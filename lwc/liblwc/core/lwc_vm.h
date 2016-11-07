@@ -8,7 +8,7 @@
 /*VM helpers*/
 #define PTE_DEF_FLAGS	(PTE_P | PTE_W | PTE_U)
 #define PTE_MAKE_COW(pte) (((pte) & (~PTE_W)) | PTE_COW)
-#define PDADDR(n, i)	(((unsigned long) (i)) << PDSHIFT(n))
+//#define PDADDR(n, i)	(((unsigned long) (i)) << PDSHIFT(n))
 
 #define LWC_CREATE_NONE 0
 #define LWC_CREATE_NORMAL 1

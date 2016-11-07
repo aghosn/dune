@@ -40,6 +40,7 @@
 
 #include <sandbox/sandbox.h>
 #include "mem.h"
+#include "mm/memory.h"
 
 #define USE_BIG_MEM 1
 
@@ -95,9 +96,12 @@ static int umm_mmap_anom_flags(void *addr, size_t len, int prot, bool big, int e
 	if (mem != addr)
 		return -errno;
 
-	ret = dune_vm_map_phys(pgroot, addr, len,
+	/*ret = dune_vm_map_phys(pgroot, addr, len,
 			       (void *) dune_va_to_pa(addr),
-			       perm);
+			       perm);*/
+	ret = mm_create_phys_mapping(mm_root,(vm_addrptr) addr,
+			((vm_addrptr)addr) + len, (void *) dune_va_to_pa(addr), perm);
+
 	if (ret) {
 		munmap(addr, len);
 		return ret;
@@ -123,9 +127,14 @@ static int umm_mmap_file(void *addr, size_t len, int prot, int flags,
 	if (mem != addr)
 		return -errno;
 
-	ret = dune_vm_map_phys(pgroot, addr, len,
+	ret = dune_vm_map_phys(mm_root->pml4, addr, len,
 			       (void *) dune_va_to_pa(addr),
 			       prot_to_perm(prot));
+	//TODO aghosn: problem EPT violation
+	/*printf("o: %016p-%016p: 0x%016lx\n", addr, addr + len, prot_to_perm(prot));
+	ret = mm_create_phys_mapping(mm_root, (vm_addrptr) addr, 
+		((vm_addrptr)addr)+len, (void*)dune_va_to_pa(addr), prot_to_perm(prot));*/
+
 	if (ret) {
 		munmap(addr, len);
 		return ret;
@@ -306,9 +315,11 @@ void *umm_shmat(int shmid, void *addr, int shmflg)
 	if (mem != addr)
 		return (void *)(long) - errno;
 
-	ret = dune_vm_map_phys(pgroot, addr, len,
+	/*ret = dune_vm_map_phys(pgroot, addr, len,
 			       (void *) dune_va_to_pa(addr),
-			       perm);
+			       perm);*/
+	ret = mm_create_phys_mapping(mm_root, (vm_addrptr)addr,
+		((vm_addrptr)addr)+len, (void*)dune_va_to_pa(addr), perm);
 	if (ret) {
 		shmdt(addr);
 		return (void *)(long) ret;
@@ -354,9 +365,17 @@ void *umm_mremap(void *old_address, size_t old_size, size_t new_size, int flags,
 
 	dune_vm_unmap(pgroot, old_address, old_size);
 
+	
 	if (dune_vm_map_phys(pgroot, new_address, new_size,
 			     (void *) dune_va_to_pa(new_address),
 			     prot_to_perm(PROT_READ | PROT_WRITE))) {
+		printf("help me!\n");
+		exit(1);
+	}
+
+	if (mm_create_phys_mapping(mm_root, (vm_addrptr) new_address,
+		((vm_addrptr)new_address) + new_size, (void*)dune_va_to_pa(new_address),
+		prot_to_perm(PROT_READ | PROT_WRITE))) {
 		printf("help me!\n");
 		exit(1);
 	}

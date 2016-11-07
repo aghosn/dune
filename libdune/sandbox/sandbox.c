@@ -29,6 +29,7 @@
 #include <stdint.h>
 
 #include "sandbox.h"
+#include "../mm/memory.h"
 
 #define NUM_AUX 14
 
@@ -67,11 +68,15 @@ static int process_elf_ph(struct dune_elf *elf, Elf64_Phdr *phdr)
 		return -EINVAL;
 	}
 
-	ret = dune_vm_map_phys(pgroot,
+	/*ret = dune_vm_map_phys(pgroot,
 			       (void *)(phdr->p_vaddr + off),
 			       phdr->p_memsz,
 			       (void *)(phdr->p_vaddr + off),
-			       PERM_R | PERM_W);
+			       PERM_R | PERM_W);*/
+	ret = mm_create_phys_mapping(	mm_root, phdr->p_vaddr + off,
+									phdr->p_vaddr + off + phdr->p_memsz,
+									(void *)(phdr->p_vaddr + off),
+									PERM_R | PERM_W);
 	if (ret) {
 		log_err("sandbox: segment mapping failed\n");
 		return ret;
@@ -90,8 +95,12 @@ static int process_elf_ph(struct dune_elf *elf, Elf64_Phdr *phdr)
 	if (phdr->p_flags & PF_W)
 		perm |= PERM_W;
 
-	ret = dune_vm_mprotect(pgroot, (void *)(phdr->p_vaddr + off),
-			       phdr->p_memsz, perm);
+	void *_start = (void *)(phdr->p_vaddr + off);
+	void *_end = _start + phdr->p_memsz;
+	/*ret = dune_vm_mprotect(mm_root->pml4, _start,
+			       phdr->p_memsz, perm);*/
+	ret = mm_mprotect(mm_root,(vm_addrptr)_start, (vm_addrptr)_end, perm);
+
 	if (ret) {
 		log_err("sandbox: segment protection failed\n");
 		return ret;

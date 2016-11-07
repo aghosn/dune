@@ -19,7 +19,9 @@ int dune_fd;
 
 /* Allocates and initializes a vm_area.
  * WARNING: it does not add it to mm.
- * WARNING: it does not change the pgroot mappings either.*/
+ * WARNING: it does not change the pgroot mappings either.
+ * TODO: Should check that the addresses are valid... (not the case all the time)
+ * Need to be page aligned.*/
 static vm_area_struct * mm_alloc_vma(mm_struct *mm,
 									vm_addrptr start,
 									vm_addrptr end,
@@ -41,7 +43,8 @@ static vm_area_struct * mm_alloc_vma(mm_struct *mm,
  * Frees the removed vmas.
  * If start == NULL start at head.
  * If end == NULL ends after last.
- * WARNING: does not affect the page tables. Should it?*/
+ * WARNING: does not affect the page tables.
+ * SHOULD it? Maybe implement the functionality elsewhere.*/
 static int mm_delete_region(mm_struct *mm,
 							vm_area_struct *start,
 							vm_area_struct *end)
@@ -138,7 +141,8 @@ int mm_init()
  * If that is not the case, the result will be wrong.
  * This is due to dune puting the physical address in hard
  * for everything that is set using dune_vm_map_phys.
- * TODO refactor.*/
+ * TODO refactor.
+ * TODO lack of merging when creating a new vma*/
 int mm_create_phys_mapping(mm_struct *mm, 
 							vm_addrptr va_start, 
 							vm_addrptr va_end, 
@@ -180,7 +184,7 @@ int mm_create_phys_mapping(mm_struct *mm,
 
 		if (mm_overlap(current, va_start, va_end)) {
 			ret = mm_split_or_merge(mm, current, va_start, va_end, perm, pa);
-			break;
+			return ret;
 		}
 
 		/*Try to insert*/
@@ -233,9 +237,10 @@ int mm_split_or_merge(	mm_struct *mm,
 	/*1.*/
 	if (start <= vma->vm_start && end >= last->vm_end) {
 		f_vma = mm_alloc_vma(vma->vm_mm, start, end, perm);
-		if (!f_vma)
+		if (!f_vma) {
 			ret = -ENOMEM;
 			goto err;
+		}
 		goto alloc;
 	}
 
@@ -274,28 +279,30 @@ int mm_split_or_merge(	mm_struct *mm,
 		}
 	}
 
-	//TODO replace with proper addresses.
 alloc:
 	if (args == NULL)
 		goto create;
 
-	/*Map phys is not supposed to generate these types of overlap.*/
-	assert(!t_vma);
-	assert(!s_vma);
-	
-	/* Physical address is given.*/
-	if ((ret = mm_apply_to_pgroot_precise(f_vma, args)))
-		goto err;
+	/* Identify which vma needs to get a remapping in the page tables.*/
+	vm_area_struct *to_remap = f_vma;
+	if (s_vma && !t_vma)
+		to_remap = (s_vma->vm_start == start)? s_vma : f_vma;
+	if (t_vma) {
+		to_remap = s_vma;
+	}
 
-	// if (s_vma && (ret = mm_apply_to_pgroot_precise(s_vma, (void *) 0)))
-	// 	goto err;
-	// if (t_vma && (ret = mm_apply_to_pgroot_precise(t_vma, (void *) 0)))
-	// 	goto err;
+	assert(to_remap->vm_start == start && to_remap->vm_end == end
+			&& to_remap->vm_flags == perm);
+	
+	/* The mm_apply is only done on the portion that maps the given pa.*/
+	if ((ret = mm_apply_to_pgroot_precise(to_remap, args)))
+		goto err;
 
 	goto clean;
 
 create:
-	/* Allocate without pre-defined physical address.*/
+	/* Allocate without pre-defined physical address.
+	 * TODO bug here too, do not need as many pages.*/
 	if ((ret = mm_apply_to_pgroot(f_vma)))
 		goto err;
 	if (s_vma && (ret = mm_apply_to_pgroot(s_vma)))
@@ -348,7 +355,7 @@ void mm_dump(mm_struct *mm)
 	assert(mm);
 	vm_area_struct *current = NULL;
 	Q_FOREACH(current, mm->mmap, lk_areas) {
-		printf("0x%016lx - 0x%016lx\n", current->vm_start, current->vm_end);
+		printf("0x%016lx-0x%016lx: %016lx\n", current->vm_start, current->vm_end, current->vm_flags);
 	}
 }
 
@@ -365,3 +372,47 @@ void mm_verify_mappings(mm_struct *mm)
 		assert(mapped == 0);
 	}
 }
+
+/* Modifies the permissions for the vmas that map the provided range of addresses.
+ * If the virtual memory region is not mapped, it is NOT created.
+ * If the start or end address is within a vma, the permissions are changed.
+ * TODO improve the solution and split whenever possible.
+ * This is a very BASIC implementation for the moment.*/
+int mm_mprotect(mm_struct *mm, vm_addrptr start,
+				vm_addrptr end, unsigned long perm)
+{
+	assert(mm);
+	//TODO just for now.
+	vm_area_struct *current = NULL;
+	vm_area_struct *first = NULL, *last = NULL;
+	Q_FOREACH(current, mm->mmap, lk_areas) {
+		if (mm_overlap(current, start, end)) {
+			/* first is never null if we have work to do.*/
+			current->vm_flags = perm;
+			if (first == NULL)
+				first = current;
+
+			continue;
+		}
+
+		/*We found the head*/
+		if (first != NULL) {
+			last = current;
+			break;
+		}
+	}
+	/* 3 cases:
+	 * 1. first == last == null -> nothing to do.
+	 * 2. first != null, last == null -> from first to vmas.last
+	 * 3. first != null, last != null -> from first to last.prev*/
+	
+	/* 1.*/
+	if (!(last) && !(first))
+		return 0;
+	/* 2. & 3.*/
+	last = (last)? last->lk_areas.prev : mm->mmap->last;
+
+	return dune_vm_mprotect(mm->pml4, first->vm_start, 
+							last->vm_end - first->vm_start, perm);
+}
+

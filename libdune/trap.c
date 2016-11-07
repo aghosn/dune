@@ -8,6 +8,7 @@
 
 #include "dune.h"
 #include "cpu-x86.h"
+#include "mm/vm.h"
 
 static dune_syscall_cb syscall_cb;
 static dune_pgflt_cb pgflt_cb;

@@ -6,8 +6,7 @@
 
 #include "lwC.h"
 #include "lwc_vm.h"
-//#include "../vm/mm.h"
-//#include "../vm/mm_types.h"
+#include <mm/memory.h>
 /*******************************************************************************
  *                      Needed for sandbox.
  *                      TODO: move it somewhere else.
@@ -53,9 +52,9 @@ void lwc_init(int argc, char *argv[]) {
     //Init of the sandbox but don't run it just yet.
     uintptr_t sp, entry;
     sandbox_init("/lib64/ld-linux-x86-64.so.2", argc, argv, &sp, &entry);
-
+    sandbox_run_app(sp, entry);
+    //mm_dump(mm_root);
     //dune_procmap_dump();
-    sandbox_run_app(sp, entry);    
 }
 
 //TODO place holders for an ASM function

@@ -93,8 +93,10 @@ static void map_ptr(void *p, int len)
 	unsigned long l = (page_end - page) + PGSIZE;
 	void *pg = (void*) page;
 
-	dune_vm_map_phys(pgroot, pg, l, (void*) dune_va_to_pa(pg),
-			 PERM_R | PERM_W);
+	/*dune_vm_map_phys(pgroot, pg, l, (void*) dune_va_to_pa(pg),
+			 PERM_R | PERM_W);*/
+	mm_create_phys_mapping(mm_root, (vm_addrptr)pg, ((vm_addrptr)pg) + l,
+								(void *) dune_va_to_pa(pg), PERM_R | PERM_W);
 }
 
 static int setup_safe_stack(struct dune_percpu *percpu)
@@ -226,7 +228,7 @@ static int setup_syscall(void)
 	unsigned long lstar;
 	unsigned long lstara;
 	unsigned char *page;
-	ptent_t *pte;
+	//ptent_t *pte;
 	size_t off;
 	int i;
 
@@ -253,8 +255,9 @@ static int setup_syscall(void)
 
 	for (i = 0; i <= PGSIZE; i += PGSIZE) {
 		uintptr_t pa = dune_mmap_addr_to_pa(page + i);
-		dune_vm_lookup(pgroot, (void *) (lstara + i), 1, &pte);
-		*pte = PTE_ADDR(pa) | PTE_P;
+		// dune_vm_lookup(pgroot, (void *) (lstara + i), 1, &pte);
+		// *pte = PTE_ADDR(pa) | PTE_P;
+		mm_create_phys_mapping(mm_root, lstara + i, lstara + i + PGSIZE, (void*) pa, PTE_P | PTE_DEF_FLAGS);
 	}
 	
 	return 0;
@@ -628,7 +631,7 @@ int dune_init(bool map_full)
 		printf("dune: unable to setup system calls\n");
 		goto err;
 	}
-
+	
 	// disable signals for now until we have better support
 	for (i = 1; i < 32; i++) {
 		struct sigaction sa;
@@ -657,7 +660,6 @@ int dune_init(bool map_full)
 
 err:
 	// FIXME: need to free memory
-fail_pgroot:
 	close(dune_fd);
 fail_open:
 	return ret;

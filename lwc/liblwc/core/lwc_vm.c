@@ -4,10 +4,11 @@
 
 
 #include "lwc_vm.h"
+#include "mm/vm.h"
 
 /*      Static helper function      */
 
-static inline int pte_present(ptent_t pte)
+/*static inline int pte_present(ptent_t pte)
 {
 	return (PTE_FLAGS(pte) & PTE_P);
 }
@@ -30,7 +31,7 @@ static inline void * alloc_page(void)
 		return NULL;
 
 	return (void *) dune_page2pa(pg);
-}
+}*/
 
 static int lwc_page_walk(ptent_t *dir, void *start_va, void *end_va,
 	lwc_page_cb cb, const void *arg, int create, int level) {
