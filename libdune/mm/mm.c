@@ -397,6 +397,17 @@ void mm_verify_mappings(mm_struct *mm)
 	}
 }
 
+static int __mm_apply_protect(vm_area_struct *vma, void* perm)
+{
+	assert(perm != NULL);
+	if (!vma || !(vma->vm_mm) || !(vma->vm_mm->pml4))
+		return -EINVAL;
+
+	assert(vma->vm_flags == *((unsigned long*)perm));
+	return dune_vm_mprotect(vma->vm_mm->pml4,(void*)(vma->vm_start),
+		(size_t)(vma->vm_end - vma->vm_start), vma->vm_flags);
+}
+
 /* Modifies the permissions for the vmas that map the provided range.
  * If the virtual memory region is not mapped, it is NOT created.
  * If the start or end address is within a vma, we split it (if possible).*/
@@ -422,7 +433,7 @@ int mm_mprotect(mm_struct *mm, vm_addrptr start,
 
 		if (mm_overlap(current, start, end)) {
 			ret = mm_split_or_merge(mm, current, start, end, perm, 
-				&mm_apply_protect, &perm);
+				&__mm_apply_protect, &perm);
 			return ret;
 		}
 	}
@@ -433,13 +444,44 @@ int mm_mprotect(mm_struct *mm, vm_addrptr start,
 	return -EINVAL;
 }
 
-int mm_apply_protect(vm_area_struct *vma, void* perm)
+static int __mm_unmap(vm_area_struct *vma, void *args)
 {
-	assert(perm != NULL);
-	if (!vma || !(vma->vm_mm) || !(vma->vm_mm->pml4))
-		return -EINVAL;
+	assert(vma != NULL);
+	vm_area_struct **pt = ((vm_area_struct**)args);
+	*pt = vma;
+	return 0;
+}
 
-	assert(vma->vm_flags == *((unsigned long*)perm));
-	return dune_vm_mprotect(vma->vm_mm->pml4,(void*)(vma->vm_start),
-		(size_t)(vma->vm_end - vma->vm_start), vma->vm_flags);
+int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end)
+{
+	assert(start < end);
+	int ret = 0;
+	vm_area_struct *current = NULL, *to_rm = NULL;
+	
+	/* Align the addresses.*/
+	start = MM_PGALIGN_DN(start);
+	end = MM_PGALIGN_UP(end);
+
+	Q_FOREACH(current, mm->mmap, lk_areas) {
+		if (mm_overlap(current, start, end)) {
+			ret = mm_split_or_merge(mm, current, start, end, 0, 
+				&__mm_unmap, &to_rm);
+			
+			if (ret)
+				return ret;
+			
+			assert(to_rm != NULL);
+			Q_REMOVE(mm->mmap, to_rm, lk_areas);
+		
+			dune_vm_unmap(mm->pml4, (void*)(to_rm->vm_start), 
+				(size_t)(to_rm->vm_end - to_rm->vm_start));
+			free(to_rm);
+			
+			return ret;
+		}
+	}
+	/* TODO: for debugging remove afterwards.
+	 * Need to decide if we return 0 or it is a fault to unmap invalid addr.*/
+	assert(0);
+	return -EINVAL;
 }
