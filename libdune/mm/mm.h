@@ -4,11 +4,11 @@
 
 #include "mm_types.h"
 
-/*Global variables for memory limits.*/
-extern uintptr_t phys_limit;
-extern uintptr_t mmap_base;
-extern uintptr_t stack_base;
+/* Macros to handle page alignment*/
+#define MM_PGALIGN_DN(addr) ((addr) & ~(PGSIZE - 1))
+#define MM_PGALIGN_UP(addr) (((addr) + (PGSIZE-1)) & ~(PGSIZE - 1))
 
+/* The memory mappings API*/
 int mm_init();
 int mm_create_phys_mapping(	mm_struct *mm, 
 							vm_addrptr start, 

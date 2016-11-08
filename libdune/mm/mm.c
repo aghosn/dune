@@ -149,9 +149,15 @@ int mm_create_phys_mapping(mm_struct *mm,
 							void* pa, 
 							unsigned long perm)
 {
+	assert(mm->mmap); assert(va_start < va_end);
+	
 	int ret = 0;
 	vm_area_struct *current = NULL;
-	assert(mm->mmap);
+
+	/* Make sure the addresses are page aligned*/
+	va_start = MM_PGALIGN_DN(va_start);
+	va_end = MM_PGALIGN_UP(va_end);
+	
 	if(!(mm->mmap))
 		return -EINVAL;
 	/* Fast paths*/
