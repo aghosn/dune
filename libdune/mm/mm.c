@@ -243,6 +243,8 @@ int mm_split_or_merge(	mm_struct *mm,
 	
 	/*1. creates only one vma, it is a merge 
 	 *2. creates only two blocks.
+	 *	2.1. f_vma is the new block, s_vma is the rest.
+	 *	2.2. f_vma is the old block, s_vma is the new block.
 	 *3. creates three blocks.*/
 	vm_area_struct *f_vma = NULL, *s_vma = NULL, *t_vma = NULL;
 
@@ -257,19 +259,47 @@ int mm_split_or_merge(	mm_struct *mm,
 	}
 
 	/*2.*/
-	vm_addrptr f_start = (vma->vm_start < start)? vma->vm_start : start;
-	vm_addrptr f_end = (vma->vm_start > start)? vma->vm_start : start;
-	unsigned long f_perm = (vma->vm_start < start)? vma->vm_flags : perm;
-	
+	vm_addrptr f_start, f_end, s_start, s_end, t_start, t_end;
+	unsigned long f_perm, s_perm, t_perm;
+
+	/*2.1*/
+	if (vma->vm_start == start && end < last->vm_end) {
+		f_start = start; f_end = end; f_perm = perm;
+
+		s_start = end; s_end = last->vm_end; s_perm = last->vm_flags;
+		goto create12;
+	}
+
+	/*2.2*/
+	if (vma->vm_start < start && end == last->vm_end) {
+		f_start = vma->vm_start; f_end = start; f_perm = vma->vm_flags;
+
+		s_start = start; s_end = end; s_perm = perm;
+		goto create12;
+	}
+
+	/*3.*/
+	/*TODO: Safety check, remove after making sure it works.*/
+	assert(start > vma->vm_start && end < last->vm_end);
+
+	f_start = vma->vm_start; f_end = start; f_perm = vma->vm_flags;
+
+	s_start = start; s_end = end; s_perm = perm;
+
+	t_start = end; t_end = last->vm_end; t_perm = last->vm_flags;
+
+	t_vma = mm_alloc_vma(vma->vm_mm, t_start, t_end, t_perm);
+	if (!t_vma) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+create12:
 	f_vma = mm_alloc_vma(vma->vm_mm, f_start, f_end, f_perm);
 	if (!f_vma) {
 		ret = -ENOMEM;
 		goto err;
 	}
-
-	vm_addrptr s_start = f_end;
-	vm_addrptr s_end = (vma->vm_end <= end)? vma->vm_end : end;
-	unsigned long s_perm = (f_perm == perm)? vma->vm_flags : perm;
 
 	s_vma = mm_alloc_vma(vma->vm_mm, s_start, s_end, s_perm);
 	if (!s_vma) {
@@ -277,41 +307,32 @@ int mm_split_or_merge(	mm_struct *mm,
 		goto err;
 	}
 
-	/*3.*/
-	vm_addrptr max_end = (vma->vm_end < end)? end : vma->vm_end;
-	if (s_end != max_end) {
-		vm_addrptr t_start = s_end;
-		vm_addrptr t_end = max_end;
-		unsigned long t_perm = f_perm;
-
-		t_vma = mm_alloc_vma(vma->vm_mm, t_start, t_end, t_perm);
-		if (!t_vma) {
-			ret = -ENOMEM;
-			goto err;
-		}
-	}
-
 alloc: ;
 	/* Identify which vma needs to get a remapping in the page tables.*/
 	vm_area_struct *to_remap = f_vma;
-	if (s_vma && !t_vma)
+	if (s_vma && !t_vma) {
 		to_remap = (s_vma->vm_start == start)? s_vma : f_vma;
+	}
 	if (t_vma) {
 		to_remap = s_vma;
 	}
 
-	assert(to_remap->vm_start == start && to_remap->vm_end == end
-			&& to_remap->vm_flags == perm);
+	assert(to_remap->vm_start == start);
+	assert(to_remap->vm_end == end);
+	assert(to_remap->vm_flags == perm);
 	
 	/* The mm_apply is only done on the portion that maps the given pa.*/
 	if ((ret = f(to_remap, args)))
 		goto err;
 
-clean:
+	/* Clean up the vmas.*/
 	vma = vma->lk_areas.prev;
 	last = last->lk_areas.next;
+	
+	/* Insert the f_vma before removing replaced vmas.*/
+	Q_INSERT_BEFORE(mm->mmap, vma, f_vma, lk_areas);
 	mm_delete_region(mm, vma, last);
-	Q_INSERT_AFTER(mm->mmap, vma, f_vma, lk_areas);
+
 	if (s_vma)
 		Q_INSERT_AFTER(mm->mmap, f_vma, s_vma, lk_areas);
 	if (t_vma)
@@ -337,8 +358,8 @@ int mm_apply_to_pgroot(vm_area_struct *vma, void *pa)
 		(size_t)(vma->vm_end - vma->vm_start), pa, vma->vm_flags);
 	}
 
-	//TODO allocate new page.
-	//FIXME should never be called for the moment.
+	//TODO: allocate new page.
+	//FIXME: should never be called for the moment.
 	assert(0);
 	return 1;
 }
@@ -377,40 +398,44 @@ int mm_mprotect(mm_struct *mm, vm_addrptr start,
 				vm_addrptr end, unsigned long perm)
 {
 	assert(mm);
-	//TODO just for now.
+	int ret = -1;
 	vm_area_struct *current = NULL;
-	vm_area_struct *first = NULL, *last = NULL;
-	Q_FOREACH(current, mm->mmap, lk_areas) {
-		if (mm_overlap(current, start, end)) {
-			/* first is never null if we have work to do.*/
-			current->vm_flags = perm;
-			if (first == NULL)
-				first = current;
 
-			continue;
+	//TODO for debugging right now.
+	/* Page align the start and end.*/
+	start = MM_PGALIGN_DN(start);
+	end = MM_PGALIGN_UP(end);
+	
+	//return dune_vm_mprotect(mm->pml4,(void*)start, (size_t)(end - start), perm);
+
+	Q_FOREACH(current, mm->mmap, lk_areas) {
+		if (current->vm_start == start &&
+			current->vm_end == end &&
+			current->vm_flags == perm) {
+			/* The mapping already exists with the proper flags*/
+			return 0;
 		}
 
-		/*We already found the head*/
-		if (first != NULL) {
-			last = current;
-			break;
+		if (mm_overlap(current, start, end)) {
+			ret = mm_split_or_merge(mm, current, start, end, perm, 
+				&mm_apply_protect, &perm);
+			return ret;
 		}
 	}
-	/* 3 cases:
-	 * 1. first == last == null -> nothing to do.
-	 * 2. first != null, last == null -> from first to vmas.last
-	 * 3. first != null, last != null -> from first to last.prev*/
 	
-	/* 1.*/
-	if (!(last) && !(first))
-		return 0;
-	/* 2. & 3.*/
-	last = (last)? last->lk_areas.prev : mm->mmap->last;
-	// printf("n: 0x%016lx: len %lx, %lx \n",
-	// 	first->vm_start, last->vm_end - first->vm_start, perm);
-
-	return dune_vm_mprotect(mm->pml4, start, end-start, perm);
-	/*return dune_vm_mprotect(mm->pml4, first->vm_start, 
-							last->vm_end - first->vm_start, perm);*/
+	/* Should never come here.*/
+	//TODO: remove this once we check it's correct.
+	assert(0); 
+	return -EINVAL;
 }
 
+int mm_apply_protect(vm_area_struct *vma, void* perm)
+{
+	assert(perm != NULL);
+	if (!vma || !(vma->vm_mm) || !(vma->vm_mm->pml4))
+		return -EINVAL;
+
+	assert(vma->vm_flags == *((unsigned long*)perm));
+	return dune_vm_mprotect(vma->vm_mm->pml4,(void*)(vma->vm_start),
+		(size_t)(vma->vm_end - vma->vm_start), vma->vm_flags);
+}

@@ -53,8 +53,8 @@ static int process_elf_ph(struct dune_elf *elf, Elf64_Phdr *phdr)
 	if (phdr->p_type != PT_LOAD)
 		return 0; // continue to next section
 
-	log_info("sandbox: loading segment - va 0x%09lx, len %lx\n",
-		 phdr->p_vaddr, phdr->p_memsz);
+	// log_info("sandbox: loading segment - va 0x%09lx, len %lx\n",
+	// 	 phdr->p_vaddr, phdr->p_memsz);
 
 	if (elf->hdr.e_type == ET_DYN)
 		off = LOADER_VADDR_OFF;
@@ -97,10 +97,12 @@ static int process_elf_ph(struct dune_elf *elf, Elf64_Phdr *phdr)
 
 	void *_start = (void *)(phdr->p_vaddr + off);
 	void *_end = _start + phdr->p_memsz;
-	/*ret = dune_vm_mprotect(mm_root->pml4, _start,
-			       phdr->p_memsz, perm);*/
-	ret = mm_mprotect(mm_root,(vm_addrptr)_start, (vm_addrptr)_end, perm);
-
+	
+	ret = dune_vm_mprotect(mm_root->pml4, _start,
+			       phdr->p_memsz, perm);
+	//TODO: pagefault comes from here.
+	//ret = mm_mprotect(mm_root,(vm_addrptr)_start, (vm_addrptr)_end, perm);
+	
 	if (ret) {
 		log_err("sandbox: segment protection failed\n");
 		return ret;
@@ -324,7 +326,7 @@ int sandbox_init_run(char *loader, int argc, char *argv[])
 	if (ret)
 		return ret;
 
-	log_debug("sandbox: entry addr is %lx\n", data.entry);
+	//log_debug("sandbox: entry addr is %lx\n", data.entry);
 
 	dune_set_user_fs(0); // default starting fs
 
@@ -366,7 +368,7 @@ int sandbox_init(char *loader, int argc, char *argv[],
 	if (ret)
 		return ret;
 
-	log_debug("sandbox: entry addr is %lx\n", data.entry);
+	//log_debug("sandbox: entry addr is %lx\n", data.entry);
 
 	dune_set_user_fs(0); // default starting fs
 
