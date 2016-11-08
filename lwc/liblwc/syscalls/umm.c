@@ -276,7 +276,10 @@ int umm_mprotect(void *addr, size_t len, unsigned long prot)
 	if (ret)
 		return -errno;
 
-	ret = dune_vm_mprotect(pgroot, addr, len, prot_to_perm(prot));
+	/*ret = dune_vm_mprotect(pgroot, addr, len, prot_to_perm(prot));*/
+	ret = mm_mprotect(mm_root, (vm_addrptr)addr, (vm_addrptr)(addr + len), 
+		prot_to_perm(prot));
+
 	assert(!ret);
 
 	return 0;

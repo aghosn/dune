@@ -8,6 +8,9 @@
 #define MM_PGALIGN_DN(addr) ((addr) & ~(PGSIZE - 1))
 #define MM_PGALIGN_UP(addr) (((addr) + (PGSIZE-1)) & ~(PGSIZE - 1))
 
+/* Call back function type.*/
+typedef int (*mm_cb_ft)(vm_area_struct*, void*);
+
 /* The memory mappings API*/
 int mm_init();
 int mm_create_phys_mapping(	mm_struct *mm, 
@@ -23,10 +26,10 @@ int mm_split_or_merge(	mm_struct *mm,
 						vm_addrptr start,
 						vm_addrptr end,
 						unsigned long perm,
+						mm_cb_ft f,
 						void * args);
 
-int mm_apply_to_pgroot_precise(vm_area_struct *vma, void* pa);
-int mm_apply_to_pgroot(vm_area_struct *vma);
+int mm_apply_to_pgroot(vm_area_struct *vma, void *pa);
 void mm_dump(mm_struct *mm);
 int mm_mprotect(mm_struct *mm, vm_addrptr start,
 				vm_addrptr end, unsigned long perm);

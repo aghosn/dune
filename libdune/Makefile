@@ -17,6 +17,7 @@ libdune.a: $(OBJ) $(NOFPU_OBJ) $(SANDBOX_OBJS)
 
 clean:
 	rm -f *.o test *.d libdune.a
+	rm -f SANDBOX_OBJS
 
 -include *.d
 
