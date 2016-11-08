@@ -397,10 +397,9 @@ void mm_verify_mappings(mm_struct *mm)
 	}
 }
 
-/* Modifies the permissions for the vmas that map the provided range of addresses.
+/* Modifies the permissions for the vmas that map the provided range.
  * If the virtual memory region is not mapped, it is NOT created.
- * If the start or end address is within a vma, the permissions are changed.
- */
+ * If the start or end address is within a vma, we split it (if possible).*/
 int mm_mprotect(mm_struct *mm, vm_addrptr start,
 				vm_addrptr end, unsigned long perm)
 {

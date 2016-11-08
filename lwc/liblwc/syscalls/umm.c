@@ -368,12 +368,12 @@ void *umm_mremap(void *old_address, size_t old_size, size_t new_size, int flags,
 	dune_vm_unmap(pgroot, old_address, old_size);
 
 	
-	if (dune_vm_map_phys(pgroot, new_address, new_size,
+	/*if (dune_vm_map_phys(pgroot, new_address, new_size,
 			     (void *) dune_va_to_pa(new_address),
 			     prot_to_perm(PROT_READ | PROT_WRITE))) {
 		printf("help me!\n");
 		exit(1);
-	}
+	}*/
 
 	if (mm_create_phys_mapping(mm_root, (vm_addrptr) new_address,
 		((vm_addrptr)new_address) + new_size, (void*)dune_va_to_pa(new_address),
