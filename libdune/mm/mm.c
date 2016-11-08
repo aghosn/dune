@@ -231,7 +231,7 @@ int mm_split_or_merge(	mm_struct *mm,
 	assert(vma);
 	assert(start <= end);
 	int ret;
-	vm_area_struct *iter = NULL, *last = vma;
+	vm_area_struct *iter = NULL, *last = NULL;
 
 	/* Find the last conflicting block.*/
 	for (iter = vma->lk_areas.next; iter != NULL; iter = iter->lk_areas.next) {
@@ -240,7 +240,10 @@ int mm_split_or_merge(	mm_struct *mm,
 			break;
 		}
 	}
-	
+	/* Check that last is correctly set.*/
+	last = (last != NULL)? last : mm->mmap->last;
+	assert(last != NULL);
+
 	/*1. creates only one vma, it is a merge 
 	 *2. creates only two blocks.
 	 *	2.1. f_vma is the new block, s_vma is the rest.
@@ -324,19 +327,25 @@ alloc: ;
 	/* The mm_apply is only done on the portion that maps the given pa.*/
 	if ((ret = f(to_remap, args)))
 		goto err;
-
-	/* Clean up the vmas.*/
-	vma = vma->lk_areas.prev;
-	last = last->lk_areas.next;
 	
-	/* Insert the f_vma before removing replaced vmas.*/
-	Q_INSERT_BEFORE(mm->mmap, vma, f_vma, lk_areas);
-	mm_delete_region(mm, vma, last);
-
-	if (s_vma)
+	/* Clean up the vmas.*/
+	vm_area_struct *in_q = vma->lk_areas.prev;
+	mm_delete_region(mm, vma->lk_areas.prev, last->lk_areas.next);
+	
+	/* Insert the f_vma*/
+	if (in_q) {
+		Q_INSERT_BEFORE(mm->mmap, in_q, f_vma, lk_areas);
+	}
+	else {
+		Q_INSERT_FRONT(mm->mmap, f_vma, lk_areas);
+	} 
+		
+	if (s_vma) {
 		Q_INSERT_AFTER(mm->mmap, f_vma, s_vma, lk_areas);
-	if (t_vma)
+	}
+	if (t_vma) {
 		Q_INSERT_AFTER(mm->mmap, s_vma, t_vma, lk_areas);
+	}
 
 	return 0;
 err:
@@ -391,9 +400,7 @@ void mm_verify_mappings(mm_struct *mm)
 /* Modifies the permissions for the vmas that map the provided range of addresses.
  * If the virtual memory region is not mapped, it is NOT created.
  * If the start or end address is within a vma, the permissions are changed.
- * TODO: improve the solution and split whenever possible.
- * This is a very BASIC implementation for the moment.
- * FIXME: do the split.*/
+ */
 int mm_mprotect(mm_struct *mm, vm_addrptr start,
 				vm_addrptr end, unsigned long perm)
 {
@@ -401,12 +408,10 @@ int mm_mprotect(mm_struct *mm, vm_addrptr start,
 	int ret = -1;
 	vm_area_struct *current = NULL;
 
-	//TODO for debugging right now.
 	/* Page align the start and end.*/
 	start = MM_PGALIGN_DN(start);
 	end = MM_PGALIGN_UP(end);
 	
-	//return dune_vm_mprotect(mm->pml4,(void*)start, (size_t)(end - start), perm);
 
 	Q_FOREACH(current, mm->mmap, lk_areas) {
 		if (current->vm_start == start &&

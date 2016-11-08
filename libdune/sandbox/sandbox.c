@@ -98,10 +98,10 @@ static int process_elf_ph(struct dune_elf *elf, Elf64_Phdr *phdr)
 	void *_start = (void *)(phdr->p_vaddr + off);
 	void *_end = _start + phdr->p_memsz;
 	
-	ret = dune_vm_mprotect(mm_root->pml4, _start,
-			       phdr->p_memsz, perm);
-	//TODO: pagefault comes from here.
-	//ret = mm_mprotect(mm_root,(vm_addrptr)_start, (vm_addrptr)_end, perm);
+	/*ret = dune_vm_mprotect(mm_root->pml4, _start,
+			       phdr->p_memsz, perm);*/
+	//TODO: pagefault came from here.
+	ret = mm_mprotect(mm_root,(vm_addrptr)_start, (vm_addrptr)_end, perm);
 	
 	if (ret) {
 		log_err("sandbox: segment protection failed\n");
