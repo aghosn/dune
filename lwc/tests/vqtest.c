@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include "../liblwc/tools/vq.h"
+#include "../../libdune/utils/vq.h"
 
 typedef struct node {
     Q_NEW_LINK(node) link;
