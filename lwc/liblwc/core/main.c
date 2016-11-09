@@ -20,13 +20,16 @@ int main(int argc, char* argv[])
 
     if ((ret = lwc_init()))
     	return ret;
-    printf("Lwc: initialized");
+    printf("Lwc: initialized\n");
 
     /* Entering the sandbox.*/
     //TODO: sanitize arguments.
     uintptr_t sp, entry;
-    sandbox_init("/lib64/ld-linux-x86-64.so.2", argc-1, &argv[1], &sp, &entry);
-    sandbox_run_app(sp, entry);
+    if ((ret = sandbox_init(
+    	"/lib64/ld-linux-x86-64.so.2", argc-1, &argv[1], &sp, &entry))) {
+    	return ret;
+    }
+    ret = sandbox_run_app(sp, entry);
 
     printf("Lwc: execution completed. Goodbye!\n");
     return ret;
