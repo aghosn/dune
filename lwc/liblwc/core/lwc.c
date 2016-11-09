@@ -4,7 +4,7 @@
 
 #include <dune.h>
 
-#include "lwC.h"
+#include "lwc.h"
 #include "lwc_vm.h"
 #include <mm/memory.h>
 /*******************************************************************************
