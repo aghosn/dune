@@ -5,7 +5,7 @@
 #include <dune.h>
 
 #include "../tools/vq.h"
-//#include "../vm/mm_types.h"
+#include <mm/mm_types.h>
 
 /*lwC create options.*/
 
@@ -37,7 +37,7 @@ typedef uint64_t lwc_credentials_t;
 //Supposed to be an fd.
 //Associated with capabilities.
 typedef struct lwc_context_t {
-	//mm_t* vm_mm;
+	mm_struct *vm_mm;
 	struct dune_tf tf;
 	Q_NEW_LINK(lwc_context_t) link_ctx;
 } lwc_context_t;

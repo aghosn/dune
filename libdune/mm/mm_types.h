@@ -16,7 +16,7 @@ typedef struct vm_area_struct {
 	
 	struct mm_struct *vm_mm;	/*Address space we belong to*/
 	
-	//TODO equivalent to pgrot.
+	//TODO: equivalent to pgrot. Should add COW to it.
 	unsigned long vm_flags; /*Flags, see libdune/mm.h*/
 
 	unsigned int user : 1; /*Dune specific, 1 -> user, 0 -> supervisor*/

@@ -51,6 +51,7 @@ lwc_context_t __lwc_root;
 void lwc_init(int argc, char *argv[]) {
     //Init of the sandbox but don't run it just yet.
     uintptr_t sp, entry;
+    
     sandbox_init("/lib64/ld-linux-x86-64.so.2", argc, argv, &sp, &entry);
     sandbox_run_app(sp, entry);
     //mm_dump(mm_root);
