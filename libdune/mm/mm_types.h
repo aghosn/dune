@@ -6,6 +6,9 @@
 
 typedef unsigned long vm_addrptr;
 
+/*Defines a list of vm_area_struct*/
+Q_NEW_HEAD(l_vm_area, vm_area_struct)
+
 typedef struct vm_area_struct {
 
 	/* Address of the first byte within the vma.*/
@@ -34,11 +37,9 @@ typedef struct vm_area_struct {
 	unsigned int shared	: 1;
 
 	/* Link within list of vmas sharing same pages.*/
+	l_vm_area *head_shared;
 	Q_NEW_LINK(vm_area_struct) lk_shared;
 } vm_area_struct;
-
-/*Defines a list of vm_area_struct*/
-Q_NEW_HEAD(l_vm_area, vm_area_struct)
 
 typedef struct mm_struct {
 	l_vm_area *mmap;
