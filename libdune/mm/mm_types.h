@@ -36,7 +36,7 @@ typedef struct vm_area_struct {
 	/* VMA shares page mappings with other vmas.*/
 	unsigned int shared	: 1;
 
-	/* Link within list of vmas sharing same pages.*/
+	/* Vmas that share the same page mappings or are copy-on-write.*/
 	l_vm_area *head_shared;
 	Q_NEW_LINK(vm_area_struct) lk_shared;
 } vm_area_struct;
