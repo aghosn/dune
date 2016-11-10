@@ -34,4 +34,7 @@ void mm_dump(mm_struct *mm);
 int mm_mprotect(mm_struct *mm, vm_addrptr start,
 				vm_addrptr end, unsigned long perm);
 int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end);
+mm_struct* mm_copy(mm_struct *mm);
+vm_area_struct* mm_copy_vma(vm_area_struct *vma);
+int mm_free(mm_struct *mm);
 #endif /*__LIBDUNE_MM_MM_H__*/

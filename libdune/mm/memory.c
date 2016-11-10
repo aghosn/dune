@@ -28,6 +28,7 @@ int dune_memory_init() {
 	}
 	Q_INIT_ELEM(mm_root, lk_mms);
 	mm_root->pml4 = pgroot;
+	mm_root->ref = 1;
 	mm_root->mmap = malloc(sizeof(l_vm_area));
 	Q_INIT_HEAD(mm_root->mmap);
 

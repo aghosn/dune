@@ -485,3 +485,66 @@ int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end)
 	assert(0);
 	return -EINVAL;
 }
+
+vm_area_struct* mm_copy_vma(vm_area_struct *vma)
+{
+	assert(vma);
+	vm_area_struct *copy = malloc(sizeof(vm_area_struct));
+	if (!copy)
+		goto err;
+	copy->vm_start = vma->vm_start;
+	copy->vm_end = vma->vm_end;
+	Q_INIT_ELEM(copy, lk_areas);
+	copy->vm_flags = vma->vm_flags;
+	copy->user = vma->user;
+
+	return copy;
+err:
+	assert(!copy);
+	return NULL;
+}
+
+//TODO: should modify original pgroot.
+mm_struct* mm_copy(mm_struct *mm)
+{
+	assert(mm && mm->pml4 && mm->mmap);
+	vm_area_struct *current = NULL;
+	mm_struct *copy = malloc(sizeof(mm_struct));
+	if (!copy)
+		goto err;
+
+	copy->mmap = malloc(sizeof(l_vm_area));
+	if (!copy->mmap)
+		goto err;
+
+	copy->pml4 = memalign(PGSIZE, PGSIZE);
+	if (!copy->pml4)
+		goto err;
+	memset(copy->pml4, 0, PGSIZE);
+	Q_INIT_ELEM(copy, lk_mms);
+
+	Q_FOREACH(current, mm->mmap, lk_areas) {
+		vm_area_struct *vma = mm_copy_vma(current);
+		if (!vma)
+			goto err;
+		vma->vm_mm = copy;
+		Q_INSERT_TAIL(copy->mmap, vma, lk_areas);
+	}
+	return copy;
+err:
+	//TODO: free the vmas also.
+	if (copy && copy->mmap)
+		free(copy->mmap);
+	if (copy && copy->pml4)
+		free(copy->pml4);
+	if (copy)
+		free(copy);
+	return NULL;
+}
+
+//TODO: implement this.
+int mm_free(mm_struct *mm)
+{
+	//TODO: free all vmas, give back pages, free mm.
+	return 0;
+}
