@@ -31,9 +31,24 @@ int mm_split_or_merge(	mm_struct *mm,
 
 int mm_apply_to_pgroot(vm_area_struct *vma, void *pa);
 void mm_dump(mm_struct *mm);
+
 int mm_mprotect(mm_struct *mm, vm_addrptr start,
 				vm_addrptr end, unsigned long perm);
-int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end);
+
+int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end, bool apply);
+
+int mm_cow(	mm_struct *original,
+			mm_struct *copy,
+			vm_addrptr start,
+			vm_addrptr end,
+			bool apply);
+
+int mm_shared(	mm_struct *original,
+				mm_struct *copy,
+				vm_addrptr start,
+				vm_addrptr end,
+				bool apply);
+
 mm_struct* mm_copy(mm_struct *mm);
 vm_area_struct* mm_copy_vma(vm_area_struct *vma);
 int mm_free(mm_struct *mm);

@@ -37,6 +37,7 @@
 #include <sys/mman.h>
 #include <sys/shm.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include <sandbox/sandbox.h>
 #include "mem.h"
@@ -175,7 +176,7 @@ unsigned long umm_brk(unsigned long brk)
 			      brk_len - len);*/
 		vm_addrptr s = UMM_ADDR_START + len;
 		vm_addrptr e = s + (brk_len - len);
-		mm_unmap(mm_root, s, e);
+		mm_unmap(mm_root, s, e, true);
 	} else {
 		ret = umm_mmap_anom((void *)(UMM_ADDR_START + brk_len),
 				    len - brk_len,
@@ -263,14 +264,14 @@ int umm_munmap(void *addr, size_t len)
 		//dune_vm_unmap(pgroot, addr, BIG_PGADDR(len + BIG_PGSIZE - 1));
 		vm_addrptr s = (vm_addrptr) addr;
 		vm_addrptr e = s + BIG_PGADDR(len + BIG_PGSIZE -1);
-		mm_unmap(mm_root, s, e);
+		mm_unmap(mm_root, s, e, true);
 		return 0;
 	}
 
 	vm_addrptr s = (vm_addrptr) addr;
 	vm_addrptr e = s + len;
 	// dune_vm_unmap(pgroot, addr, len);
-	mm_unmap(mm_root, s, e);
+	mm_unmap(mm_root, s, e, true);
 
 	return 0;
 
@@ -378,7 +379,7 @@ void *umm_mremap(void *old_address, size_t old_size, size_t new_size, int flags,
 
 	//dune_vm_unmap(pgroot, old_address, old_size);
 	mm_unmap(mm_root,(vm_addrptr)old_address, 
-		(vm_addrptr)(old_address + old_size));
+		(vm_addrptr)(old_address + old_size), true);
 	
 	/*if (dune_vm_map_phys(pgroot, new_address, new_size,
 			     (void *) dune_va_to_pa(new_address),

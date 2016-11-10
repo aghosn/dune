@@ -31,8 +31,9 @@ typedef enum lwc_rgopt_e {
 typedef struct lwc_rg_struct {
 	vm_addrptr start;
 	vm_addrptr end;
-
 	lwc_rgopt_e opt;
+
+	Q_NEW_LINK(lwc_rg_struct) lk_rg;
 } lwc_rg_struct;
 
 /* List of lwc_rg_struct.*/
@@ -40,7 +41,7 @@ Q_NEW_HEAD(l_lwc_rg, lwc_rg_struct);
 
 /* Specifies the modifications to perform.*/
 typedef struct lwc_rsrc_spec {
-	l_lwc_rg *ranges;
+	l_lwc_rg ranges;
 
 	//TODO: add other information as need.
 } lwc_rsrc_spec;

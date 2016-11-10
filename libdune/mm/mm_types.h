@@ -20,6 +20,13 @@ typedef struct vm_area_struct {
 	unsigned long vm_flags; /*Flags, see libdune/mm.h*/
 
 	unsigned int user : 1; /*Dune specific, 1 -> user, 0 -> supervisor*/
+	unsigned int cow: 1;
+	unsigned int shared: 1;
+	unsigned int dirty: 1;
+	//TODO: handle all below.
+		//TODO: might need something to say COW.
+		//TODO: might need dirty bit and shared.
+		//dirty bit is used to know if needs an apply on pgroot.
 } vm_area_struct;
 
 /*Define a list of vm_area_struct*/

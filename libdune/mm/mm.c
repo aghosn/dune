@@ -452,7 +452,7 @@ static int __mm_unmap(vm_area_struct *vma, void *args)
 	return 0;
 }
 
-int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end)
+int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end, bool apply)
 {
 	assert(start < end);
 	int ret = 0;
@@ -473,8 +473,10 @@ int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end)
 			assert(to_rm != NULL);
 			Q_REMOVE(mm->mmap, to_rm, lk_areas);
 		
-			dune_vm_unmap(mm->pml4, (void*)(to_rm->vm_start), 
-				(size_t)(to_rm->vm_end - to_rm->vm_start));
+			if (apply) {
+				dune_vm_unmap(mm->pml4, (void*)(to_rm->vm_start), 
+					(size_t)(to_rm->vm_end - to_rm->vm_start));
+			}
 			free(to_rm);
 			
 			return ret;
@@ -484,6 +486,18 @@ int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end)
 	 * Need to decide if we return 0 or it is a fault to unmap invalid addr.*/
 	assert(0);
 	return -EINVAL;
+}
+
+int mm_cow(mm_struct *o, mm_struct *c, vm_addrptr s, vm_addrptr e, bool apply)
+{
+	//TODO: implement copy on write.
+	return 0;
+}
+
+int mm_shared(mm_struct *o, mm_struct *c, vm_addrptr s, vm_addrptr e, bool apply)
+{
+	//TODO: implement shared area.
+	return 0;
 }
 
 vm_area_struct* mm_copy_vma(vm_area_struct *vma)
@@ -504,7 +518,7 @@ err:
 	return NULL;
 }
 
-//TODO: should modify original pgroot.
+//TODO: should modify original pgroot with COW if we do a COW?
 mm_struct* mm_copy(mm_struct *mm)
 {
 	assert(mm && mm->pml4 && mm->mmap);

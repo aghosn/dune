@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <pthread.h>
+#include <stdbool.h>
 
 #include <dune.h>
 #include <mm/memory.h>
@@ -48,6 +49,7 @@ err:
     return ret;
 }
 
+//TODO hum for cow might need the original.
 static mm_struct* lwc_apply_mm(lwc_rsrc_spec *mod, mm_struct *o)
 {
     assert(mod && o);
@@ -56,6 +58,23 @@ static mm_struct* lwc_apply_mm(lwc_rsrc_spec *mod, mm_struct *o)
         goto err;
 
     //TODO: apply the mods.
+    lwc_rg_struct *current = NULL;
+    Q_FOREACH(current, &(mod->ranges), lk_rg) {
+        switch(current->opt) {
+            case LWC_COW:
+                mm_cow(o, copy, current->start, current->end, false);
+                break;
+            case LWC_SHARED:
+                mm_shared(o, copy, current->start, current->end, false);
+                break;
+            case LWC_UNMAP:
+                mm_unmap(copy, current->start, current->end, false);
+                break;
+            default:
+                //TODO: logg error.
+                goto err;
+        }
+    }
     return copy;
 
 err:
@@ -74,7 +93,7 @@ lwc_struct* lwc_create(lwc_rsrc_spec *mod)
         goto err;
 
     /* Quick copy*/
-    if (!mod || mod->ranges->head == NULL) {
+    if (!mod || mod->ranges.head == NULL) {
         copy = current->vm_mm;
         current->vm_mm->ref++;
         goto create;
