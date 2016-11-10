@@ -32,12 +32,17 @@ static vm_area_struct * mm_alloc_vma(mm_struct *mm,
 	vm_area_struct *vma = malloc(sizeof(vm_area_struct));
 	if (!vma)
 		return NULL;
+	//TODO: check if not faster to set extra flags by hand.
+	//or if we really need Q_INIT_ELEM after that.
+	memset(vma, 0, sizeof(vm_area_struct));
 	vma->vm_start = start;
 	vma->vm_end = end;
 	vma->vm_flags = perm;
 
+
 	vma->vm_mm = mm;
 	Q_INIT_ELEM(vma, lk_areas);
+	Q_INIT_ELEM(vma, lk_shared);
 	return vma;
 }
 

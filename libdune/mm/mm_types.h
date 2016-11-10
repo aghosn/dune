@@ -7,29 +7,37 @@
 typedef unsigned long vm_addrptr;
 
 typedef struct vm_area_struct {
-	vm_addrptr vm_start;	/*Start address within the vm_mm*/
-	vm_addrptr vm_end;	/*First byte after our end address*/
+
+	/* Address of the first byte within the vma.*/
+	vm_addrptr vm_start;
+	/* Address of the first byte after our end address*/
+	vm_addrptr vm_end;
 
 	/*Linked list of VM areas, should be sorted by address*/
 	Q_NEW_LINK(vm_area_struct) lk_areas;
-	//TODO tree at some point.
 	
-	struct mm_struct *vm_mm;	/*Address space we belong to*/
+	//TODO: implement red-black tree.
 	
-	//TODO: equivalent to pgrot. Should add COW to it.
-	unsigned long vm_flags; /*Flags, see libdune/mm.h*/
+	/* Address space we belong to*/
+	struct mm_struct *vm_mm;
+	
+	/*Flags, see libdune/mm.h*/
+	unsigned long vm_flags;
 
-	unsigned int user : 1; /*Dune specific, 1 -> user, 0 -> supervisor*/
-	unsigned int cow: 1;
-	unsigned int shared: 1;
-	unsigned int dirty: 1;
-	//TODO: handle all below.
-		//TODO: might need something to say COW.
-		//TODO: might need dirty bit and shared.
-		//dirty bit is used to know if needs an apply on pgroot.
+	/* Dune specific, 1 -> user, 0 -> supervisor*/
+	unsigned int user	: 1;
+	/* Flags vma modified but not applied to pgroot.*/
+	unsigned int dirty	: 1;
+	/* VMA is copy on write.*/
+	unsigned int cow 	: 1;
+	/* VMA shares page mappings with other vmas.*/
+	unsigned int shared	: 1;
+
+	/* Link within list of vmas sharing same pages.*/
+	Q_NEW_LINK(vm_area_struct) lk_shared;
 } vm_area_struct;
 
-/*Define a list of vm_area_struct*/
+/*Defines a list of vm_area_struct*/
 Q_NEW_HEAD(l_vm_area, vm_area_struct)
 
 typedef struct mm_struct {
