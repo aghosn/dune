@@ -53,11 +53,10 @@ err:
 static mm_struct* lwc_apply_mm(lwc_rsrc_spec *mod, mm_struct *o)
 {
     assert(mod && o);
-    mm_struct *copy = mm_copy(o);
+    mm_struct *copy = mm_cow_copy(o);
     if (!copy)
         goto err;
 
-    //TODO: apply the mods.
     lwc_rg_struct *current = NULL;
     Q_FOREACH(current, &(mod->ranges), lk_rg) {
         switch(current->opt) {
@@ -75,6 +74,8 @@ static mm_struct* lwc_apply_mm(lwc_rsrc_spec *mod, mm_struct *o)
                 goto err;
         }
     }
+
+    //FIXME: do the apply.
     return copy;
 
 err:
@@ -93,10 +94,9 @@ lwc_struct* lwc_create(lwc_rsrc_spec *mod, struct dune_tf *tf)
     if (!current)
         goto err;
 
-    /* Quick copy*/
+    /*TODO: Default copy-on-write behaviour.*/
     if (!mod || mod->ranges.head == NULL) {
-        copy = current->vm_mm;
-        current->vm_mm->ref++;
+        copy = mm_cow_copy(current->vm_mm);
         goto create;
     }
 

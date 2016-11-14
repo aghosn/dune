@@ -621,7 +621,8 @@ int mm_shared(mm_struct *o, mm_struct *c, vm_addrptr s, vm_addrptr e, bool apply
 	return ret;
 }
 
-vm_area_struct* mm_copy_vma(vm_area_struct *vma)
+/* Does a vma cow copy.*/
+vm_area_struct* mm_cow_copy_vma(vm_area_struct *vma)
 {
 	assert(vma);
 	vm_area_struct *copy = malloc(sizeof(vm_area_struct));
@@ -630,17 +631,41 @@ vm_area_struct* mm_copy_vma(vm_area_struct *vma)
 	copy->vm_start = vma->vm_start;
 	copy->vm_end = vma->vm_end;
 	Q_INIT_ELEM(copy, lk_areas);
+	Q_INIT_ELEM(copy, lk_shared);
 	copy->vm_flags = vma->vm_flags;
 	copy->user = vma->user;
+	copy->dirty = vma->dirty;
+	copy->cow = vma->cow;
+	copy->shared = vma->shared;
+
+	//FIXME: does not account for shared pages.
+	if (!(vma->cow)) {
+		vma->head_shared = malloc(sizeof(l_vm_area));
+		if (!vma->head_shared)
+			goto err;
+		vma->cow = 1;
+		copy->cow = 1;
+		vma->dirty = 1;
+		Q_INIT_HEAD(vma->head_shared);
+		Q_INSERT_TAIL(vma->head_shared, vma, lk_shared);
+		//TODO: add cow flags inside VMA.
+		//FIXME: Also need something to diff user/sup, we ignore supervisor cow?
+	}
+	copy->head_shared = vma->head_shared;
+	copy->dirty = 1;
+	Q_INSERT_TAIL(copy->head_shared, copy, lk_shared);
 
 	return copy;
 err:
-	assert(!copy);
+	if (copy)
+		free(copy);
 	return NULL;
 }
 
-//TODO: should modify original pgroot with COW if we do a COW?
-mm_struct* mm_copy(mm_struct *mm)
+//TODO: should modify original pgroot with COW if we do a COW!
+//FIXME: should do copy on write.
+//Should ignore kernel though.
+mm_struct* mm_cow_copy(mm_struct *mm)
 {
 	assert(mm && mm->pml4 && mm->mmap);
 	vm_area_struct *current = NULL;
@@ -659,7 +684,7 @@ mm_struct* mm_copy(mm_struct *mm)
 	Q_INIT_ELEM(copy, lk_mms);
 
 	Q_FOREACH(current, mm->mmap, lk_areas) {
-		vm_area_struct *vma = mm_copy_vma(current);
+		vm_area_struct *vma = mm_cow_copy_vma(current);
 		if (!vma)
 			goto err;
 		vma->vm_mm = copy;
@@ -670,6 +695,7 @@ err:
 	//TODO: free the vmas also.
 	if (copy && copy->mmap)
 		free(copy->mmap);
+	//FIXME: not correct, should use the mm_free.
 	if (copy && copy->pml4)
 		free(copy->pml4);
 	if (copy)
@@ -695,5 +721,6 @@ int mm_free(mm_struct *mm)
 		}
 		mm_delete_vma(current);
 	}
+	//FIXME: free pml4 etc.
 	return ret;
 }
