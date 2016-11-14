@@ -494,9 +494,11 @@ int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end, bool apply)
 			Q_REMOVE(mm->mmap, to_rm, lk_areas);
 		
 			if (apply) {
+				//FIXME: problem here, what if was COW or shared?
 				dune_vm_unmap(mm->pml4, (void*)(to_rm->vm_start), 
 					(size_t)(to_rm->vm_end - to_rm->vm_start));
 			}
+			//FIXME: same problem as above.
 			free(to_rm);
 			
 			return ret;
@@ -675,9 +677,23 @@ err:
 	return NULL;
 }
 
-//TODO: implement this.
 int mm_free(mm_struct *mm)
 {
+	assert(mm);
 	//TODO: free all vmas, give back pages, free mm.
-	return 0;
+	//TODO check the ref in the mm...
+	int ret = 0;
+	vm_area_struct *iter = mm->mmap->head;
+	while(iter != NULL) {
+		vm_area_struct *current = iter;
+		iter = iter->lk_areas.next;
+
+		//TODO: free memory if possible.
+		if (!(current->cow || current->shared)) {
+			dune_vm_unmap(mm->pml4, (void*)(current->vm_start),
+				(size_t)(current->vm_end - current->vm_end));
+		}
+		mm_delete_vma(current);
+	}
+	return ret;
 }

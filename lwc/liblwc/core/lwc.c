@@ -82,7 +82,8 @@ err:
 }
 
 
-lwc_struct* lwc_create(lwc_rsrc_spec *mod)
+//FIXME: get the trap frame.
+lwc_struct* lwc_create(lwc_rsrc_spec *mod, struct dune_tf *tf)
 {
     mm_struct *copy = NULL;
     lwc_struct *n_lwc = NULL, *current = NULL;
@@ -109,7 +110,11 @@ create:
     n_lwc->vm_mm = copy;
     n_lwc->parent = current;
     Q_INIT_HEAD(&(n_lwc->children));
-    //TODO: init the dune_tf.
+
+    /* Initialize the dune trap frame.*/
+    memcpy(&(n_lwc->tf), tf, sizeof(struct dune_tf));
+    //FIXME: change the rax value. maybe implement the same as in lwc paper.
+
     Q_INIT_ELEM(n_lwc, lk_ctx);
     Q_INIT_ELEM(n_lwc, lk_parent);
     Q_INSERT_TAIL(&(current->children), n_lwc, lk_parent);
@@ -121,9 +126,42 @@ err:
     return NULL;
 }
 
+//FIXME: check that it works.
+int lwc_switch(lwc_struct *lwc, void *args, struct dune_tf *tf)
+{
+    assert(lwc);
+    int ret;
+    
+    /* Get the current context.*/
+    lwc_struct *current = Q_GET_FRONT(contexts);
+    assert(current);
+
+    Q_REMOVE(contexts, lwc, lk_ctx);
+    Q_INSERT_FRONT(contexts, lwc, lk_ctx);
+    
+    /* Save the current point.*/
+    memcpy(&(current->tf), tf, sizeof(struct dune_tf));
+
+    //FIXME: give args to the context.
+
+    /* Do the switch*/
+    load_cr3((unsigned long)lwc->vm_mm->pml4);
+    ret = dune_jump_to_user(&(lwc->tf));
+
+    //TODO: do we even get here at some point?
+    return ret;
+}
+
 int lwc_free(lwc_struct *lwc)
 {
-    //TODO: implement
+    assert(lwc);
+    if (lwc->parent) {
+        lwc_struct *parent = lwc->parent;
+        Q_REMOVE(&(parent->children), lwc, lk_parent);
+    }
+    Q_REMOVE(contexts, lwc, lk_ctx);
+    mm_free(lwc->vm_mm);
+    free(lwc);
     return 0;
 }
 
