@@ -59,7 +59,7 @@
 #include <cpu-x86.h>
 #include "mem.h"
 
-#include "syscall_ids.h"
+#include "lwc_sysnr.h"
 
 struct thread_arg {
 	pthread_cond_t	ta_cnd;

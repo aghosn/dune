@@ -1,0 +1,12 @@
+#ifndef __LWC_LIBLWC_SYSCALLS_LWC_SYSNR_H__
+#define __LWC_LIBLWC_SYSCALLS_LWC_SYSNR_H__
+
+#define SYSCALL_START	0x100000
+
+/* System calls for lwc.*/
+enum {
+	SYS_LWC_CREATE = (SYSCALL_START),
+	SYS_LWC_SWITCH,
+};
+
+#endif /*__LWC_LIBLWC_SYSCALLS_LWC_SYSNR_H__*/

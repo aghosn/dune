@@ -40,6 +40,6 @@ int init_do_spawn(void *arg)
 //TODO: support the lwc interface.
 void do_syscall(struct dune_tf *tf, uint64_t sysnr)
 {   
-    printf("In do syscall\n");
+    printf("In do syscall with id %lu\n", sysnr);
     fflush(stdout);
 }

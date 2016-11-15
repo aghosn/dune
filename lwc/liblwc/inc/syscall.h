@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <sys/syscall.h>
 #include "../core/lwc_types.h"
-#include "../syscalls/syscall_ids.h"
+#include "../syscalls/lwc_sysnr.h"
 
 static inline lwc_struct* lwc_create(lwc_rsrc_spec *mod)
 {
