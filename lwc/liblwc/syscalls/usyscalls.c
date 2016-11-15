@@ -4,8 +4,16 @@
 #include <dune.h>
 #include <sandbox/sandbox.h>
 
+#include "usyscalls.h"
+#include "../core/lwc.h"
+
 /* Implementation required for the sandbox.*/
 bool sys_spawn_cores;
+
+static lwc_sysfn_t sys_tbl[] = {
+    (lwc_sysfn_t) sys_lwc_create,
+    (lwc_sysfn_t) sys_lwc_switch
+};
 
 static pthread_mutex_t spawn_mutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t spawn_cond = PTHREAD_COND_INITIALIZER;
@@ -40,6 +48,6 @@ int init_do_spawn(void *arg)
 //TODO: support the lwc interface.
 void do_syscall(struct dune_tf *tf, uint64_t sysnr)
 {   
-    printf("In do syscall with id %lu\n", sysnr);
-    fflush(stdout);
+    tf->rax = (uint64_t) sys_tbl[sysnr](tf, tf->rdi, tf->rsi, tf->rdx, tf->rcx, 
+        tf->r8, tf->r9);
 }

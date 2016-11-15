@@ -8,6 +8,6 @@ int main(int argc, char *argv[]) {
 	lwc_struct *test = NULL;
 	lwc_rsrc_spec *mod = NULL;
 	test = lwc_create(mod);
-	lwc_switch(NULL, NULL);
+	lwc_switch(test, NULL);
 	return 0;
 }

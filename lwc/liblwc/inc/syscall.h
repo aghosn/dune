@@ -13,6 +13,6 @@ static inline lwc_struct* lwc_create(lwc_rsrc_spec *mod)
 }
 static inline int lwc_switch(lwc_struct *lwc, void *args)
 {
-	return (int) syscall(SYS_LWC_SWITCH, args);
+	return (int) syscall(SYS_LWC_SWITCH, lwc, args);
 }
 #endif /*__LWC_LIBLWC_INC_SYSCALL_H__*/

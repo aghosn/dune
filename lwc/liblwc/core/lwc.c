@@ -84,7 +84,7 @@ err:
 
 
 //FIXME: get the trap frame.
-lwc_struct* sys_lwc_create(lwc_rsrc_spec *mod, struct dune_tf *tf)
+lwc_struct* sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod)
 {
     mm_struct *copy = NULL;
     lwc_struct *n_lwc = NULL, *current = NULL;
@@ -119,6 +119,8 @@ create:
     Q_INIT_ELEM(n_lwc, lk_parent);
     Q_INSERT_TAIL(&(current->children), n_lwc, lk_parent);
     Q_INSERT_TAIL(contexts, n_lwc, lk_ctx);
+
+    printf("The address %p.\n", n_lwc);
     return n_lwc;
 err:
     if (n_lwc)
@@ -127,8 +129,9 @@ err:
 }
 
 //FIXME: check that it works.
-int sys_lwc_switch(lwc_struct *lwc, void *args, struct dune_tf *tf)
+int sys_lwc_switch(struct dune_tf *tf, lwc_struct *lwc, void *args)
 {
+    assert(tf);
     assert(lwc);
     int ret;
     
@@ -143,7 +146,6 @@ int sys_lwc_switch(lwc_struct *lwc, void *args, struct dune_tf *tf)
     memcpy(&(current->tf), tf, sizeof(struct dune_tf));
 
     //FIXME: give args to the context.
-
     /* Do the switch*/
     load_cr3((unsigned long)lwc->vm_mm->pml4);
     ret = dune_jump_to_user(&(lwc->tf));
