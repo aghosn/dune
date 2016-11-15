@@ -47,10 +47,6 @@ static vm_area_struct * mm_alloc_vma(mm_struct *mm,
 	}
 
 	return vma;
-err:
-	if (vma)
-		free(vma);
-	return NULL;
 }
 
 /* Frees a vma and handles the shared and cow list.
@@ -527,6 +523,7 @@ static int __mm_cow(vm_area_struct *vma, void *args)
 	struct __shared_info *sh = (struct __shared_info*) args;
 	vma->dirty = 1;
 	vma->cow = 1;
+	vma->vm_flags |= PERM_COW;
 	vma->shared = 0;
 
 	if (sh->apply) {
@@ -658,6 +655,7 @@ static vm_area_struct* mm_cow_copy_vma(vm_area_struct *vma)
 	
 	if (vma->cow) {
 		assert(vma->head_shared);
+		assert(vma->vm_flags & PERM_COW);
 		shared = vma->head_shared;
 	} else {
 		shared = malloc(sizeof(l_vm_area));
@@ -667,6 +665,7 @@ static vm_area_struct* mm_cow_copy_vma(vm_area_struct *vma)
 		Q_INSERT_TAIL(shared, vma, lk_shared);
 		vma->head_shared = shared;
 		vma->cow = 1;
+		vma->vm_flags |= PERM_COW;
 		vma->dirty = 1;
 	}
 
@@ -718,7 +717,7 @@ err:
 }
 
 /* Creates a copy on write copy of the mm. The kernel space is shared.*/
-mm_struct* mm_cow_copy(mm_struct *mm)
+mm_struct* mm_cow_copy(mm_struct *mm, bool apply)
 {
 	assert(mm && mm->mmap);
 	vm_area_struct *current = NULL;
@@ -749,6 +748,11 @@ mm_struct* mm_cow_copy(mm_struct *mm)
 		Q_INSERT_TAIL(copy->mmap, vmcpy, lk_areas);
 	}
 	//TODO: apply to page root.
+	if (apply) {
+		mm_apply(mm);
+		mm_apply(copy);
+	}
+
 	return copy;
 err:
 	if (copy)
@@ -776,4 +780,15 @@ int mm_free(mm_struct *mm)
 	}
 	//FIXME: free pml4 etc.
 	return ret;
+}
+
+void mm_apply(mm_struct *mm)
+{
+	vm_area_struct *current = NULL;
+	Q_FOREACH(current, mm->mmap, lk_areas) {
+		if (current->user == 0)
+			continue;
+		if (current->dirty)
+			__mm_apply_protect(current, mm->pml4);
+	}
 }

@@ -12,6 +12,7 @@ ptent_t get_pte_perm(int perm)
 {
 	ptent_t pte_perm = 0;
 
+	//TODO: urgent!! shared support.
 	if (perm & PERM_R)
 		pte_perm = PTE_P;
 	if (perm & PERM_W)
@@ -473,7 +474,7 @@ int dune_vm_has_mapping(ptent_t *root, void *va)
 	
 	ptent_t* out = &pte[l];
 	// printf("The l is %d", l);
-	// printf("The result is %p\n", out);
+	printf("The result is %p\n", out);
 
 	return 0;
 }

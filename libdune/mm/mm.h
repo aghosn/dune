@@ -49,6 +49,7 @@ int mm_shared(	mm_struct *original,
 				vm_addrptr end,
 				bool apply);
 
-mm_struct* mm_cow_copy(mm_struct *mm);
+mm_struct* mm_cow_copy(mm_struct *mm, bool apply);
 int mm_free(mm_struct *mm);
+void mm_apply(mm_struct *mm);
 #endif /*__LIBDUNE_MM_MM_H__*/
