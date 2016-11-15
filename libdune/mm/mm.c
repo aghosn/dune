@@ -728,12 +728,12 @@ mm_struct* mm_cow_copy(mm_struct *mm, bool apply)
 	if (!(copy->mmap))
 		goto err;
 
-	copy->pml4 = memalign(PGSIZE, PGSIZE);
+	if (!apply) {
+		copy->pml4 = dune_vm_clone(mm->pml4);
+		if (!(copy->pml4))
+			goto err;
+	}
 	
-	if (!(copy->pml4))
-		goto err;
-	
-	memset(copy->pml4, 0, PGSIZE);
 	Q_INIT_ELEM(copy, lk_mms);
 	Q_FOREACH(current, mm->mmap, lk_areas) {
 		vm_area_struct *vmcpy = NULL;
@@ -750,7 +750,9 @@ mm_struct* mm_cow_copy(mm_struct *mm, bool apply)
 	//TODO: apply to page root.
 	if (apply) {
 		mm_apply(mm);
-		mm_apply(copy);
+		copy->pml4 = dune_vm_clone(mm->pml4);
+		if (!copy->pml4)
+			goto err;
 	}
 
 	return copy;
