@@ -59,6 +59,8 @@
 #include <cpu-x86.h>
 #include "mem.h"
 
+#include "syscall_ids.h"
+
 struct thread_arg {
 	pthread_cond_t	ta_cnd;
 	pthread_mutex_t	ta_mtx;
@@ -633,7 +635,7 @@ static void syscall_do(struct dune_tf *tf)
 		err(1, "pthread_mutex_unlock()");
 }
 
-#define SYSCALL_START	0x100000
+//#define SYSCALL_START	0x100000
 extern void do_syscall(struct dune_tf *tf, uint64_t sysnr);
 
 static void syscall_handler(struct dune_tf *tf)

@@ -84,7 +84,7 @@ err:
 
 
 //FIXME: get the trap frame.
-lwc_struct* lwc_create(lwc_rsrc_spec *mod, struct dune_tf *tf)
+lwc_struct* sys_lwc_create(lwc_rsrc_spec *mod, struct dune_tf *tf)
 {
     mm_struct *copy = NULL;
     lwc_struct *n_lwc = NULL, *current = NULL;
@@ -127,7 +127,7 @@ err:
 }
 
 //FIXME: check that it works.
-int lwc_switch(lwc_struct *lwc, void *args, struct dune_tf *tf)
+int sys_lwc_switch(lwc_struct *lwc, void *args, struct dune_tf *tf)
 {
     assert(lwc);
     int ret;
