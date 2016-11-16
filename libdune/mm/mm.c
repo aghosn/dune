@@ -151,7 +151,7 @@ int mm_init()
 	int ret;
 	void *start = NULL, *end = NULL, *pa = NULL;
 	unsigned long perm = 0;
-
+	
 	/* Map the page base. */
 	start = (void*) PAGEBASE;
 	end = (void*) (PAGEBASE + MAX_PAGES * PGSIZE);
@@ -756,6 +756,7 @@ mm_struct* mm_cow_copy(mm_struct *mm, bool apply)
 		copy->pml4 = dune_vm_clone(mm->pml4);
 		if (!copy->pml4)
 			goto err;
+		dune_flush_tlb();
 	}
 
 	return copy;

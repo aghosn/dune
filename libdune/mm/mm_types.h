@@ -9,6 +9,32 @@ typedef unsigned long vm_addrptr;
 /*Defines a list of vm_area_struct*/
 Q_NEW_HEAD(l_vm_area, vm_area_struct)
 
+typedef struct flags {
+	/* first 4 bits.*/
+	uint64_t R 	: 1;
+	uint64_t W 	: 1;
+	uint64_t X  : 1;
+	uint64_t U 	: 1;
+
+	/* second 4 bits.*/
+	uint64_t UC : 1;
+	uint64_t COW: 1;
+	uint64_t I 	: 2;
+
+	/* third 4 bits.*/
+	uint64_t B1	: 1;
+	uint64_t B2 : 1;
+	uint64_t I1 : 1;
+
+	/* fourth 4 bits.*/
+	uint64_t U1 : 1;
+	uint64_t U2 : 1;
+	uint64_t I3 : 2;
+
+	/* Ignored.*/
+	uint64_t I4 : 16;
+} flags;
+
 typedef struct vm_area_struct {
 
 	/* Address of the first byte within the vma.*/

@@ -83,7 +83,6 @@ err:
     return NULL;
 }
 
-
 //FIXME: get the trap frame.
 lwc_struct* sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod)
 {
@@ -151,10 +150,12 @@ int sys_lwc_switch(struct dune_tf *tf, lwc_struct *lwc, void *args)
 
     //FIXME: give args to the context.
     /* Do the switch*/
+    printf("Before the switch!\n");
     load_cr3((unsigned long)lwc->vm_mm->pml4);
+    printf("After the switch! %p\n", &ret);
     //ret = dune_jump_to_user(&(lwc->tf));
     //TODO: do we even get here at some point?
-    return ret;
+    return 0;
 }
 
 int lwc_free(lwc_struct *lwc)

@@ -69,6 +69,7 @@ err:
 		free(mm_queue);
 	return ret;
 }
+
 void memory_default_pgflt_handler(uintptr_t addr, uint64_t fec)
 {
 	ptent_t *pte = NULL;
@@ -76,16 +77,20 @@ void memory_default_pgflt_handler(uintptr_t addr, uint64_t fec)
 	/*
 	 * Assert on present and reserved bits.
 	 */
-	//assert(!(fec & (FEC_P | FEC_RSV)));
-
+	printf("The fec %lu and address %p\n", fec, addr);
 	rc = dune_vm_lookup(pgroot, (void *) addr, 0, &pte);
+	if (rc != 0)
+		printf("TROUBLE!!!\n");
+	else
+		printf("I'm here but not queer.\n");
+	fflush(stdout);
 	assert(rc == 0);
 	assert(*pte & PTE_U);
 	
 	if ((*pte & PTE_U) && (*pte & PTE_COW))
 		printf("Looks good to me for the moment.\n");
-	else
-		printf("Shhhhhoooot\n");
+	// else
+	// 	printf("Shhhhhoooot\n");
 
 	if ((fec & FEC_W) && (*pte & PTE_COW)) {
 		void *newPage;
@@ -97,10 +102,10 @@ void memory_default_pgflt_handler(uintptr_t addr, uint64_t fec)
 		perm |= PTE_W;
 
 		if (dune_page_isfrompool(PTE_ADDR(*pte)) && pg->ref == 1) {
+			fflush(stdout);
 			*pte = PTE_ADDR(*pte) | perm;
 			return;
 		}
-
 		// Duplicate page
 		newPage = alloc_page();
 		memcpy(newPage, (void *)PGADDR(addr), PGSIZE);
@@ -114,4 +119,5 @@ void memory_default_pgflt_handler(uintptr_t addr, uint64_t fec)
 		// Invalidate
 		dune_flush_tlb_one(addr);
 	}
+	printf("And solved.\n");
 }

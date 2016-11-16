@@ -3,10 +3,7 @@
 #include <stdbool.h>
 
 #include "mm_types.h"
-
-/* Macros to handle page alignment*/
-#define MM_PGALIGN_DN(addr) ((addr) & ~(PGSIZE - 1))
-#define MM_PGALIGN_UP(addr) (((addr) + (PGSIZE-1)) & ~(PGSIZE - 1))
+#include "vma.h"
 
 /* Call back function type.*/
 typedef int (*mm_cb_ft)(vm_area_struct*, void*);
