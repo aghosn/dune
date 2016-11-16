@@ -5,6 +5,7 @@
 
 #include "../dune.h"
 #include "mm.h"
+#include "vma.h"
 #include "mm_types.h"
 #include "vm.h"
 #include "page.h"

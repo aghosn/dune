@@ -12,4 +12,8 @@ vm_area_struct *vma_create(	mm_struct *mm,
 							vm_addrptr end,
 							unsigned long perm);
 
-#endif
+int vma_free(vm_area_struct *vma);
+vm_area_struct *vma_cow_copy(vm_area_struct *vma);
+vm_area_struct *vma_shared_copy(vm_area_struct *vma);
+
+#endif /*__LIBDUNE_MM_VMA_H__*/

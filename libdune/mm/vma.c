@@ -53,14 +53,16 @@ int vma_free(vm_area_struct *vma)
 
 vm_area_struct *vma_cow_copy(vm_area_struct *vma)
 {
+	assert(vma);
 	vm_area_struct *copy = malloc(sizeof(vm_area_struct));
 	if (!copy)
 		goto err;
 
-	l_vm_area *shared = NULL;
+	l_vm_area *shared = vma->head_shared;
 	assert(!vma->shared);
 	
 	if (!vma->cow) {
+		assert(shared == NULL);
 		shared = malloc(sizeof(l_vm_area));
 		if (!shared) goto err;
 
@@ -68,9 +70,55 @@ vm_area_struct *vma_cow_copy(vm_area_struct *vma)
 		Q_INIT_ELEM(vma, lk_shared);
 		Q_INSERT_TAIL(shared, vma, lk_shared);
 
-		//TODO: implement.
-
+		vma->head_shared = shared;
+		vma->cow = 1;
+		vma->vm_flags ^= PERM_W;
+		vma->vm_flags |= PERM_COW;
+		vma->dirty = 1;
 	}
+
+	memcpy(copy, vma, sizeof(vm_area_struct));
+	Q_INIT_ELEM(copy, lk_shared);
+	Q_INSERT_TAIL(shared, copy, lk_shared);
+	copy->dirty = 1;
+
+	return copy;
+err:
+	if (copy)
+		free(copy);
+	return NULL;
+}
+
+vm_area_struct *vma_shared_copy(vm_area_struct *vma)
+{
+	assert(vma);
+	vm_area_struct *copy = malloc(sizeof(vm_area_struct));
+	if (!copy)
+		goto err;
+
+	l_vm_area *shared = vma->head_shared;
+
+	if (!vma->shared || vma->head_shared == NULL) {
+		assert(shared == NULL);
+		assert(vma->cow == 0);
+		
+		shared = malloc(sizeof(l_vm_area));
+		if (!shared) goto err;
+
+		Q_INIT_HEAD(shared);
+		Q_INIT_ELEM(vma, lk_shared);
+		Q_INSERT_TAIL(shared, vma, lk_shared);
+
+		vma->head_shared = shared;
+		vma->shared = 1;
+		vma->dirty = 1;
+	}
+	
+	memcpy(copy, vma, sizeof(vm_area_struct));
+	Q_INIT_ELEM(copy, lk_shared);
+	Q_INSERT_TAIL(shared, copy, lk_shared);
+	copy->dirty = 1;
+	return copy;
 err:
 	if (copy)
 		free(copy);

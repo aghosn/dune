@@ -40,6 +40,7 @@ int lwc_init()
     }
     Q_INIT_HEAD(contexts);
     Q_INSERT_FRONT(contexts, lwc_root, lk_ctx);
+
     return 0;
 err:
     if (lwc_root)

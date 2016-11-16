@@ -79,16 +79,13 @@ void memory_default_pgflt_handler(uintptr_t addr, uint64_t fec)
 	 */
 	printf("The fec %lu and address %p\n", fec, addr);
 	rc = dune_vm_lookup(pgroot, (void *) addr, 0, &pte);
-	if (rc != 0)
-		printf("TROUBLE!!!\n");
-	else
-		printf("I'm here but not queer.\n");
+	
 	fflush(stdout);
 	assert(rc == 0);
 	assert(*pte & PTE_U);
 	
-	if ((*pte & PTE_U) && (*pte & PTE_COW))
-		printf("Looks good to me for the moment.\n");
+	// if ((*pte & PTE_U) && (*pte & PTE_COW))
+	// 	printf("Looks good to me for the moment.\n");
 	// else
 	// 	printf("Shhhhhoooot\n");
 

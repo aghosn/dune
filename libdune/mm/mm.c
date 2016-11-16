@@ -10,6 +10,7 @@
 #include "mm.h"
 #include "mm_types.h"
 #include "memory.h"
+#include "vma.h"
 
 /*Global variables for memory limits.*/
 uintptr_t phys_limit;
@@ -17,56 +18,6 @@ uintptr_t mmap_base;
 uintptr_t stack_base;
 int dune_fd;
 
-/* Allocates and initializes a vm_area.
- * WARNING: it does not add it to mm.
- * WARNING: it does not change the pgroot mappings either.
- * WARNING: addresses shoud be page aligned.*/
-static vm_area_struct * mm_alloc_vma(mm_struct *mm,
-									vm_addrptr start,
-									vm_addrptr end,
-									unsigned long perm)
-{
-	assert(start == MM_PGALIGN_DN(start));
-	assert(end == MM_PGALIGN_UP(end));
-
-	vm_area_struct *vma = malloc(sizeof(vm_area_struct));
-	if (!vma)
-		return NULL;
-	//TODO: check if not faster to set extra flags by hand.
-	memset(vma, 0, sizeof(vm_area_struct));
-	vma->vm_start = start;
-	vma->vm_end = end;
-	vma->vm_flags = perm;
-	vma->vm_mm = mm;
-
-	if (perm & PERM_U)
-		vma->user = 1;
-	else {
-		/* We do not allocate the shared list yet.*/
-		vma->shared = 1;
-	}
-
-	return vma;
-}
-
-/* Frees a vma and handles the shared and cow list.
- * NOTE: the page root should be modified somewhere else.*/
-static void mm_delete_vma(vm_area_struct *vma)
-{
-	assert(vma);
-	if ((vma->cow || vma->shared) && vma->head_shared) {
-		l_vm_area *sh = vma->head_shared;
-		assert(sh);
-		Q_REMOVE(sh, vma, lk_shared);
-		
-		/* it was the last one here.*/
-		if (sh->head == NULL) {
-			assert(sh->last == NULL);
-			free(sh);
-		}
-	}
-	free(vma);
-}
 
 /* Removes the vmas between start (not included) and end (not included) for the mm->mmap.
  * Frees the removed vmas.
@@ -85,7 +36,7 @@ static int mm_delete_region(mm_struct *mm,
 		iter = iter->lk_areas.next;
 		
 		Q_REMOVE(mm->mmap, tmp, lk_areas);
-		mm_delete_vma(tmp);
+		vma_free(tmp);
 		if (iter == end)
 			break;
 	}
@@ -151,7 +102,7 @@ int mm_init()
 	int ret;
 	void *start = NULL, *end = NULL, *pa = NULL;
 	unsigned long perm = 0;
-	
+
 	/* Map the page base. */
 	start = (void*) PAGEBASE;
 	end = (void*) (PAGEBASE + MAX_PAGES * PGSIZE);
@@ -188,7 +139,7 @@ int mm_create_phys_mapping(mm_struct *mm,
 		return -EINVAL;
 	/* Fast paths*/
 	if (mm->mmap->head == NULL || mm->mmap->head->vm_start >= va_end) {
-		vm_area_struct *vma = mm_alloc_vma(mm, va_start, va_end, perm);
+		vm_area_struct *vma = vma_create(mm, va_start, va_end, perm);
 		if (!vma)
 			return -ENOMEM;
 		Q_INSERT_FRONT(mm->mmap, vma, lk_areas);
@@ -197,7 +148,7 @@ int mm_create_phys_mapping(mm_struct *mm,
 	}
 	
 	if (mm->mmap->last->vm_end <= va_start) {
-		vm_area_struct *vma = mm_alloc_vma(mm, va_start, va_end, perm);
+		vm_area_struct *vma = vma_create(mm, va_start, va_end, perm);
 		if (!vma)
 			return -ENOMEM;
 		Q_INSERT_TAIL(mm->mmap, vma, lk_areas);
@@ -223,7 +174,7 @@ int mm_create_phys_mapping(mm_struct *mm,
 
 		/*Try to insert*/
 		if (current->vm_start >=  va_end) {
-			vm_area_struct *vma = mm_alloc_vma(mm, va_start, va_end, perm);
+			vm_area_struct *vma = vma_create(mm, va_start, va_end, perm);
 			if (!vma)
 				return -ENOMEM;
 			Q_INSERT_BEFORE(mm->mmap, current, vma, lk_areas);
@@ -276,7 +227,7 @@ int mm_split_or_merge(	mm_struct *mm,
 
 	/*1.*/
 	if (start <= vma->vm_start && end >= last->vm_end) {
-		f_vma = mm_alloc_vma(vma->vm_mm, start, end, perm);
+		f_vma = vma_create(vma->vm_mm, start, end, perm);
 		if (!f_vma) {
 			ret = -ENOMEM;
 			goto err;
@@ -314,20 +265,20 @@ int mm_split_or_merge(	mm_struct *mm,
 
 	t_start = end; t_end = last->vm_end; t_perm = last->vm_flags;
 
-	t_vma = mm_alloc_vma(vma->vm_mm, t_start, t_end, t_perm);
+	t_vma = vma_create(vma->vm_mm, t_start, t_end, t_perm);
 	if (!t_vma) {
 		ret = -ENOMEM;
 		goto err;
 	}
 
 create12:
-	f_vma = mm_alloc_vma(vma->vm_mm, f_start, f_end, f_perm);
+	f_vma = vma_create(vma->vm_mm, f_start, f_end, f_perm);
 	if (!f_vma) {
 		ret = -ENOMEM;
 		goto err;
 	}
 
-	s_vma = mm_alloc_vma(vma->vm_mm, s_start, s_end, s_perm);
+	s_vma = vma_create(vma->vm_mm, s_start, s_end, s_perm);
 	if (!s_vma) {
 		ret = -ENOMEM;
 		goto err;
@@ -625,103 +576,11 @@ int mm_shared(mm_struct *o, mm_struct *c, vm_addrptr s, vm_addrptr e, bool apply
 	return ret;
 }
 
-/* Creates a new vma initialized only with access rights, start and end.*/
-static vm_area_struct* mm_copy_vma(vm_area_struct *vma)
-{
-	assert(vma);
-	vm_area_struct *copy = malloc(sizeof(vm_area_struct));
-	if (!copy)
-		goto err;
-	
-	memcpy(copy, vma, sizeof(vm_area_struct));
-	Q_INIT_ELEM(copy, lk_areas);
-	Q_INIT_ELEM(copy, lk_shared);
-	copy->dirty = 1;
-	copy->vm_mm = NULL;
-	copy->head_shared = NULL;
-
-	return copy;
-err:
-	return NULL;
-}
-
-/* Create a cow copy of the vma.*/
-static vm_area_struct* mm_cow_copy_vma(vm_area_struct *vma)
-{
-	vm_area_struct *copy = mm_copy_vma(vma);
-	if (!copy)
-		goto err;
-	l_vm_area *shared = NULL;
-	
-	if (vma->cow) {
-		assert(vma->head_shared);
-		assert(vma->vm_flags & PERM_COW);
-		shared = vma->head_shared;
-	} else {
-		shared = malloc(sizeof(l_vm_area));
-		if (!shared)
-			goto err;
-		Q_INIT_HEAD(shared);
-		Q_INSERT_TAIL(shared, vma, lk_shared);
-		vma->head_shared = shared;
-		vma->cow = 1;
-		vma->vm_flags |= PERM_COW;
-		vma->vm_flags ^= PERM_W;
-		vma->dirty = 1;
-		copy->vm_flags = vma->vm_flags;
-	}
-
-	copy->head_shared = shared;
-	copy->cow = 1;
-	copy->dirty = 1;
-	Q_INSERT_TAIL(shared, copy, lk_shared);
-
-	return copy;
-err:
-	if (copy)
-		free(copy);
-	return NULL;
-}
-
-/* Creates a shared copy of the vma.*/
-static vm_area_struct* mm_shared_copy_vma(vm_area_struct *vma)
-{
-	assert(vma);
-	vm_area_struct *copy = mm_copy_vma(vma);
-	if (!copy)
-		goto err;
-	l_vm_area *shared = NULL;
-
-	if (vma->shared && vma->head_shared) {
-		assert(vma->head_shared);
-		shared = vma->head_shared;
-	} else {
-		shared = malloc(sizeof(l_vm_area));
-		if (!shared)
-			goto err;
-		Q_INIT_HEAD(shared);
-		Q_INSERT_TAIL(shared, vma, lk_shared);
-		vma->head_shared = shared;
-		vma->shared = 1;
-		vma->dirty = 1;
-	}
-
-	copy->head_shared = shared;
-	copy->shared = 1;
-	copy->dirty = 1;
-	Q_INSERT_TAIL(shared, copy, lk_shared);
-
-	return copy;
-err:
-	if (copy)
-		free(copy);
-	return NULL;
-}
-
 /* Creates a copy on write copy of the mm. The kernel space is shared.*/
 mm_struct* mm_cow_copy(mm_struct *mm, bool apply)
 {
 	assert(mm && mm->mmap);
+
 	vm_area_struct *current = NULL;
 	mm_struct *copy = malloc(sizeof(mm_struct));
 	if (!copy)
@@ -740,17 +599,16 @@ mm_struct* mm_cow_copy(mm_struct *mm, bool apply)
 	Q_FOREACH(current, mm->mmap, lk_areas) {
 		vm_area_struct *vmcpy = NULL;
 		if (!(current->user)) {
-			vmcpy = mm_shared_copy_vma(current);
+			vmcpy = vma_shared_copy(current);
 		} else {
-			//TODO: change back to cow when it works.
-			vmcpy = mm_cow_copy_vma(current);
+			vmcpy = vma_cow_copy(current);
 		}
 		if (!vmcpy)
 			goto err;
 		vmcpy->vm_mm = copy;
 		Q_INSERT_TAIL(copy->mmap, vmcpy, lk_areas);
 	}
-	//TODO: apply to page root.
+	
 	if (apply) {
 		mm_apply(mm);
 		copy->pml4 = dune_vm_clone(mm->pml4);
@@ -782,7 +640,7 @@ int mm_free(mm_struct *mm)
 			dune_vm_unmap(mm->pml4, (void*)(current->vm_start),
 				(size_t)(current->vm_end - current->vm_end));
 		}
-		mm_delete_vma(current);
+		vma_free(current);
 	}
 	//FIXME: free pml4 etc.
 	return ret;
