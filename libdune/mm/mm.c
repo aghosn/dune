@@ -666,7 +666,9 @@ static vm_area_struct* mm_cow_copy_vma(vm_area_struct *vma)
 		vma->head_shared = shared;
 		vma->cow = 1;
 		vma->vm_flags |= PERM_COW;
+		vma->vm_flags ^= PERM_W;
 		vma->dirty = 1;
+		copy->vm_flags = vma->vm_flags;
 	}
 
 	copy->head_shared = shared;

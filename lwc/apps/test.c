@@ -4,10 +4,13 @@
 
 int main(int argc, char *argv[]) {
 
-	printf("Hello world\n");
 	lwc_struct *test = NULL;
 	lwc_rsrc_spec *mod = NULL;
 	test = lwc_create(mod);
-	lwc_switch(test, NULL);
+	printf("Hello world\n");
+	if (test)
+		lwc_switch(test, NULL);
+	else
+		printf("I'm the child so ...\n");
 	return 0;
 }

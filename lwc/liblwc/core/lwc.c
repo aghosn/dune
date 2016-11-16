@@ -74,7 +74,6 @@ static mm_struct* lwc_apply_mm(lwc_rsrc_spec *mod, mm_struct *o)
                 goto err;
         }
     }
-
     //FIXME: do the apply.
     mm_apply(o);
     mm_apply(copy);
@@ -96,7 +95,7 @@ lwc_struct* sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod)
     if (!current)
         goto err;
 
-    /*TODO: Default copy-on-write behaviour.*/
+    /* Default copy-on-write behaviour.*/
     if (!mod || mod->ranges.head == NULL) {
         copy = mm_cow_copy(current->vm_mm, true);
         goto create;
@@ -115,14 +114,17 @@ create:
 
     /* Initialize the dune trap frame.*/
     memcpy(&(n_lwc->tf), tf, sizeof(struct dune_tf));
-    //FIXME: change the rax value. maybe implement the same as in lwc paper.
+    /* The child gets a NULL result for the lwc_create call.*/
+    n_lwc->tf.rax = NULL;
 
     Q_INIT_ELEM(n_lwc, lk_ctx);
     Q_INIT_ELEM(n_lwc, lk_parent);
     Q_INSERT_TAIL(&(current->children), n_lwc, lk_parent);
     Q_INSERT_TAIL(contexts, n_lwc, lk_ctx);
 
-    printf("The address %p.\n", n_lwc);
+    Q_INIT_ELEM(n_lwc->vm_mm, lk_mms);
+    Q_INSERT_TAIL(mm_queue, n_lwc->vm_mm, lk_mms);
+
     return n_lwc;
 err:
     if (n_lwc)

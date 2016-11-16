@@ -54,6 +54,9 @@ int dune_memory_init() {
 		printf("dune: unable to setup memory layout.\n");
 		goto err;
 	}
+
+	dune_register_pgflt_handler((dune_pgflt_cb)&memory_default_pgflt_handler);
+
 	return 0;
 err:
 	if (pgroot)
@@ -65,4 +68,44 @@ err:
 	if (mm_queue)
 		free(mm_queue);
 	return ret;
+}
+void memory_default_pgflt_handler(uintptr_t addr, uint64_t fec)
+{
+	ptent_t *pte = NULL;
+	int rc;
+	/*
+	 * Assert on present and reserved bits.
+	 */
+	//assert(!(fec & (FEC_P | FEC_RSV)));
+
+	rc = dune_vm_lookup(pgroot, (void *) addr, 0, &pte);
+	assert(rc == 0);
+
+	if ((fec & FEC_W) && (*pte & PTE_COW)) {
+		void *newPage;
+		struct page *pg = dune_pa2page(PTE_ADDR(*pte));
+		ptent_t perm = PTE_FLAGS(*pte);
+
+		// Compute new permissions
+		perm &= ~PTE_COW;
+		perm |= PTE_W;
+
+		if (dune_page_isfrompool(PTE_ADDR(*pte)) && pg->ref == 1) {
+			*pte = PTE_ADDR(*pte) | perm;
+			return;
+		}
+
+		// Duplicate page
+		newPage = alloc_page();
+		memcpy(newPage, (void *)PGADDR(addr), PGSIZE);
+
+		// Map page
+		if (dune_page_isfrompool(PTE_ADDR(*pte))) {
+			dune_page_put(pg);
+		}
+		*pte = PTE_ADDR(newPage) | perm;
+
+		// Invalidate
+		dune_flush_tlb_one(addr);
+	}
 }

@@ -387,7 +387,6 @@ void dune_vm_unmap(ptent_t *root, void *va, size_t len)
 {
 	ptent_t *pte = NULL;
 	int rc;
-
 	/*
 	 * Assert on present and reserved bits.
 	 */
