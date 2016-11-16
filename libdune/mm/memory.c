@@ -80,6 +80,12 @@ void memory_default_pgflt_handler(uintptr_t addr, uint64_t fec)
 
 	rc = dune_vm_lookup(pgroot, (void *) addr, 0, &pte);
 	assert(rc == 0);
+	assert(*pte & PTE_U);
+	
+	if ((*pte & PTE_U) && (*pte & PTE_COW))
+		printf("Looks good to me for the moment.\n");
+	else
+		printf("Shhhhhoooot\n");
 
 	if ((fec & FEC_W) && (*pte & PTE_COW)) {
 		void *newPage;

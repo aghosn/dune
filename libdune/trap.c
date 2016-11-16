@@ -118,8 +118,8 @@ void dune_dump_trap_frame(struct dune_tf *tf)
 	dune_printf("dune: R10 0x%016lx R11 0x%016lx\n", tf->r10, tf->r11);
 	dune_printf("dune: R12 0x%016lx R13 0x%016lx\n", tf->r12, tf->r13);
 	dune_printf("dune: R14 0x%016lx R15 0x%016lx\n", tf->r14, tf->r15);
-	dune_dump_stack(tf);
-	dump_ip(tf);
+	//dune_dump_stack(tf);
+	//dump_ip(tf);
 	dune_printf("dune: --- End Trap Dump ---\n");
 }
 

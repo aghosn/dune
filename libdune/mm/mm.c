@@ -742,6 +742,7 @@ mm_struct* mm_cow_copy(mm_struct *mm, bool apply)
 		if (!(current->user)) {
 			vmcpy = mm_shared_copy_vma(current);
 		} else {
+			//TODO: change back to cow when it works.
 			vmcpy = mm_cow_copy_vma(current);
 		}
 		if (!vmcpy)

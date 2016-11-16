@@ -7,7 +7,8 @@ int main(int argc, char *argv[]) {
 	lwc_struct *test = NULL;
 	lwc_rsrc_spec *mod = NULL;
 	test = lwc_create(mod);
-	printf("Hello world\n");
+	printf("Hello world %p\n", &test);
+	fflush(stdout);
 	if (test)
 		lwc_switch(test, NULL);
 	else

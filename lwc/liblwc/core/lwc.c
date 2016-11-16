@@ -115,7 +115,7 @@ create:
     /* Initialize the dune trap frame.*/
     memcpy(&(n_lwc->tf), tf, sizeof(struct dune_tf));
     /* The child gets a NULL result for the lwc_create call.*/
-    n_lwc->tf.rax = NULL;
+    n_lwc->tf.rax = 0;
 
     Q_INIT_ELEM(n_lwc, lk_ctx);
     Q_INIT_ELEM(n_lwc, lk_parent);
@@ -137,7 +137,7 @@ int sys_lwc_switch(struct dune_tf *tf, lwc_struct *lwc, void *args)
 {
     assert(tf);
     assert(lwc);
-    int ret;
+    int ret = 0;
     
     /* Get the current context.*/
     lwc_struct *current = Q_GET_FRONT(contexts);
@@ -152,8 +152,7 @@ int sys_lwc_switch(struct dune_tf *tf, lwc_struct *lwc, void *args)
     //FIXME: give args to the context.
     /* Do the switch*/
     load_cr3((unsigned long)lwc->vm_mm->pml4);
-    ret = dune_jump_to_user(&(lwc->tf));
-
+    //ret = dune_jump_to_user(&(lwc->tf));
     //TODO: do we even get here at some point?
     return ret;
 }
