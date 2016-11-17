@@ -2,8 +2,10 @@
 #define __LIBDUNE_MM_MM_H__
 #include <stdbool.h>
 
-#include "mm_types.h"
 #include "vma.h"
+#include "mm_types.h"
+#include "mm_tools.h"
+
 
 /* Call back function type.*/
 typedef int (*mm_cb_ft)(vm_area_struct*, void*);
@@ -34,19 +36,8 @@ int mm_mprotect(mm_struct *mm, vm_addrptr start,
 
 int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end, bool apply);
 
-int mm_cow(	mm_struct *original,
-			mm_struct *copy,
-			vm_addrptr start,
-			vm_addrptr end,
-			bool apply);
-
-int mm_shared(	mm_struct *original,
-				mm_struct *copy,
-				vm_addrptr start,
-				vm_addrptr end,
-				bool apply);
-
 mm_struct* mm_cow_copy(mm_struct *mm, bool apply);
 int mm_free(mm_struct *mm);
 void mm_apply(mm_struct *mm);
+
 #endif /*__LIBDUNE_MM_MM_H__*/

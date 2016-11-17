@@ -20,12 +20,7 @@ int dune_fd;
 
 
 /* Removes the vmas between start (not included) and end (not included) for the mm->mmap.
- * Frees the removed vmas.
- * If start == NULL start at head.
- * If end == NULL ends after last.
- * WARNING: does not affect the page tables.
- * SHOULD it? Maybe implement the functionality elsewhere.
- * TODO: Should optimize, instead of removing, resize in split or merge.*/
+ * Frees the removed vmas.*/
 static int mm_delete_region(mm_struct *mm,
 							vm_area_struct *start,
 							vm_area_struct *end)
@@ -462,118 +457,6 @@ int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end, bool apply)
 	 * Need to decide if we return 0 or it is a fault to unmap invalid addr.*/
 	assert(0);
 	return -EINVAL;
-}
-
-struct __shared_info {
-	l_vm_area *areas;
-	bool apply;
-};
-
-static int __mm_cow(vm_area_struct *vma, void *args)
-{
-	struct __shared_info *sh = (struct __shared_info*) args;
-	vma->dirty = 1;
-	vma->cow = 1;
-	vma->vm_flags |= PERM_COW;
-	vma->shared = 0;
-
-	if (sh->apply) {
-		mm_apply_to_pgroot(vma, NULL);
-		vma->dirty = 0;
-	}
-	if (!(sh->areas)) {
-		//TODO: what if malloc fails?
-		sh->areas = malloc(sizeof(l_vm_area));
-		Q_INIT_HEAD(sh->areas);
-	}
-
-	vma->head_shared = sh->areas;
-	Q_INSERT_TAIL(sh->areas, vma, lk_shared);
-	return 0;
-}
-
-int mm_cow(mm_struct *o, mm_struct *c, vm_addrptr s, vm_addrptr e, bool apply)
-{
-	//TODO: implement copy on write.
-	assert(s < e);
-	int ret = 0;
-	vm_area_struct *current = NULL;
-	struct __shared_info shared = {NULL, true};
-	Q_FOREACH(current, o->mmap, lk_areas) {
-		if (mm_overlap(current, s, e)) {
-			//TODO: add the COW flag
-			//FIXME: problem if already cow within it.
-			ret = mm_split_or_merge(o, current, s, e, current->vm_flags,
-				&__mm_cow, &shared);
-			break;
-		}
-	}
-	if (ret)
-		return ret;
-	current = NULL;
-	shared.apply = apply;
-	Q_FOREACH(current, c->mmap, lk_areas) {
-		if (mm_overlap(current, s, e)) {
-			ret = mm_split_or_merge(c, current, s, e, current->vm_flags,
-				&__mm_cow, &shared);
-			break;
-		}
-	}
-	return ret;
-}
-
-static int __mm_shared(vm_area_struct *vma, void* args)
-{
-	struct __shared_info *sh = (struct __shared_info*) args;
-	vma->dirty = 1;
-	vma->cow = 0;
-	vma->shared = 1;
-
-	if (sh->apply) {
-		mm_apply_to_pgroot(vma, NULL);
-		vma->dirty = 0;
-	}
-	if (!(sh->areas)) {
-		//TODO: what if malloc fails?
-		sh->areas = malloc(sizeof(l_vm_area));
-		Q_INIT_HEAD(sh->areas);
-	}
-
-	vma->head_shared = sh->areas;
-	Q_INSERT_TAIL(sh->areas, vma, lk_shared);
-	return 0;
-}
-
-int mm_shared(mm_struct *o, mm_struct *c, vm_addrptr s, vm_addrptr e, bool apply)
-{
-	//TODO: implement shared area.
-	assert(s < e);
-	int ret = 0;
-	vm_area_struct *current = NULL;
-	struct __shared_info shared = {NULL, true};
-	//FIXME: can be optimized and go through both lists at the same time.
-	Q_FOREACH(current, o->mmap, lk_areas) {
-		if (mm_overlap(current, s, e)) {
-			//TODO: Problem if region already shared...
-			//TODO: how can we find the head?
-			ret = mm_split_or_merge(o, current, s, e, current->vm_flags, 
-				&__mm_shared, &shared);
-			break;
-		}
-	}
-	//FIXME: might need a cleanup?
-	if (ret)
-		return ret;
-	current = NULL;
-	shared.apply = apply;
-	Q_FOREACH(current, c->mmap, lk_areas) {
-		if (mm_overlap(current, s, e)) {
-			ret = mm_split_or_merge(c, current, s, e, current->vm_flags,
-				&__mm_shared, &shared);
-			break;
-		}
-	}
-	return ret;
 }
 
 /* Creates a copy on write copy of the mm. The kernel space is shared.*/
