@@ -172,4 +172,28 @@ int lwc_free(lwc_struct *lwc)
     return 0;
 }
 
+ptent_t* test_root = NULL;
+struct dune_tf *tf_root = NULL;
+
+int sys_fake_create(struct dune_tf *tf)
+{
+    dune_dump_trap_frame(tf);
+    tf_root = malloc(sizeof(struct dune_tf));
+    *tf_root = *tf;
+    tf_root->rax = 1;
+    test_root = dune_vm_clone(pgroot);
+    return 0;
+}
+
+int sys_fake_switch(struct dune_tf *tf)
+{
+    assert(test_root);
+    assert(tf_root);
+    //load_cr3(test_root);
+    *tf = *tf_root;
+    dune_dump_trap_frame(tf);
+    return 0; //dune_jump_to_user(tf_root);
+}
+
+
 

@@ -654,7 +654,6 @@ void mm_apply(mm_struct *mm)
 		if (current->user == 0)
 			continue;
 		if (current->dirty) {
-			//TODO: wrong __mm_apply_protect(current, mm->pml4);
 			size_t len = (size_t)(current->vm_end - current->vm_start);
 			dune_vm_mprotect(mm->pml4,(void*)(current->vm_start), len, 
 				current->vm_flags);

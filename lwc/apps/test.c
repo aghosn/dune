@@ -18,5 +18,13 @@ int main(int argc, char *argv[]) {
 	}
 	else
 		printf("I'm the child so ...\n");
+	// printf("Hello world!\n");
+	// int res = lwc_fake_create();
+	// if (res == 0){
+	// 	lwc_fake_switch();
+	// 	printf("After the switch.\n");
+	// } else {
+	// 	printf("I'm a child.\n");
+	// }
 	return 0;
 }
