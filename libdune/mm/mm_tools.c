@@ -119,3 +119,24 @@ int mm_shared(mm_struct *o, mm_struct *c, vm_addrptr s, vm_addrptr e, bool apply
 	}
 	return ret;
 }
+
+int mm_into_root(mm_struct *mm)
+{
+	vm_area_struct *current = NULL;
+	Q_FOREACH(current, mm->mmap, lk_areas) {
+		vm_make_root((void*)(current->vm_start),(void*)(current->vm_end),
+			mm->pml4);
+		current->user = 0;
+		current->vm_flags &= ~(PERM_U);
+	}
+	return 0;
+}
+
+int mm_count_entries(mm_struct *mm)
+{
+	vm_area_struct *current = NULL;
+	vm_count_entries((void*)(mm->mmap->head->vm_start), (void*)(mm->mmap->last->vm_end),
+			mm->pml4);
+	
+	return 0;
+}

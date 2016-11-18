@@ -52,6 +52,7 @@ static void __mm_setup_mappings_cb(const struct dune_procmap_entry *ent)
 		vm_addrptr start = VSYSCALL_ADDR;
 		vm_addrptr end = VSYSCALL_ADDR + PGSIZE;
 		void * pa =(void *)dune_va_to_pa(&__dune_vsyscall_page);
+		//TODO: problem here.
 		unsigned long perm = PTE_P | PTE_U;
 		ret = mm_create_phys_mapping(mm_root, start, end, pa, perm);
 		assert(ret == 0);
@@ -110,6 +111,11 @@ int mm_init()
 
 	/*Map the procmap.*/
 	dune_procmap_iterate(&__mm_setup_mappings_cb);
+	mm_count_entries(mm_root);
+	mm_into_root(mm_root);
+	printf("After the root.\n");
+	mm_count_entries(mm_root);
+	fflush(stdout);
 	return 0;
 }
 

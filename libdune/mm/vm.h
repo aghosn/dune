@@ -6,6 +6,7 @@
 #include "../mmu-x86.h"
 
 #define PDADDR(n, i)	(((unsigned long)(i)) << PDSHIFT(n))
+//TODO: bad flags.
 #define PTE_DEF_FLAGS	(PTE_P | PTE_W | PTE_U)
 #define PGSIZE_2MB		(1 << (PGSHIFT + NPTBITS))
 #define PGSIZE_1GB		(1 << (PGSHIFT + NPTBITS + NPTBITS))
@@ -44,4 +45,9 @@ void dune_vm_unmap(ptent_t *root, void *va, size_t len);
 void dune_vm_default_pgflt_handler(uintptr_t addr, uint64_t fec);
 int dune_vm_has_mapping(ptent_t *root, void *va);
 int vm_compare_mappings(ptent_t *first, ptent_t *second);
+
+
+//TODO: remove, for debug.
+int vm_make_root(void* va_start, void* va_end, ptent_t* root);
+int vm_count_entries(void* va_start, void* va_end, ptent_t *root);
 #endif /*__LIBDUNE_MM_VM_H__*/

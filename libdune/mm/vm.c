@@ -474,6 +474,10 @@ int dune_vm_has_mapping(ptent_t *root, void *va)
 	ptent_t* out = &pte[l];
 	// printf("The l is %d", l);
 	printf("The result is %p\n", out);
+	if (*out & PTE_U)
+		printf("Has user permissions.\n");
+	else 
+		printf("Has no user permissions.\n");
 
 	return 0;
 }
@@ -560,3 +564,37 @@ int vm_compare_mappings(ptent_t *first, ptent_t *second)
 	return ret;
 }
 
+static int __vm_make_root(const void* arg, ptent_t *pte, void* va)
+{
+	*pte &= ~(PTE_U);
+	return 0; 
+}
+
+int vm_make_root(void* va_start, void* va_end, ptent_t* root)
+{
+	return dune_vm_page_walk(root, va_start, va_end -1, &__vm_make_root , NULL);
+}
+
+typedef struct test_result {
+	uint64_t nb_root;
+	uint64_t nb_user;
+} test_result;
+
+static int __vm_count_entries(const void* arg, ptent_t* pte, void *va)
+{
+	test_result *res = (test_result*) (arg);
+	if (*pte & PTE_U)
+		res->nb_user++;
+	else 
+		res->nb_root++;
+	return 0;
+}
+
+int vm_count_entries(void* va_start, void* va_end, ptent_t *root)
+{
+	test_result res = {0,0};
+	dune_vm_page_walk(root, va_start, va_end-1, &__vm_count_entries, &res);
+	printf("NB ROOT %lu\n", res.nb_root);
+	printf("NB USER %lu\n", res.nb_user);
+	return 0;
+}

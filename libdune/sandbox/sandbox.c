@@ -76,7 +76,7 @@ static int process_elf_ph(struct dune_elf *elf, Elf64_Phdr *phdr)
 	ret = mm_create_phys_mapping(	mm_root, phdr->p_vaddr + off,
 									phdr->p_vaddr + off + phdr->p_memsz,
 									(void *)(phdr->p_vaddr + off),
-									PERM_R | PERM_W);
+									PERM_R | PERM_W | PERM_U);
 	if (ret) {
 		log_err("sandbox: segment mapping failed\n");
 		return ret;
@@ -305,7 +305,8 @@ int sandbox_run_app(uintptr_t sp, uintptr_t e_entry)
 	tf.rip = e_entry;
 	tf.rsp = sp;
 	tf.rflags = 0x0;
-
+	printf("Before the jump to user.\n");
+	mm_dump(mm_root);
 	return dune_jump_to_user(&tf);
 }
 
@@ -372,6 +373,9 @@ int sandbox_init(char *loader, int argc, char *argv[],
 
 	dune_set_user_fs(0); // default starting fs
 
+	printf("After the set fs\n");
+	fflush(stdout);
+
 	ret = trap_init();
 	if (ret) {
 		log_err("sandbox: failed to initialize trap handlers\n");
@@ -391,6 +395,8 @@ int sandbox_init(char *loader, int argc, char *argv[],
 	}
 	*spp = sp;
 	*entry = data.entry;
+
+	printf("About to return from the sandbox init.\n");
 	return 0;
 }
 

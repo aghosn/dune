@@ -50,12 +50,12 @@ int dune_memory_init() {
 		goto err;
 	}
 	
+	dune_register_pgflt_handler((dune_pgflt_cb)&memory_default_pgflt_handler);
+
 	if ((ret = mm_init())) {
 		printf("dune: unable to setup memory layout.\n");
 		goto err;
 	}
-
-	dune_register_pgflt_handler((dune_pgflt_cb)&memory_default_pgflt_handler);
 
 	return 0;
 err:
@@ -79,6 +79,10 @@ void memory_default_pgflt_handler(uintptr_t addr, uint64_t fec)
 	 */
 	printf("The fec %lu and address %p\n", fec, addr);
 	rc = dune_vm_lookup(pgroot, (void *) addr, 0, &pte);
+	if (dune_vm_has_mapping(pgroot, (void*)addr))
+		printf("The address has no mapping, which is surprising...\n");	
+	else 
+		printf("The address actually has a mapping.\n");
 	
 	fflush(stdout);
 	assert(rc == 0);

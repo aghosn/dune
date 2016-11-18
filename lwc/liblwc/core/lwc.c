@@ -84,7 +84,6 @@ err:
     return NULL;
 }
 
-//FIXME: get the trap frame.
 lwc_struct* sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod)
 {
     mm_struct *copy = NULL;
@@ -95,9 +94,11 @@ lwc_struct* sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod)
     if (!current)
         goto err;
 
+    printf("Before the copy.\n");
     /* Default copy-on-write behaviour.*/
     if (!mod || mod->ranges.head == NULL) {
         copy = mm_cow_copy(current->vm_mm, true);
+        printf("After the create.\n");
         goto create;
     }
 
@@ -125,6 +126,7 @@ create:
     Q_INIT_ELEM(n_lwc->vm_mm, lk_mms);
     Q_INSERT_TAIL(mm_queue, n_lwc->vm_mm, lk_mms);
 
+    printf("About to return.\n");
     return n_lwc;
 err:
     if (n_lwc)
