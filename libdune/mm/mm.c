@@ -117,8 +117,8 @@ int mm_init()
 
 	/*Map the procmap.*/
 	dune_procmap_iterate(&__mm_setup_mappings_cb);
-	mm_count_entries(mm_root);
-	mm_check_regions(mm_root);
+	// mm_count_entries(mm_root);
+	// mm_check_regions(mm_root);
 	//mm_into_root(mm_root);
 	// printf("After putting everything as root\n");
 	// mm_check_regions(mm_root);

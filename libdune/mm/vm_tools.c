@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
 #include "vm_tools.h"
 
@@ -21,12 +23,18 @@ static int __vm_pgrot_walk(	ptent_t *root,
 		void *n_start_va, *n_end_va;
 		void *cur_va = base_va + PDADDR(level, i); 
 		ptent_t *pte = &root[i];
+		
+		assert(pte != NULL);
 
 		if (alloc && !pte_present(*pte)) {
+			printf("In the alloc !\n");
 			cb_info info = {level, args};
 			if ((ret = alloc(pte, cur_va, &info)))
 				return ret;
 		}
+		
+		if (!pte_present(*pte))
+			continue;
 
 		/*If the pte is present and is a mapping.*/
 		if (pte_present(*pte) && 
@@ -64,6 +72,8 @@ static int __vm_pgrot_cow(ptent_t* pte, void *va, cb_info *info)
 {
 	int ret;
 	assert(pte_present(*pte));
+	printf("In the helper beginning.\n");
+	fflush(stdout);
 	struct page *pg = dune_pa2page(PTE_ADDR(*pte));
 	ptent_t* newRoot = (ptent_t *) (info->args);
 	ptent_t* newPte;
@@ -91,14 +101,17 @@ static int __vm_pgrot_cow(ptent_t* pte, void *va, cb_info *info)
 		dune_page_get(pg);
 
 	/* Do a cow if this is a user mapping.*/
-	if (*pte  & PTE_U) {
-		*pte &= ~(PTE_W);
-		*pte |= PTE_COW;
-	}
+	// if (*pte  & PTE_U) {
+	// 	*pte &= ~(PTE_W);
+	// 	*pte |= PTE_COW;
+	// }
 
 	/* Set the actual entry.*/
+	printf("In the helper before accessing.\n");
 	*newPte = *pte;
 
+	printf("Before returning from helper.\n");
+	fflush(stdout);
 	return 0;
 }
 
@@ -119,10 +132,12 @@ ptent_t* vm_pgrot_cow(ptent_t* root)
 	if (ret)
 		goto err;
 
+	printf("About to return the copied page_root.\n");
+	fflush(stdout);
 	return newRoot;
 err:
 	if (newRoot)
-		dune_free(newRoot);
+		dune_vm_free(newRoot);
 	return NULL;
 }
 
