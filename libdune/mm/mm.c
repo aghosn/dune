@@ -53,7 +53,10 @@ static void __mm_setup_mappings_cb(const struct dune_procmap_entry *ent)
 		vm_addrptr end = VSYSCALL_ADDR + PGSIZE;
 		void * pa =(void *)dune_va_to_pa(&__dune_vsyscall_page);
 		//TODO: problem here.
-		unsigned long perm = PTE_P | PTE_U;
+		unsigned long perm = PERM_U | PERM_W;
+		ptent_t *pte;
+		dune_vm_lookup(pgroot, (void *) VSYSCALL_ADDR, 1, &pte);
+		*pte = PTE_ADDR(dune_va_to_pa(&__dune_vsyscall_page)) | PTE_P | PTE_U;
 		ret = mm_create_phys_mapping(mm_root, start, end, pa, perm);
 		assert(ret == 0);
 		return;
@@ -86,6 +89,8 @@ static void __mm_setup_mappings_cb(const struct dune_procmap_entry *ent)
 		perm |= PERM_X;
 
 	/* Other physical mappings.*/
+	//FIXME: here dune adds permissions to the user.
+	//which we do not.
 	ret = mm_create_phys_mapping(mm_root, start, end, pa, perm);
 	assert(ret == 0);
 }
@@ -103,6 +108,7 @@ int mm_init()
 	start = (void*) PAGEBASE;
 	end = (void*) (PAGEBASE + MAX_PAGES * PGSIZE);
 	pa = (void*) dune_va_to_pa((void*)PAGEBASE);
+	//FIXME: wrong permissions.
 	perm = PERM_R | PERM_W | PERM_BIG;
 
 	 if ((ret = mm_create_phys_mapping(mm_root,(vm_addrptr) start,
@@ -112,9 +118,12 @@ int mm_init()
 	/*Map the procmap.*/
 	dune_procmap_iterate(&__mm_setup_mappings_cb);
 	mm_count_entries(mm_root);
-	mm_into_root(mm_root);
-	printf("After the root.\n");
-	mm_count_entries(mm_root);
+	mm_check_regions(mm_root);
+	//mm_into_root(mm_root);
+	// printf("After putting everything as root\n");
+	// mm_check_regions(mm_root);
+	// printf("After the root.\n");
+	// mm_count_entries(mm_root);
 	fflush(stdout);
 	return 0;
 }
@@ -353,8 +362,7 @@ void mm_dump(mm_struct *mm)
 	assert(mm);
 	vm_area_struct *current = NULL;
 	Q_FOREACH(current, mm->mmap, lk_areas) {
-		printf("0x%016lx-0x%016lx: %016lx\n", current->vm_start, 
-			current->vm_end, current->vm_flags);
+		vma_dump(current);
 	}
 }
 

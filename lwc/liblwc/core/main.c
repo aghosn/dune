@@ -29,7 +29,7 @@ int main(int argc, char* argv[])
     	"/lib64/ld-linux-x86-64.so.2", argc-1, &argv[1], &sp, &entry))) {
     	return ret;
     }
-    printf("Before the run app.\n");
+
     ret = sandbox_run_app(sp, entry);
     
     printf("Lwc: execution completed. Goodbye!\n");

@@ -598,3 +598,19 @@ int vm_count_entries(void* va_start, void* va_end, ptent_t *root)
 	printf("NB USER %lu\n", res.nb_user);
 	return 0;
 }
+
+int __vm_check_entries(const void *arg, ptent_t *pte, void *va)
+{
+	unsigned long flags = *((unsigned long*) arg);
+	ptent_t perm = get_pte_perm(flags);
+	if (((PTE_ADDR(*pte) ^ *pte) ^ perm)) {
+		printf("pte: 0x%016lx and perm 0x%016lx\n", (PTE_ADDR(*pte)^ *pte), perm);
+		return 1;
+	}
+	return 0;
+}
+
+int vm_check_entry(void *start, void *end, ptent_t* root, unsigned long flags)
+{
+	return dune_vm_page_walk(root, start, end, &__vm_check_entries, &flags);
+}

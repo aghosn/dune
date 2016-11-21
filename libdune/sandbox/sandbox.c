@@ -305,8 +305,7 @@ int sandbox_run_app(uintptr_t sp, uintptr_t e_entry)
 	tf.rip = e_entry;
 	tf.rsp = sp;
 	tf.rflags = 0x0;
-	printf("Before the jump to user.\n");
-	mm_dump(mm_root);
+	
 	return dune_jump_to_user(&tf);
 }
 

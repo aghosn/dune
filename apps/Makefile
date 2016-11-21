@@ -1,4 +1,4 @@
-SUBDIRS	= sandbox wedge ufirewall
+SUBDIRS	= sandbox wedge ufirewall mm_unit_tests
 
 all: $(SUBDIRS)
 

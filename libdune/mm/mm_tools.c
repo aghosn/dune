@@ -140,3 +140,23 @@ int mm_count_entries(mm_struct *mm)
 	
 	return 0;
 }
+
+int mm_check_regions(mm_struct *mm)
+{
+	vm_area_struct *current = NULL;
+	Q_FOREACH(current, mm->mmap, lk_areas) {
+		if (current->user && !(current->vm_flags & PTE_U)
+			|| (!(current->user) &&  current->vm_flags & PTE_U)) {
+			printf("User permissions not set correctly.\n");
+			vma_dump(current);
+			//return 1;
+		}
+		if (vm_check_entry((void*)(current->vm_start),(void*)(current->vm_end),
+			mm->pml4, current->vm_flags)) {
+			printf("vma does not correspond to the flags in pte.\n");
+			vma_dump(current);
+			//return 1;
+		}
+	}
+	return 0;
+}

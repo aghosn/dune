@@ -124,3 +124,17 @@ err:
 		free(copy);
 	return NULL;
 }
+
+
+void vma_dump(vm_area_struct *vma)
+{
+	assert(vma);
+	printf("0x%016lx-0x%016lx, flags: %016lx, user: %d, cow: %d, shared: %d\n",
+	vma->vm_start, vma->vm_end, vma->vm_flags, vma->user, vma->cow, vma->shared);
+}
+
+
+
+
+
+

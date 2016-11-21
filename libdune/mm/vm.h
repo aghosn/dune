@@ -50,4 +50,5 @@ int vm_compare_mappings(ptent_t *first, ptent_t *second);
 //TODO: remove, for debug.
 int vm_make_root(void* va_start, void* va_end, ptent_t* root);
 int vm_count_entries(void* va_start, void* va_end, ptent_t *root);
+int vm_check_entry(void *start, void *end, ptent_t* root, unsigned long flags);
 #endif /*__LIBDUNE_MM_VM_H__*/

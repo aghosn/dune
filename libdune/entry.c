@@ -228,7 +228,7 @@ static int setup_syscall(void)
 	unsigned long lstar;
 	unsigned long lstara;
 	unsigned char *page;
-	//ptent_t *pte;
+	ptent_t *pte;
 	size_t off;
 	int i;
 
@@ -257,7 +257,10 @@ static int setup_syscall(void)
 		uintptr_t pa = dune_mmap_addr_to_pa(page + i);
 		// dune_vm_lookup(pgroot, (void *) (lstara + i), 1, &pte);
 		// *pte = PTE_ADDR(pa) | PTE_P;
+		//FIXME: bug here.
 		mm_create_phys_mapping(mm_root, lstara + i, lstara + i + PGSIZE, (void*) pa, PTE_P | PTE_DEF_FLAGS);
+		// dune_vm_lookup(pgroot, (void *) (lstara + i), 1, &pte);
+		// *pte = PTE_ADDR(pa) | PTE_P;
 	}
 	
 	return 0;
