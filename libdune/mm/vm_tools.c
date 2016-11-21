@@ -8,7 +8,7 @@ static int __vm_pgrot_walk(	ptent_t *root,
 							void *end,
 							pgrot_walk_cb cb,
 							pgrot_walk_cb alloc,
-							void *args,
+							const void *args,
 							int level)
 {
 	int i, ret;
@@ -33,6 +33,7 @@ static int __vm_pgrot_walk(	ptent_t *root,
 				return ret;
 		}
 		
+		/* If the page is still not present, we skip it.*/
 		if (!pte_present(*pte))
 			continue;
 
@@ -68,14 +69,22 @@ int vm_pgrot_walk(	ptent_t *root,
 	return __vm_pgrot_walk(root, start, end, cb, alloc, args, 3);
 }
 
+
+struct cow_info {
+	ptent_t* o_root;
+	ptent_t* n_root;
+};
+
 static int __vm_pgrot_cow(ptent_t* pte, void *va, cb_info *info)
 {
 	int ret;
 	assert(pte_present(*pte));
-	printf("In the helper beginning.\n");
-	fflush(stdout);
+
+	struct cow_info *inf = (struct cow_info*) (info->args);
+	assert(inf != NULL);
+
 	struct page *pg = dune_pa2page(PTE_ADDR(*pte));
-	ptent_t* newRoot = (ptent_t *) (info->args);
+	ptent_t* newRoot = inf->n_root;
 	ptent_t* newPte;
 	int create = CREATE_NONE;
 	switch(info->level) {
@@ -93,8 +102,8 @@ static int __vm_pgrot_cow(ptent_t* pte, void *va, cb_info *info)
 			return 1;	
 	}
 	
-	//TODO: check if this is correct for intermediary levels.
-	ptent_t perm = PTE_FLAGS(*pte);
+	/* Giving minimal rights for the moment.*/
+	ptent_t perm = PTE_P;
 	ret = vm_lookup(newRoot, va, &newPte, create , perm);
 
 	if (dune_page_isfrompool(PTE_ADDR(*pte)))
@@ -107,13 +116,43 @@ static int __vm_pgrot_cow(ptent_t* pte, void *va, cb_info *info)
 	// }
 
 	/* Set the actual entry.*/
-	printf("In the helper before accessing.\n");
 	*newPte = *pte;
 
-	printf("Before returning from helper.\n");
-	fflush(stdout);
+	/* Fix the entries inside the intermediary entries.*/
+	#define PPTE_ADDR(x) ((ptent_t*) PTE_ADDR(x))
+
+	int i = PDX(3, va), j = PDX(2, va);
+	ptent_t* o_pml4 = inf->o_root, *n_pml4 = inf->n_root;
+	assert(pte_present(n_pml4[i]) && pte_present(o_pml4[i]));
+	n_pml4[i] = PTE_ADDR(n_pml4[i]) | PTE_FLAGS(o_pml4[i]);
+
+	ptent_t *o_pdpte = PPTE_ADDR(o_pml4[i]), *n_pdpte = PPTE_ADDR(n_pml4[i]);
+	assert(pte_present(o_pdpte[j]) && pte_present(n_pdpte[j]));
+	n_pdpte[j] = PTE_ADDR(n_pdpte[j]) | PTE_FLAGS(o_pdpte[j]);
+	
+	if (info->level == 2)
+		assert(PTE_ADDR(n_pdpte[j]) == PTE_ADDR(o_pdpte[j]));
+
+	if (info->level < 2) {
+		int k = PDX(1, va);
+		ptent_t *o_pde = PPTE_ADDR(o_pdpte[j]), *n_pde = PPTE_ADDR(n_pdpte[j]);
+		assert(pte_present(o_pde[k]) && pte_present(n_pde[k]));
+		n_pde[k] = PTE_ADDR(n_pde[k]) | PTE_FLAGS(o_pde[k]);
+		if (info->level == 1)
+			assert(PTE_ADDR(n_pde[k]) == PTE_ADDR(o_pde[k]));
+
+		if (info->level == 0) {
+			int l = PDX(0, va);
+			ptent_t *o_pte = PPTE_ADDR(o_pde[k]), *n_pte = PPTE_ADDR(n_pde[k]);
+			assert(pte_present(o_pte[l]) && pte_present(n_pte[l]));
+			assert(PTE_ADDR(n_pte[l]) == PTE_ADDR(o_pte[l]));
+			n_pte[l] = o_pte[l];
+		}
+	}
+
 	return 0;
 }
+
 
 ptent_t* vm_pgrot_cow(ptent_t* root)
 {
@@ -123,17 +162,15 @@ ptent_t* vm_pgrot_cow(ptent_t* root)
 	newRoot = memalign(PGSIZE, PGSIZE);
 	if (!newRoot)
 		goto err;
-
 	memset(newRoot, 0, PGSIZE);
 
 	//TODO: Maybe add perm from original.
+	struct cow_info info = {root, newRoot};
 	ret = __vm_pgrot_walk(root, VA_START, VA_END, &__vm_pgrot_cow, NULL,
-		newRoot, 3);
+		&info, 3);
 	if (ret)
 		goto err;
 
-	printf("About to return the copied page_root.\n");
-	fflush(stdout);
 	return newRoot;
 err:
 	if (newRoot)
