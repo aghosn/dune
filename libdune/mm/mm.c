@@ -11,6 +11,7 @@
 #include "mm_types.h"
 #include "memory.h"
 #include "vma.h"
+#include "vm_tools.h"
 
 /*Global variables for memory limits.*/
 uintptr_t phys_limit;
@@ -55,7 +56,8 @@ static void __mm_setup_mappings_cb(const struct dune_procmap_entry *ent)
 		//TODO: problem here.
 		unsigned long perm = PERM_U | PERM_W;
 		ptent_t *pte;
-		dune_vm_lookup(pgroot, (void *) VSYSCALL_ADDR, 1, &pte);
+		//dune_vm_lookup(pgroot, (void *) VSYSCALL_ADDR, 1, &pte);
+		vm_lookup(pgroot, (void*) VSYSCALL_ADDR, &pte, CREATE_NORMAL, PTE_P | PTE_U);
 		*pte = PTE_ADDR(dune_va_to_pa(&__dune_vsyscall_page)) | PTE_P | PTE_U;
 		ret = mm_create_phys_mapping(mm_root, start, end, pa, perm);
 		assert(ret == 0);
@@ -487,7 +489,8 @@ mm_struct* mm_cow_copy(mm_struct *mm, bool apply)
 		goto err;
 
 	if (!apply) {
-		copy->pml4 = dune_vm_clone(mm->pml4);
+		//copy->pml4 = dune_vm_clone(mm->pml4);
+		copy->pml4 = vm_pgrot_cow(mm->pml4);
 		if (!(copy->pml4))
 			goto err;
 	}
@@ -508,7 +511,8 @@ mm_struct* mm_cow_copy(mm_struct *mm, bool apply)
 	
 	if (apply) {
 		mm_apply(mm);
-		copy->pml4 = dune_vm_clone(mm->pml4);
+		//copy->pml4 = dune_vm_clone(mm->pml4);
+		copy->pml4 = vm_pgrot_cow(mm->pml4);
 		if (!copy->pml4)
 			goto err;
 		dune_flush_tlb();
