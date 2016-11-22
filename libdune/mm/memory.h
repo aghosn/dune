@@ -16,6 +16,5 @@ extern mm_struct *mm_root;
 extern l_mm *mm_queue;
 
 int dune_memory_init();
-void memory_default_pgflt_handler(uintptr_t addr, uint64_t fec);
 void memory_pgflt_handler(uintptr_t addr, uint64_t fec);
 #endif /*__LIBDUNE_MM_MEMORY_H__*/

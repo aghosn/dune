@@ -2,8 +2,11 @@
 #include <stdlib.h>
 #include <dune.h>
 #include <mm/vm_tools.h>
+#include <mm/mm.h>
+#include <mm/mm_tools.h>
+#include <mm/memory.h>
 
-static int __compare_pgroots(ptent_t* pte, void *va, cb_info *args)
+/*static int __compare_pgroots(ptent_t* pte, void *va, cb_info *args)
 {
 	int ret;
 	ptent_t *out;
@@ -44,15 +47,14 @@ int compare_pgroots(ptent_t* o, ptent_t* c)
 	}
 
 	return 0;
-}
-
+}*/
 
 int test_swap()
 {	
 	printf("Swapping the pageroot.\n");
 	ptent_t* newRoot = vm_pgrot_copy(pgroot, false);
 	printf("Comparing the page root.\n");
-	compare_pgroots(pgroot, newRoot);
+	vm_compare_pgroots(pgroot, newRoot);
 	printf("After the comparision.\n");
 	fflush(stdout);
 	if (!newRoot) {
@@ -66,6 +68,11 @@ int test_swap()
 	return 0;
 }
 
+int test_cow() {
+	mm_struct *copy = mm_copy(mm_root, true, true);
+	assert(copy);
+	return 0;
+}
 
 int main(void)
 {
@@ -80,7 +87,9 @@ int main(void)
 	printf("Dune initialized.\n");
 	//TODO: do dune init and all of that.
 	printf("Starting vm test.\n");
-	if ((ret = test_swap()))
-		return -1;
+	// if ((ret = test_swap()))
+	// 	return -1;
+	test_cow();
+	printf("Done.\n");
 	return 0;
 }

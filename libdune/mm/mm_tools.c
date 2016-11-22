@@ -9,6 +9,8 @@
 #include "mm.h"
 #include "mm_tools.h"
 
+#define DEBUG_MM
+
 mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 {
 	assert(mm && mm->mmap);
@@ -44,6 +46,15 @@ mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 		mm_apply(mm);
 	}
 	copy->pml4 = vm_pgrot_copy(mm->pml4, cow);
+	assert(copy->pml4 != NULL);
+
+#ifdef DEBUG_MM
+	mm_compare_mms(mm, copy);
+	vm_compare_pgroots(mm->pml4, copy->pml4);
+	vm_find_last(mm->pml4, mm->mmap->last->vm_start);
+	mm_verify_mappings(mm);
+	mm_verify_mappings(copy);
+#endif
 
 	return copy;
 err:
@@ -122,10 +133,6 @@ int mm_split_or_merge(	mm_struct *mm,
 
 	/*3.*/
 	/*TODO: Safety check, remove after making sure it works.*/
-	if (!(start > vma->vm_start && end < last->vm_end)) {
-		printf("0x%016lx-0x%016lx and 0x%016lx-0x%016lx\n", start, end, vma->vm_start, last->vm_end);
-		fflush(stdout);
-	}
 	assert(start > vma->vm_start && end < last->vm_end);
 
 	f_start = vma->vm_start; f_end = start; f_perm = vma->vm_flags;
@@ -268,6 +275,8 @@ void mm_uncow(mm_struct *mm, vm_addrptr va)
 		if (current->vm_start == addr &&
 			current->vm_end == (addr + PGSIZE)) {
 			found = current;
+
+			//TODO: fails here.
 			assert(current->head_shared);
 			assert(current->cow);
 
@@ -317,57 +326,83 @@ void mm_dump(mm_struct *mm)
 	}
 }
 
-void mm_verify_mappings(mm_struct *mm)
+static void __compare_permissions(unsigned long flags, ptent_t pte)
 {
+	if (flags & PERM_U) {
+		if (!(pte & PTE_U))
+		assert(pte & PTE_U);
+	}
+	else 
+		assert(!(pte & PTE_U));
+
+	if (flags & PERM_W)
+		assert(pte & PTE_W);
+	else
+		assert(!(pte & PTE_W));
+
+	if (flags & PERM_COW)
+		assert(pte & PTE_COW);
+	else 
+		assert(!(pte & PTE_COW));
+
+	//TODO: check that this is correct.
+	if (flags & PERM_X)
+		assert(!(pte & PTE_NX));
+	// else 
+	// 	assert(pte & PTE_NX);
+
+	if (pte_big(pte))
+		assert(flags & PERM_BIG || flags & PERM_BIG_1GB);
+	else 
+		assert(!(flags & PERM_BIG || flags & PERM_BIG_1GB));
+}
+
+int mm_verify_mappings(mm_struct *mm)
+{
+	int ret = 0;
 	assert(mm);
 	assert(mm->mmap);
-	assert(pgroot == mm->pml4);
+	assert(mm->pml4);
 	vm_area_struct *current = NULL;
-	Q_FOREACH(current, mm->mmap, lk_areas) {
-		int mapped = dune_vm_has_mapping(mm->pml4, (void *) current->vm_start);
-		vm_addrptr middle = (current->vm_start + current->vm_end) / 2;
-		mapped += dune_vm_has_mapping(mm->pml4, (void *) middle);
-		assert(mapped == 0);
-	}
-}
 
-int mm_into_root(mm_struct *mm)
-{
-	vm_area_struct *current = NULL;
 	Q_FOREACH(current, mm->mmap, lk_areas) {
-		vm_make_root((void*)(current->vm_start),(void*)(current->vm_end),
-			mm->pml4);
-		current->user = 0;
-		current->vm_flags &= ~(PERM_U);
+		ret = dune_vm_has_mapping(mm->pml4, (void*) current->vm_start);
+		assert(ret == 0);
+		vm_addrptr mid = (current->vm_start + current->vm_end) /2;
+		ret = dune_vm_has_mapping(mm->pml4, (void*) mid);
+		assert(ret == 0);
+
+		ptent_t *pte = NULL;
+		ret = vm_lookup(mm->pml4, (void*) current->vm_start, &pte, CREATE_NONE, 0);
+		assert(pte);
+		__compare_permissions(current->vm_flags, *pte);
+
+		/* Cow specific settings*/
+		if (current->cow) {
+			assert(current->head_shared);
+			assert(current->vm_flags & PERM_COW);
+			assert(current->vm_flags & PERM_U);
+			assert(!(current->vm_flags & PERM_W));
+		}
+
 	}
 	return 0;
 }
 
-int mm_count_entries(mm_struct *mm)
+int mm_compare_mms(mm_struct *o, mm_struct *c)
 {
-	vm_area_struct *current = NULL;
-	vm_count_entries((void*)(mm->mmap->head->vm_start), (void*)(mm->mmap->last->vm_end),
-			mm->pml4);
-	
-	return 0;
-}
+	vm_area_struct *o_current = NULL, *c_current = NULL;
+	for (o_current = o->mmap->head, c_current = c->mmap->head;
+		o_current != NULL && c_current != NULL;
+		o_current = o_current->lk_areas.next,
+		c_current = c_current->lk_areas.next) {
 
-int mm_check_regions(mm_struct *mm)
-{
-	vm_area_struct *current = NULL;
-	Q_FOREACH(current, mm->mmap, lk_areas) {
-		if (current->user && !(current->vm_flags & PTE_U)
-			|| (!(current->user) &&  current->vm_flags & PTE_U)) {
-			printf("User permissions not set correctly.\n");
-			vma_dump(current);
-			//return 1;
-		}
-		if (vm_check_entry((void*)(current->vm_start),(void*)(current->vm_end),
-			mm->pml4, current->vm_flags)) {
-			printf("vma does not correspond to the flags in pte.\n");
-			vma_dump(current);
-			//return 1;
-		}
+		assert(o_current->vm_start == c_current->vm_start);
+		assert(o_current->vm_end == c_current->vm_end);
+		assert(o_current->vm_flags == c_current->vm_flags);
+		assert(o_current->cow == c_current->cow);
+		assert(o_current->shared == c_current->shared);
 	}
+
 	return 0;
 }

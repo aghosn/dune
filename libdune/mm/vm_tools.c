@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <errno.h>
 #include "vm_tools.h"
+#include "vma.h"
 
 static int __vm_pgrot_walk(	ptent_t *root,
 							void *start,
@@ -79,8 +80,6 @@ struct cow_info {
 static int __vm_pgrot_copy(ptent_t* pte, void *va, cb_info *info)
 {
 	int ret;
-	assert(pte_present(*pte));
-
 	struct cow_info *inf = (struct cow_info*) (info->args);
 	assert(inf != NULL);
 
@@ -135,6 +134,7 @@ set_entry:
 	assert(pte_present(o_pdpte[j]) && pte_present(n_pdpte[j]));
 	n_pdpte[j] = PTE_ADDR(n_pdpte[j]) | PPTE_FLAGS(o_pdpte[j]);
 	
+	/* This is a big entry.*/
 	if (info->level == 2)
 		assert(PTE_ADDR(n_pdpte[j]) == PTE_ADDR(o_pdpte[j]));
 
@@ -288,4 +288,44 @@ int vm_uncow(ptent_t* root, void *addr)
 	/* Invalidate.*/
 	dune_flush_tlb_one(addr);
 	return 0;
+}
+
+static int __vm_compare_pgroots(ptent_t* pte, void *va, cb_info *args)
+{
+	int ret;
+	ptent_t *out;
+	ptent_t* other = (ptent_t*)(args->args);
+	ret = dune_vm_has_mapping(other, va);
+	assert(ret == 0);
+
+	ret = vm_lookup(other, va, &out, CREATE_NONE, 0);
+	assert(ret == 0);
+
+	assert(PPTE_FLAGS(*out) == PPTE_FLAGS(*pte));
+	return 0;
+}
+
+int vm_compare_pgroots(ptent_t* o, ptent_t *c)
+{
+	int r;
+	
+	r = vm_pgrot_walk(o, VA_START, VA_END, &__vm_compare_pgroots, NULL, c);
+	assert(r == 0);
+
+	r = vm_pgrot_walk(c, VA_START, VA_END, &__vm_compare_pgroots, NULL, o);
+	assert(r == 0);
+	return 0;
+}
+
+static int __vm_find_last(void *args, ptent_t* pte, void* va)
+{
+	if (va == args)
+		printf("FOUND-------------------\n");
+	return 0;
+}
+
+int vm_find_last(ptent_t* pte, void *va)
+{
+	int ret = dune_vm_page_walk(pte, VA_START, VA_END, &__vm_find_last, va);
+	return ret;
 }

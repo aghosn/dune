@@ -37,10 +37,6 @@ int mm_free(mm_struct *mm);
 void mm_dump(mm_struct *mm);
 
 /* Helper function to verify that regions correspond to entries inside pgrot.*/
-void mm_verify_mappings(mm_struct *mm);
-
-
-int mm_into_root(mm_struct *mm);
-int mm_count_entries(mm_struct *mm);
-int mm_check_regions(mm_struct *mm);
+int mm_verify_mappings(mm_struct *mm);
+int mm_compare_mms(mm_struct *o, mm_struct *c);
 #endif /*__LIBDUNE_MM_MM_TOOLS_H__*/

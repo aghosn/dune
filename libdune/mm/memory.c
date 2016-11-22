@@ -71,58 +71,6 @@ err:
 	return ret;
 }
 
-void memory_default_pgflt_handler(uintptr_t addr, uint64_t fec)
-{
-	ptent_t *pte = NULL;
-	int rc;
-	/*
-	 * Assert on present and reserved bits.
-	 */
-	printf("The fec %lu and address %p\n", fec, addr);
-	assert(fec != 0);
-	rc = dune_vm_lookup(pgroot, (void *) addr, 0, &pte);
-	if (dune_vm_has_mapping(pgroot, (void*)addr))
-		printf("The address has no mapping, which is surprising...\n");	
-	else 
-		printf("The address actually has a mapping.\n");
-	
-	fflush(stdout);
-	assert(rc == 0);
-	assert(*pte & PTE_U);
-		
-	// if ((*pte & PTE_U) && (*pte & PTE_COW))
-	// 	printf("Looks good to me for the moment.\n");
-	// else
-	// 	printf("Shhhhhoooot\n");
-
-	if ((fec & FEC_W) && (*pte & PTE_COW)) {
-		void *newPage;
-		struct page *pg = dune_pa2page(PTE_ADDR(*pte));
-		ptent_t perm = PTE_FLAGS(*pte);
-
-		// Compute new permissions
-		perm &= ~PTE_COW;
-		perm |= PTE_W;
-
-		if (dune_page_isfrompool(PTE_ADDR(*pte)) && pg->ref == 1) {
-			*pte = PTE_ADDR(*pte) | perm;
-			return;
-		}
-		// Duplicate page
-		newPage = alloc_page();
-		memcpy(newPage, (void *)PGADDR(addr), PGSIZE);
-
-		// Map page
-		if (dune_page_isfrompool(PTE_ADDR(*pte))) {
-			dune_page_put(pg);
-		}
-		*pte = PTE_ADDR(newPage) | perm;
-
-		// Invalidate
-		dune_flush_tlb_one(addr);
-	}
-	printf("And solved.\n");
-}
 void memory_pgflt_handler(uintptr_t addr, uint64_t fec)
 {
 	assert(fec & FEC_W);

@@ -9,7 +9,7 @@
 #include "vm.h"
 
 //FIXME: check that again.
-#define __PPTE_FLAGS (UINT64(PTE_PAT | PTE_COW | PTE_PCD | PTE_PWT | PTE_U | PTE_W | PTE_P))
+#define __PPTE_FLAGS (UINT64(PTE_NX | PTE_PAT | PTE_COW | PTE_PCD | PTE_PWT | PTE_U | PTE_W | PTE_P))
 
 #define PPTE_FLAGS(pte) ((physaddr_t) (pte) & __PPTE_FLAGS)
 
@@ -46,4 +46,6 @@ ptent_t* vm_pgrot_copy(ptent_t* root, bool cow);
 
 int vm_uncow(ptent_t* root, void *addr);
 
+int vm_compare_pgroots(ptent_t* o, ptent_t *c);
+int vm_find_last(ptent_t* pte, void *va);
 #endif /*__LIBDUNE_MM_VM_TOOLS_H__*/

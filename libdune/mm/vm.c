@@ -7,6 +7,7 @@
 
 #include "../dune.h"
 #include "vm.h"
+#include "vm_tools.h"
 
 ptent_t get_pte_perm(int perm)
 {
@@ -231,7 +232,7 @@ static int __dune_vm_map_phys_helper(const void *arg, ptent_t *pte, void *va)
 {
 	struct map_phys_data *data = (struct map_phys_data *) arg;
 
-	*pte = PTE_ADDR(va - data->va_base + data->pa_base) | data->perm;
+	*pte = PTE_ADDR(va - data->va_base + data->pa_base) | data->perm | PTE_P;
 	return 0;
 }
 
@@ -435,7 +436,7 @@ int dune_vm_has_mapping(ptent_t *root, void *va)
 	l = PDX(0, va);
 
 	if (!pte_present(pml4[i])) {
-		// printf("pdpte is Not present.");
+		printf("pdpte is Not present.");
 		return 1;
 	} 
 
@@ -444,7 +445,8 @@ int dune_vm_has_mapping(ptent_t *root, void *va)
 	// printf("Now pdpte is %p\n", pdpte);
 
 	if (!pte_present(pdpte[j])){
-		// printf("The pde is not present!\n");
+		printf("The pde is not present!\n");
+		printf("0x%016lx\n", pdpte[j]);
 		return 1;
 	}
 
@@ -459,7 +461,7 @@ int dune_vm_has_mapping(ptent_t *root, void *va)
 	// printf("The pde %p \n", pde);
 
 	if (!pte_present(pde[k])) {
-		// printf("The pte is not present.\n");
+		printf("The pte is not present.\n");
 		return 1;
 	}
 
@@ -472,13 +474,10 @@ int dune_vm_has_mapping(ptent_t *root, void *va)
 	// printf("pte is present and is %p.\n", pte);
 	
 	ptent_t* out = &pte[l];
-	// printf("The l is %d", l);
-	//printf("The result is %p\n", out);
-	/*if (*out & PTE_U)
-		printf("Has user permissions.\n");
-	else 
-		printf("Has no user permissions.\n");*/
 
+	if (!pte_present(pte[l]))
+		return 1;
+	
 	return 0;
 }
 
@@ -495,7 +494,7 @@ int vm_compare_mappings(ptent_t *first, ptent_t *second)
 		if (pte_present(f_pml4[i]) != pte_present(s_pml4[i]))
 			return 1;
 
-		if (PTE_FLAGS(f_pml4[i]) != PTE_FLAGS(s_pml4[i]))
+		if (PPTE_FLAGS(f_pml4[i]) != PPTE_FLAGS(s_pml4[i]))
 			return 2;
 
 		f_pdpte = (ptent_t *) PTE_ADDR(f_pml4[i]);
@@ -505,10 +504,11 @@ int vm_compare_mappings(ptent_t *first, ptent_t *second)
 			if (!pte_present(f_pdpte[j]) && !pte_present(s_pdpte[j]))
 				continue;
 
-			if (pte_present(f_pdpte[j]) != pte_present(s_pdpte[j]))
+			if (pte_present(f_pdpte[j]) != pte_present(s_pdpte[j])) {
 				return 3;
+			}
 
-			if (PTE_FLAGS(f_pdpte[j]) != PTE_FLAGS(s_pdpte[j]))
+			if (PPTE_FLAGS(f_pdpte[j]) != PPTE_FLAGS(s_pdpte[j]))
 				return 4;
 
 			if (pte_big(f_pdpte[j]) && pte_big(s_pdpte[j]))
@@ -527,7 +527,7 @@ int vm_compare_mappings(ptent_t *first, ptent_t *second)
 					return 6;
 
 				//TODO check flags.
-				if (PTE_FLAGS(f_pde[k]) != PTE_FLAGS(s_pde[k]))
+				if (PPTE_FLAGS(f_pde[k]) != PPTE_FLAGS(s_pde[k]))
 					return 7;
 
 				if (pte_big(f_pde[k]) && pte_big(s_pde[k]))
@@ -551,7 +551,7 @@ int vm_compare_mappings(ptent_t *first, ptent_t *second)
 						return 9;
 					}
 
-					if (PTE_FLAGS(f_pte[l]) != PTE_FLAGS(s_pte[l])) {
+					if (PPTE_FLAGS(f_pte[l]) != PPTE_FLAGS(s_pte[l])) {
 						printf("0x%016lx \n", RPDX(i, j, k, l));
 						printf("Flags: 0x%016lx and 0x%016lx\n", PTE_FLAGS(f_pte[l]), PTE_FLAGS(s_pte[l]));
 						return 10;

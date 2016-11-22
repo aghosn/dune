@@ -94,6 +94,10 @@ int mm_init()
 
 	/*Map the procmap.*/
 	dune_procmap_iterate(&__mm_setup_mappings_cb);
+
+	//TODO: for debugging, remove afterwards.
+	//FIXME: problem is here some of the mappings do not work.
+	mm_verify_mappings(mm_root);
 	return 0;
 }
 
@@ -133,7 +137,7 @@ int mm_create_phys_mapping(mm_struct *mm,
 		ret = mm_apply_to_pgroot(vma, pa);
 		return ret;
 	}
-
+	
 	/* Slow path*/
 	Q_FOREACH(current, mm->mmap, lk_areas) {
 		if (current->vm_start == va_start &&
@@ -165,11 +169,11 @@ int mm_create_phys_mapping(mm_struct *mm,
 	return ret;
 }
 
-//TODO: do applies.
 int mm_apply_to_pgroot(vm_area_struct *vma, void *pa)
 {
-	if (!vma || !(vma->vm_mm) || !(vma->vm_mm->pml4))
-		return -EINVAL;
+	//FIXME: this shit doesn't work.
+	assert(vma && vma->vm_mm && vma->vm_mm->pml4);
+
 	if (pa != NULL) {
 		return dune_vm_map_phys(vma->vm_mm->pml4, (void*)vma->vm_start,
 		(size_t)(vma->vm_end - vma->vm_start), pa, vma->vm_flags);
