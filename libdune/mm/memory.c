@@ -5,6 +5,7 @@
 
 
 #include "memory.h"
+#include "vm_tools.h"
 
 /*Global variables*/
 ptent_t *pgroot = NULL;
@@ -50,7 +51,7 @@ int dune_memory_init() {
 		goto err;
 	}
 	
-	dune_register_pgflt_handler((dune_pgflt_cb)&memory_default_pgflt_handler);
+	dune_register_pgflt_handler((dune_pgflt_cb)&memory_pgflt_handler);
 
 	if ((ret = mm_init())) {
 		printf("dune: unable to setup memory layout.\n");
@@ -104,7 +105,6 @@ void memory_default_pgflt_handler(uintptr_t addr, uint64_t fec)
 		perm |= PTE_W;
 
 		if (dune_page_isfrompool(PTE_ADDR(*pte)) && pg->ref == 1) {
-			fflush(stdout);
 			*pte = PTE_ADDR(*pte) | perm;
 			return;
 		}
@@ -123,3 +123,52 @@ void memory_default_pgflt_handler(uintptr_t addr, uint64_t fec)
 	}
 	printf("And solved.\n");
 }
+void memory_pgflt_handler(uintptr_t addr, uint64_t fec)
+{
+	ptent_t *pte = NULL;
+	int rc;
+
+	/* Check that everything is set properly*/
+	assert(mm_root->pml4 == pgroot);
+
+	/* Get the faulty entry.*/
+	rc = vm_lookup(pgroot,(void*)addr, &pte, CREATE_NONE, 0);
+
+	/* Check that the entry is a COW.*/
+	assert(rc == 0);
+	assert(PTE_U & *pte);
+	assert(fec & FEC_W);
+	assert(!(*pte & PTE_W));
+	assert(*pte & PTE_COW);
+
+	//TODO: will have to handle that if it is not correct.
+	assert(!pte_big(*pte));
+	
+	/* If the entry is a cow, we fix it.*/
+	void *newPage;
+	struct page *pg = dune_pa2page(PTE_ADDR(*pte));
+	ptent_t perm = PPTE_FLAGS(*pte);
+
+	perm &= ~(PTE_COW);
+	perm |= PTE_W;
+
+	/* Only one reference to this page, so we simply keep it.*/
+	if (dune_page_isfrompool(PTE_ADDR(*pte)) && pg->ref == 1) {
+		*pte = PTE_ADDR(*pte) | perm;
+		return;
+	}
+
+	/* We duplicate the page.*/
+	newPage = alloc_page();
+	assert(newPage);
+	memcpy(newPage, (void*)PGADDR(addr), PGSIZE);
+
+	/* map the page.*/
+	if (dune_page_isfrompool(PTE_ADDR(*pte)))
+		dune_page_put(pg);
+	*pte = PTE_ADDR(newPage) | perm;
+
+	/* Invalidate.*/
+	dune_flush_tlb_one(addr);
+}
+
