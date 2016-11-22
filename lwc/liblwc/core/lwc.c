@@ -54,7 +54,7 @@ err:
 static mm_struct* lwc_apply_mm(lwc_rsrc_spec *mod, mm_struct *o)
 {
     assert(mod && o);
-    mm_struct *copy = mm_cow_copy(o, false);
+    mm_struct *copy = mm_copy(o, false, true);
     if (!copy)
         goto err;
 
@@ -62,13 +62,13 @@ static mm_struct* lwc_apply_mm(lwc_rsrc_spec *mod, mm_struct *o)
     Q_FOREACH(current, &(mod->ranges), lk_rg) {
         switch(current->opt) {
             case LWC_COW:
-                mm_cow(o, copy, current->start, current->end, false);
+                //mm_cow(o, copy, current->start, current->end, false);
                 break;
             case LWC_SHARED:
-                mm_shared(o, copy, current->start, current->end, false);
+                //mm_shared(o, copy, current->start, current->end, false);
                 break;
             case LWC_UNMAP:
-                mm_unmap(copy, current->start, current->end, false);
+                //mm_unmap(copy, current->start, current->end, false);
                 break;
             default:
                 //TODO: logg error.
@@ -94,11 +94,9 @@ lwc_struct* sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod)
     if (!current)
         goto err;
 
-    printf("Before the copy.\n");
     /* Default copy-on-write behaviour.*/
     if (!mod || mod->ranges.head == NULL) {
-        copy = mm_cow_copy(current->vm_mm, true);
-        printf("After the create.\n");
+        copy = mm_copy(current->vm_mm, true, true);
         goto create;
     }
 
@@ -126,7 +124,6 @@ create:
     Q_INIT_ELEM(n_lwc->vm_mm, lk_mms);
     Q_INSERT_TAIL(mm_queue, n_lwc->vm_mm, lk_mms);
 
-    printf("About to return.\n");
     return n_lwc;
 err:
     if (n_lwc)

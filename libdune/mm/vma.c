@@ -51,78 +51,64 @@ int vma_free(vm_area_struct *vma)
 	return 0;
 }
 
-vm_area_struct *vma_cow_copy(vm_area_struct *vma)
+vm_area_struct *vma_copy(vm_area_struct *vma, bool cow)
 {
 	assert(vma);
 	vm_area_struct *copy = malloc(sizeof(vm_area_struct));
-	if (!copy)
-		goto err;
+	if (!copy) goto err;
 
 	l_vm_area *shared = vma->head_shared;
-	assert(!vma->shared);
 	
-	if (!vma->cow) {
-		assert(shared == NULL);
+	/* We do not cow something that is shared.*/
+	if (cow) assert(!vma->shared);
+
+	/* This vma was never shared nor cowed.*/
+	if (!shared) {
+		assert(vma->cow == 0);
 		shared = malloc(sizeof(l_vm_area));
 		if (!shared) goto err;
 
 		Q_INIT_HEAD(shared);
 		Q_INIT_ELEM(vma, lk_shared);
 		Q_INSERT_TAIL(shared, vma, lk_shared);
-
 		vma->head_shared = shared;
-		vma->cow = 1;
-		vma->vm_flags ^= PERM_W;
-		vma->vm_flags |= PERM_COW;
-		vma->dirty = 1;
+		if (!cow)
+			vma->shared = 1;
+	} else {
+		assert(vma->shared || vma->cow);
 	}
 
-	memcpy(copy, vma, sizeof(vm_area_struct));
+	/* This copy is a cow, so we need to change the flags.*/
+	if (cow && (vma->cow == 0)) {
+		assert(!(vma->vm_flags & PERM_COW));
+		vma->cow = 1;
+		vma->dirty = 1;
+		vma->vm_flags &= ~(PERM_W);
+		vma->vm_flags |= PERM_COW;
+	}
+
+	assert(shared != NULL);
+	/* Copy the */
+	*copy = *vma;
 	Q_INIT_ELEM(copy, lk_shared);
+	Q_INIT_ELEM(copy, lk_areas);
 	Q_INSERT_TAIL(shared, copy, lk_shared);
-	copy->dirty = 1;
+	copy->dirty;
 
 	return copy;
 err:
-	if (copy)
-		free(copy);
+	//FIXME:
 	return NULL;
+}
+
+vm_area_struct *vma_cow_copy(vm_area_struct *vma)
+{
+	vma_copy(vma, true);
 }
 
 vm_area_struct *vma_shared_copy(vm_area_struct *vma)
 {
-	assert(vma);
-	vm_area_struct *copy = malloc(sizeof(vm_area_struct));
-	if (!copy)
-		goto err;
-
-	l_vm_area *shared = vma->head_shared;
-
-	if (!vma->shared || vma->head_shared == NULL) {
-		assert(shared == NULL);
-		assert(vma->cow == 0);
-		
-		shared = malloc(sizeof(l_vm_area));
-		if (!shared) goto err;
-
-		Q_INIT_HEAD(shared);
-		Q_INIT_ELEM(vma, lk_shared);
-		Q_INSERT_TAIL(shared, vma, lk_shared);
-
-		vma->head_shared = shared;
-		vma->shared = 1;
-		vma->dirty = 1;
-	}
-	
-	memcpy(copy, vma, sizeof(vm_area_struct));
-	Q_INIT_ELEM(copy, lk_shared);
-	Q_INSERT_TAIL(shared, copy, lk_shared);
-	copy->dirty = 1;
-	return copy;
-err:
-	if (copy)
-		free(copy);
-	return NULL;
+	vma_copy(vma, false);
 }
 
 

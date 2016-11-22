@@ -73,9 +73,10 @@ int vm_pgrot_walk(	ptent_t *root,
 struct cow_info {
 	ptent_t* o_root;
 	ptent_t* n_root;
+	bool cow;
 };
 
-static int __vm_pgrot_cow(ptent_t* pte, void *va, cb_info *info)
+static int __vm_pgrot_copy(ptent_t* pte, void *va, cb_info *info)
 {
 	int ret;
 	assert(pte_present(*pte));
@@ -109,12 +110,16 @@ static int __vm_pgrot_cow(ptent_t* pte, void *va, cb_info *info)
 	if (dune_page_isfrompool(PTE_ADDR(*pte)))
 		dune_page_get(pg);
 
-	/* Do a cow if this is a user mapping.*/
-	// if (*pte  & PTE_U) {
-	// 	*pte &= ~(PTE_W);
-	// 	*pte |= PTE_COW;
-	// }
+	if (!inf->cow)
+		goto set_entry;
 
+	/* Do a cow if this is a user mapping with write accesses.*/
+	if (*pte  & PTE_U && (*pte & PTE_W || *pte & PTE_COW)) {
+		*pte &= ~(PTE_W);
+		*pte |= PTE_COW;
+	}
+
+set_entry:
 	/* Set the actual entry.*/
 	*newPte = *pte;
 
@@ -154,7 +159,7 @@ static int __vm_pgrot_cow(ptent_t* pte, void *va, cb_info *info)
 }
 
 
-ptent_t* vm_pgrot_cow(ptent_t* root)
+ptent_t* vm_pgrot_copy(ptent_t* root, bool cow)
 {
 	int ret;
 	ptent_t* newRoot;
@@ -165,8 +170,8 @@ ptent_t* vm_pgrot_cow(ptent_t* root)
 	memset(newRoot, 0, PGSIZE);
 
 	//TODO: Maybe add perm from original.
-	struct cow_info info = {root, newRoot};
-	ret = __vm_pgrot_walk(root, VA_START, VA_END, &__vm_pgrot_cow, NULL,
+	struct cow_info info = {root, newRoot, cow};
+	ret = __vm_pgrot_walk(root, VA_START, VA_END, &__vm_pgrot_copy, NULL,
 		&info, 3);
 	if (ret)
 		goto err;

@@ -13,6 +13,10 @@ vm_area_struct *vma_create(	mm_struct *mm,
 							unsigned long perm);
 
 int vma_free(vm_area_struct *vma);
+
+vm_area_struct *vma_copy(vm_area_struct *vma, bool cow);
+
+//TODO: move into the vma.c
 vm_area_struct *vma_cow_copy(vm_area_struct *vma);
 vm_area_struct *vma_shared_copy(vm_area_struct *vma);
 void vma_dump(vm_area_struct *vma);

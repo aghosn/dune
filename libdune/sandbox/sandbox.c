@@ -372,9 +372,6 @@ int sandbox_init(char *loader, int argc, char *argv[],
 
 	dune_set_user_fs(0); // default starting fs
 
-	printf("After the set fs\n");
-	fflush(stdout);
-
 	ret = trap_init();
 	if (ret) {
 		log_err("sandbox: failed to initialize trap handlers\n");
@@ -395,7 +392,6 @@ int sandbox_init(char *loader, int argc, char *argv[],
 	*spp = sp;
 	*entry = data.entry;
 
-	printf("About to return from the sandbox init.\n");
 	return 0;
 }
 

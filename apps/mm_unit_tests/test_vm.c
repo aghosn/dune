@@ -50,7 +50,7 @@ int compare_pgroots(ptent_t* o, ptent_t* c)
 int test_swap()
 {	
 	printf("Swapping the pageroot.\n");
-	ptent_t* newRoot = vm_pgrot_cow(pgroot);
+	ptent_t* newRoot = vm_pgrot_copy(pgroot, false);
 	printf("Comparing the page root.\n");
 	compare_pgroots(pgroot, newRoot);
 	printf("After the comparision.\n");

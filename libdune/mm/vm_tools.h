@@ -1,6 +1,7 @@
 #ifndef __LIBDUNE_MM_VM_TOOLS_H__
 #define __LIBDUNE_MM_VM_TOOLS_H__
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include "../dune.h"
 #include "../mmu.h"
@@ -41,6 +42,6 @@ int vm_lookup(	ptent_t* root,
 				int create,
 				ptent_t flags);
 
-ptent_t* vm_pgrot_cow(ptent_t* root);
+ptent_t* vm_pgrot_copy(ptent_t* root, bool cow);
 
 #endif /*__LIBDUNE_MM_VM_TOOLS_H__*/
