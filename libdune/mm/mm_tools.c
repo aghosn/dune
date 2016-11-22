@@ -51,7 +51,7 @@ mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 #ifdef DEBUG_MM
 	mm_compare_mms(mm, copy);
 	vm_compare_pgroots(mm->pml4, copy->pml4);
-	vm_find_last(mm->pml4, mm->mmap->last->vm_start);
+	//FIXME: bug is here.
 	mm_verify_mappings(mm);
 	mm_verify_mappings(copy);
 #endif

@@ -47,5 +47,4 @@ ptent_t* vm_pgrot_copy(ptent_t* root, bool cow);
 int vm_uncow(ptent_t* root, void *addr);
 
 int vm_compare_pgroots(ptent_t* o, ptent_t *c);
-int vm_find_last(ptent_t* pte, void *va);
 #endif /*__LIBDUNE_MM_VM_TOOLS_H__*/

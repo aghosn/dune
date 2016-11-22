@@ -9,7 +9,7 @@ static int __vm_pgrot_walk(	ptent_t *root,
 							void *end,
 							pgrot_walk_cb cb,
 							pgrot_walk_cb alloc,
-							const void *args,
+							void *args,
 							int level)
 {
 	int i, ret;
@@ -105,6 +105,7 @@ static int __vm_pgrot_copy(ptent_t* pte, void *va, cb_info *info)
 	/* Giving minimal rights for the moment.*/
 	ptent_t perm = PTE_P;
 	ret = vm_lookup(newRoot, va, &newPte, create , perm);
+	assert(ret == 0);
 
 	if (dune_page_isfrompool(PTE_ADDR(*pte)))
 		dune_page_get(pg);
@@ -286,14 +287,14 @@ int vm_uncow(ptent_t* root, void *addr)
 	*pte = PTE_ADDR(newPage) | perm;
 
 	/* Invalidate.*/
-	dune_flush_tlb_one(addr);
+	dune_flush_tlb_one((unsigned long)addr);
 	return 0;
 }
 
 static int __vm_compare_pgroots(ptent_t* pte, void *va, cb_info *args)
 {
 	int ret;
-	ptent_t *out;
+	ptent_t *out = NULL;
 	ptent_t* other = (ptent_t*)(args->args);
 	ret = dune_vm_has_mapping(other, va);
 	assert(ret == 0);
@@ -315,17 +316,4 @@ int vm_compare_pgroots(ptent_t* o, ptent_t *c)
 	r = vm_pgrot_walk(c, VA_START, VA_END, &__vm_compare_pgroots, NULL, o);
 	assert(r == 0);
 	return 0;
-}
-
-static int __vm_find_last(void *args, ptent_t* pte, void* va)
-{
-	if (va == args)
-		printf("FOUND-------------------\n");
-	return 0;
-}
-
-int vm_find_last(ptent_t* pte, void *va)
-{
-	int ret = dune_vm_page_walk(pte, VA_START, VA_END, &__vm_find_last, va);
-	return ret;
 }
