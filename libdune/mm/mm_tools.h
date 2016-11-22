@@ -14,7 +14,7 @@ typedef int (*mm_cb_ft)(vm_area_struct*, void*);
 mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow);
 
 /* Checks if the given vma overlaps with the given range of addresses.*/
-bool mm_overlap(vm_area_struct *vma, vm_addrptr s, vm_addrptr e);
+int mm_overlap(vm_area_struct *vma, vm_addrptr s, vm_addrptr e);
 
 /* Handles the splitting of vmas.*/
 int mm_split_or_merge(	mm_struct *mm,

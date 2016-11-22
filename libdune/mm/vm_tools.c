@@ -243,3 +243,49 @@ int vm_lookup(	ptent_t* root,
 	*pte_out = &pte[l];
 	return 0;
 }
+
+int vm_uncow(ptent_t* root, void *addr)
+{
+	int rc;
+	ptent_t *pte = NULL;
+	assert(root);
+	/* Get the faulty entry.*/
+	rc = vm_lookup(pgroot,(void*)addr, &pte, CREATE_NONE, 0);
+
+	/* Check that the entry is a COW.*/
+	assert(rc == 0);
+	assert(PTE_U & *pte);
+	assert(!(*pte & PTE_W));
+	assert(*pte & PTE_COW);
+
+	//TODO: will have to handle that if it is not correct.
+	assert(!pte_big(*pte));
+	
+	/* If the entry is a cow, we fix it.*/
+	void *newPage;
+	struct page *pg = dune_pa2page(PTE_ADDR(*pte));
+	ptent_t perm = PPTE_FLAGS(*pte);
+
+	perm &= ~(PTE_COW);
+	perm |= PTE_W;
+
+	/* Only one reference to this page, so we simply keep it.*/
+	if (dune_page_isfrompool(PTE_ADDR(*pte)) && pg->ref == 1) {
+		*pte = PTE_ADDR(*pte) | perm;
+		return 0;
+	}
+
+	/* We duplicate the page.*/
+	newPage = alloc_page();
+	assert(newPage);
+	memcpy(newPage, (void*)PGADDR(addr), PGSIZE);
+
+	/* map the page.*/
+	if (dune_page_isfrompool(PTE_ADDR(*pte)))
+		dune_page_put(pg);
+	*pte = PTE_ADDR(newPage) | perm;
+
+	/* Invalidate.*/
+	dune_flush_tlb_one(addr);
+	return 0;
+}

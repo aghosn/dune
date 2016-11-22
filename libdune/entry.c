@@ -228,7 +228,7 @@ static int setup_syscall(void)
 	unsigned long lstar;
 	unsigned long lstara;
 	unsigned char *page;
-	ptent_t *pte;
+	//ptent_t *pte;
 	size_t off;
 	int i;
 

@@ -4,6 +4,8 @@
 #include <errno.h>
 #include <malloc.h>
 
+#include "vm.h"
+#include "vm_tools.h"
 #include "mm.h"
 #include "mm_tools.h"
 
@@ -50,12 +52,13 @@ err:
 	return NULL;
 }
 
-bool mm_overlap(vm_area_struct *vma, vm_addrptr start, vm_addrptr end)
+int mm_overlap(vm_area_struct *vma, vm_addrptr start, vm_addrptr end)
 {
 	int dont_overlap = (vma->vm_end) <= (start) || (vma->vm_start) >= (end);
 	return !(dont_overlap);
 }
 
+//FIXME: handle cow. Need to de-cow f and t or whatever.
 int mm_split_or_merge(	mm_struct *mm,
 						vm_area_struct *vma,
 						vm_addrptr start,
@@ -119,6 +122,10 @@ int mm_split_or_merge(	mm_struct *mm,
 
 	/*3.*/
 	/*TODO: Safety check, remove after making sure it works.*/
+	if (!(start > vma->vm_start && end < last->vm_end)) {
+		printf("0x%016lx-0x%016lx and 0x%016lx-0x%016lx\n", start, end, vma->vm_start, last->vm_end);
+		fflush(stdout);
+	}
 	assert(start > vma->vm_start && end < last->vm_end);
 
 	f_start = vma->vm_start; f_end = start; f_perm = vma->vm_flags;
@@ -204,7 +211,7 @@ int mm_delete_region(	mm_struct *mm,
 	while (iter != NULL) {
 		vm_area_struct *tmp = iter;
 		iter = iter->lk_areas.next;
-		
+
 		Q_REMOVE(mm->mmap, tmp, lk_areas);
 		vma_free(tmp);
 		if (iter == end)
@@ -244,8 +251,62 @@ int mm_free(mm_struct *mm)
 	return ret;
 }
 
+static int __mm_uncow(vm_area_struct *vma, void* args)
+{
+	vm_area_struct** found = (vm_area_struct**) args;
+	*found = vma;
+	return 0;
+}
 
-/*					Debugging functions										*/
+void mm_uncow(mm_struct *mm, vm_addrptr va)
+{
+	vm_area_struct *current = NULL;
+	vm_area_struct *found = NULL;
+	vm_addrptr addr = MM_PGALIGN_DN(va);
+
+	Q_FOREACH(current, mm->mmap, lk_areas) {
+		if (current->vm_start == addr &&
+			current->vm_end == (addr + PGSIZE)) {
+			found = current;
+			assert(current->head_shared);
+			assert(current->cow);
+
+			l_vm_area *shared = current->head_shared;
+			Q_REMOVE(shared, current, lk_shared);
+
+			/* It was the only element in the cow.*/
+			if (shared->head == NULL) {
+				free(shared);
+				found->head_shared = NULL;
+			}
+			break;
+		} else if (mm_overlap(current, addr, addr + PGSIZE)) {
+			ptent_t *pte = NULL;
+			int ret = vm_lookup(mm->pml4, (void*) va, &pte, CREATE_NONE, 0);
+			assert(ret == 0);
+			assert(!pte_big(*pte));
+			assert(*pte & PTE_COW);
+			assert(*pte & PTE_U);
+			assert(!(*pte & PTE_W));
+			unsigned long perm = ((current->vm_flags) & ~(PERM_COW)) | PERM_W;
+			
+			/* The shared queue is handled isnide split or merge.*/
+			assert(current->cow);
+			ret = mm_split_or_merge(mm, current, addr, addr + PGSIZE, perm,
+				&__mm_uncow, &found);
+			assert(found != NULL);
+			break;
+		}
+	}
+	assert(found != NULL);
+	vm_uncow(mm->pml4, (void*) va);
+
+	//TODO: check the mm now.
+}
+
+/******************************************************************************/
+/*					Debugging functions										  */
+/******************************************************************************/
 
 void mm_dump(mm_struct *mm)
 {

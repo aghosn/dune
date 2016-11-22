@@ -125,50 +125,10 @@ void memory_default_pgflt_handler(uintptr_t addr, uint64_t fec)
 }
 void memory_pgflt_handler(uintptr_t addr, uint64_t fec)
 {
-	ptent_t *pte = NULL;
-	int rc;
-
+	assert(fec & FEC_W);
 	/* Check that everything is set properly*/
 	assert(mm_root->pml4 == pgroot);
-
-	/* Get the faulty entry.*/
-	rc = vm_lookup(pgroot,(void*)addr, &pte, CREATE_NONE, 0);
-
-	/* Check that the entry is a COW.*/
-	assert(rc == 0);
-	assert(PTE_U & *pte);
-	assert(fec & FEC_W);
-	assert(!(*pte & PTE_W));
-	assert(*pte & PTE_COW);
-
-	//TODO: will have to handle that if it is not correct.
-	assert(!pte_big(*pte));
 	
-	/* If the entry is a cow, we fix it.*/
-	void *newPage;
-	struct page *pg = dune_pa2page(PTE_ADDR(*pte));
-	ptent_t perm = PPTE_FLAGS(*pte);
-
-	perm &= ~(PTE_COW);
-	perm |= PTE_W;
-
-	/* Only one reference to this page, so we simply keep it.*/
-	if (dune_page_isfrompool(PTE_ADDR(*pte)) && pg->ref == 1) {
-		*pte = PTE_ADDR(*pte) | perm;
-		return;
-	}
-
-	/* We duplicate the page.*/
-	newPage = alloc_page();
-	assert(newPage);
-	memcpy(newPage, (void*)PGADDR(addr), PGSIZE);
-
-	/* map the page.*/
-	if (dune_page_isfrompool(PTE_ADDR(*pte)))
-		dune_page_put(pg);
-	*pte = PTE_ADDR(newPage) | perm;
-
-	/* Invalidate.*/
-	dune_flush_tlb_one(addr);
+	/* Do the uncow for the memory region.*/
+	mm_uncow(mm_root, (vm_addrptr) addr);
 }
-

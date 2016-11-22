@@ -44,4 +44,6 @@ int vm_lookup(	ptent_t* root,
 
 ptent_t* vm_pgrot_copy(ptent_t* root, bool cow);
 
+int vm_uncow(ptent_t* root, void *addr);
+
 #endif /*__LIBDUNE_MM_VM_TOOLS_H__*/
