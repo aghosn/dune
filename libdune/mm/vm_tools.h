@@ -7,6 +7,11 @@
 #include "../mmu-x86.h"
 #include "vm.h"
 
+//FIXME: check that again.
+#define __PPTE_FLAGS (UINT64(PTE_PAT | PTE_COW | PTE_PCD | PTE_PWT | PTE_U | PTE_W | PTE_P))
+
+#define PPTE_FLAGS(pte) ((physaddr_t) (pte) & __PPTE_FLAGS)
+
 typedef struct cb_info {
 	int level;
 	void *args;

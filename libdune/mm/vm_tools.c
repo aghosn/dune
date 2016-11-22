@@ -124,11 +124,11 @@ static int __vm_pgrot_cow(ptent_t* pte, void *va, cb_info *info)
 	int i = PDX(3, va), j = PDX(2, va);
 	ptent_t* o_pml4 = inf->o_root, *n_pml4 = inf->n_root;
 	assert(pte_present(n_pml4[i]) && pte_present(o_pml4[i]));
-	n_pml4[i] = PTE_ADDR(n_pml4[i]) | PTE_FLAGS(o_pml4[i]);
+	n_pml4[i] = PTE_ADDR(n_pml4[i]) | PPTE_FLAGS(o_pml4[i]);
 
 	ptent_t *o_pdpte = PPTE_ADDR(o_pml4[i]), *n_pdpte = PPTE_ADDR(n_pml4[i]);
 	assert(pte_present(o_pdpte[j]) && pte_present(n_pdpte[j]));
-	n_pdpte[j] = PTE_ADDR(n_pdpte[j]) | PTE_FLAGS(o_pdpte[j]);
+	n_pdpte[j] = PTE_ADDR(n_pdpte[j]) | PPTE_FLAGS(o_pdpte[j]);
 	
 	if (info->level == 2)
 		assert(PTE_ADDR(n_pdpte[j]) == PTE_ADDR(o_pdpte[j]));
@@ -137,7 +137,7 @@ static int __vm_pgrot_cow(ptent_t* pte, void *va, cb_info *info)
 		int k = PDX(1, va);
 		ptent_t *o_pde = PPTE_ADDR(o_pdpte[j]), *n_pde = PPTE_ADDR(n_pdpte[j]);
 		assert(pte_present(o_pde[k]) && pte_present(n_pde[k]));
-		n_pde[k] = PTE_ADDR(n_pde[k]) | PTE_FLAGS(o_pde[k]);
+		n_pde[k] = PTE_ADDR(n_pde[k]) | PPTE_FLAGS(o_pde[k]);
 		if (info->level == 1)
 			assert(PTE_ADDR(n_pde[k]) == PTE_ADDR(o_pde[k]));
 

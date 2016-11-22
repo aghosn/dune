@@ -473,11 +473,11 @@ int dune_vm_has_mapping(ptent_t *root, void *va)
 	
 	ptent_t* out = &pte[l];
 	// printf("The l is %d", l);
-	printf("The result is %p\n", out);
-	if (*out & PTE_U)
+	//printf("The result is %p\n", out);
+	/*if (*out & PTE_U)
 		printf("Has user permissions.\n");
 	else 
-		printf("Has no user permissions.\n");
+		printf("Has no user permissions.\n");*/
 
 	return 0;
 }
