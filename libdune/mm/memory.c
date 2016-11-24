@@ -76,10 +76,8 @@ void memory_pgflt_handler(uintptr_t addr, uint64_t fec)
 	assert(fec & FEC_W);
 	/* Check that everything is set properly*/
 	assert(mm_root->pml4 == pgroot);
-	
-	printf("Faulty address 0x%016lx\n", addr);
-	fflush(stdout);
 	mm_verify_mappings(mm_root);
+	
 	/* Do the uncow for the memory region.*/
 	mm_uncow(mm_root, (vm_addrptr) addr);
 }

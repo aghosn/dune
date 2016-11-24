@@ -100,7 +100,8 @@ static int umm_mmap_anom_flags(void *addr, size_t len, int prot, bool big, int e
 	/*ret = dune_vm_map_phys(pgroot, addr, len,
 			       (void *) dune_va_to_pa(addr),
 			       perm);*/
-	ret = mm_create_phys_mapping(mm_root,(vm_addrptr) addr,
+	mm_struct *current_mm = memory_get_mm();
+	ret = mm_create_phys_mapping(current_mm, (vm_addrptr) addr,
 			((vm_addrptr)addr) + len, (void *) dune_va_to_pa(addr), perm);
 
 	if (ret) {
@@ -132,7 +133,7 @@ static int umm_mmap_file(void *addr, size_t len, int prot, int flags,
 			       (void *) dune_va_to_pa(addr),
 			       prot_to_perm(prot));*/
 	//TODO aghosn: the EPT violation was here due to non page aligned.
-	ret = mm_create_phys_mapping(mm_root, (vm_addrptr) addr, 
+	ret = mm_create_phys_mapping(memory_get_mm(), (vm_addrptr) addr, 
 		((vm_addrptr)addr)+len, (void*)dune_va_to_pa(addr), prot_to_perm(prot));
 
 	if (ret) {
@@ -176,7 +177,7 @@ unsigned long umm_brk(unsigned long brk)
 			      brk_len - len);*/
 		vm_addrptr s = UMM_ADDR_START + len;
 		vm_addrptr e = s + (brk_len - len);
-		mm_unmap(mm_root, s, e, true);
+		mm_unmap(memory_get_mm(), s, e, true);
 	} else {
 		ret = umm_mmap_anom((void *)(UMM_ADDR_START + brk_len),
 				    len - brk_len,
@@ -264,14 +265,14 @@ int umm_munmap(void *addr, size_t len)
 		//dune_vm_unmap(pgroot, addr, BIG_PGADDR(len + BIG_PGSIZE - 1));
 		vm_addrptr s = (vm_addrptr) addr;
 		vm_addrptr e = s + BIG_PGADDR(len + BIG_PGSIZE -1);
-		mm_unmap(mm_root, s, e, true);
+		mm_unmap(memory_get_mm(), s, e, true);
 		return 0;
 	}
 
 	vm_addrptr s = (vm_addrptr) addr;
 	vm_addrptr e = s + len;
 	// dune_vm_unmap(pgroot, addr, len);
-	mm_unmap(mm_root, s, e, true);
+	mm_unmap(memory_get_mm(), s, e, true);
 
 	return 0;
 
@@ -289,7 +290,7 @@ int umm_mprotect(void *addr, size_t len, unsigned long prot)
 		return -errno;
 
 	/*ret = dune_vm_mprotect(pgroot, addr, len, prot_to_perm(prot));*/
-	ret = mm_mprotect(mm_root, (vm_addrptr)addr, (vm_addrptr)(addr + len), 
+	ret = mm_mprotect(memory_get_mm(), (vm_addrptr)addr, (vm_addrptr)(addr + len), 
 		prot_to_perm(prot));
 
 	assert(!ret);
@@ -332,7 +333,7 @@ void *umm_shmat(int shmid, void *addr, int shmflg)
 	/*ret = dune_vm_map_phys(pgroot, addr, len,
 			       (void *) dune_va_to_pa(addr),
 			       perm);*/
-	ret = mm_create_phys_mapping(mm_root, (vm_addrptr)addr,
+	ret = mm_create_phys_mapping(memory_get_mm(), (vm_addrptr)addr,
 		((vm_addrptr)addr)+len, (void*)dune_va_to_pa(addr), perm);
 	if (ret) {
 		shmdt(addr);
@@ -378,7 +379,7 @@ void *umm_mremap(void *old_address, size_t old_size, size_t new_size, int flags,
 		mmap_len +=  PGADDR(new_size + PGSIZE - 1);
 
 	//dune_vm_unmap(pgroot, old_address, old_size);
-	mm_unmap(mm_root,(vm_addrptr)old_address, 
+	mm_unmap(memory_get_mm(),(vm_addrptr)old_address, 
 		(vm_addrptr)(old_address + old_size), true);
 	
 	/*if (dune_vm_map_phys(pgroot, new_address, new_size,
@@ -388,7 +389,7 @@ void *umm_mremap(void *old_address, size_t old_size, size_t new_size, int flags,
 		exit(1);
 	}*/
 
-	if (mm_create_phys_mapping(mm_root, (vm_addrptr) new_address,
+	if (mm_create_phys_mapping(memory_get_mm(), (vm_addrptr) new_address,
 		((vm_addrptr)new_address) + new_size, (void*)dune_va_to_pa(new_address),
 		prot_to_perm(PROT_READ | PROT_WRITE))) {
 		printf("help me!\n");
