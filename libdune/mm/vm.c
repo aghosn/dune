@@ -194,7 +194,7 @@ static int __dune_vm_mprotect_helper(const void *arg, ptent_t *pte, void *va)
 //	if (!(PTE_FLAGS(*pte) & PTE_P))
 //		return -ENOMEM;
 
-	*pte = PTE_ADDR(*pte) | (PTE_FLAGS(*pte) & PTE_PS) | perm;
+	*pte = PTE_ADDR(*pte) | (PTE_FLAGS(*pte) & PTE_PS) | perm | PTE_P; 
 	return 0;
 }
 
@@ -206,10 +206,11 @@ int dune_vm_mprotect(ptent_t *root, void *va, size_t len, int perm)
 	if (!(perm & PERM_R)) {
 		if (perm & PERM_W)
 			return -EINVAL;
-		perm = PERM_NONE;
+		//FIXME: aghosn, this was removing all permissions.
+		//perm = PERM_NONE;
 	}
 
-	pte_perm = get_pte_perm(perm);
+	pte_perm = get_pte_perm(perm) | PTE_P;
 
 	ret = __dune_vm_page_walk(root, va, va + len - 1,
 				 &__dune_vm_mprotect_helper,
@@ -437,7 +438,7 @@ int dune_vm_has_mapping(ptent_t *root, void *va)
 
 	if (!pte_present(pml4[i])) {
 		printf("pdpte is Not present.");
-		return 1;
+		return 4;
 	} 
 
 	// printf("The value for i: %d\n", i);
@@ -447,7 +448,7 @@ int dune_vm_has_mapping(ptent_t *root, void *va)
 	if (!pte_present(pdpte[j])){
 		printf("The pde is not present!\n");
 		printf("0x%016lx\n", pdpte[j]);
-		return 1;
+		return 3;
 	}
 
 
@@ -462,7 +463,8 @@ int dune_vm_has_mapping(ptent_t *root, void *va)
 
 	if (!pte_present(pde[k])) {
 		printf("The pte is not present.\n");
-		return 1;
+		printf("The pte is 0x%016lx\n", pde[k]);
+		return 2;
 	}
 
 	if (pte_big(pde[k])) {
@@ -475,8 +477,10 @@ int dune_vm_has_mapping(ptent_t *root, void *va)
 	
 	ptent_t* out = &pte[l];
 
-	if (!pte_present(pte[l]))
+	if (!pte_present(pte[l])) {
+		printf("The missing pte 0x%016lx\n", pte[l]);
 		return 1;
+	}
 	
 	return 0;
 }

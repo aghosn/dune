@@ -96,7 +96,6 @@ int mm_init()
 	dune_procmap_iterate(&__mm_setup_mappings_cb);
 
 	//TODO: for debugging, remove afterwards.
-	//FIXME: problem is here some of the mappings do not work.
 	mm_verify_mappings(mm_root);
 	return 0;
 }
@@ -188,10 +187,9 @@ int mm_apply_to_pgroot(vm_area_struct *vma, void *pa)
 static int __mm_apply_protect(vm_area_struct *vma, void* perm)
 {
 	assert(perm != NULL);
-	if (!vma || !(vma->vm_mm) || !(vma->vm_mm->pml4))
-		return -EINVAL;
-
+	assert(vma && vma->vm_mm && vma->vm_mm->pml4);
 	assert(vma->vm_flags == *((unsigned long*)perm));
+
 	return dune_vm_mprotect(vma->vm_mm->pml4,(void*)(vma->vm_start),
 		(size_t)(vma->vm_end - vma->vm_start), vma->vm_flags);
 }
@@ -205,11 +203,9 @@ int mm_mprotect(mm_struct *mm, vm_addrptr start,
 	assert(mm);
 	int ret = -1;
 	vm_area_struct *current = NULL;
-
 	/* Page align the start and end.*/
 	start = MM_PGALIGN_DN(start);
 	end = MM_PGALIGN_UP(end);
-	
 
 	Q_FOREACH(current, mm->mmap, lk_areas) {
 		if (current->vm_start == start &&

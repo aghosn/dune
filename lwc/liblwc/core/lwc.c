@@ -94,6 +94,10 @@ lwc_struct* sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod)
     if (!current)
         goto err;
 
+    printf("Checking memory here.\n");
+    mm_verify_mappings(current->vm_mm);
+    printf("Done checking the memory.\n");
+
     /* Default copy-on-write behaviour.*/
     if (!mod || mod->ranges.head == NULL) {
         copy = mm_copy(current->vm_mm, true, true);

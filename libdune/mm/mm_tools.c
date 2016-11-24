@@ -15,7 +15,11 @@ mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 {
 	assert(mm && mm->mmap);
 	vm_area_struct *current = NULL;
+
+	//TODO: remove, for debugging.
+	mm_verify_mappings(mm);
 	
+
 	mm_struct *copy = malloc(sizeof(mm_struct));
 	if (!copy) goto err;
 
@@ -27,9 +31,9 @@ mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 
 	Q_FOREACH(current, mm->mmap, lk_areas) {
 		vm_area_struct *vmcpy = NULL;
+		/* The kernel mappings and read only pages are never cowed.*/
 		if (current->user == 0 ||
 			(current->user && !(current->vm_flags & (PERM_COW | PERM_W)))) {
-			/* The kernel mappings and read only pages are never cowed.*/
 			vmcpy = vma_copy(current, false);
 		} else {
 			vmcpy = vma_copy(current, cow);
@@ -82,7 +86,9 @@ int mm_split_or_merge(	mm_struct *mm,
 	assert(start <= end);
 	int ret;
 	vm_area_struct *iter = NULL, *last = NULL;
-
+	
+	printf("Split or merge.\n");
+	fflush(stdout);
 	/* Find the last conflicting block.*/
 	for (iter = vma->lk_areas.next; iter != NULL; iter = iter->lk_areas.next) {
 		if (!mm_overlap(iter, start, end)) {
@@ -277,6 +283,10 @@ void mm_uncow(mm_struct *mm, vm_addrptr va)
 			found = current;
 
 			//TODO: fails here.
+			if (!(current->head_shared)) {
+				vma_dump(current);
+				fflush(stdout);
+			}
 			assert(current->head_shared);
 			assert(current->cow);
 
@@ -303,6 +313,7 @@ void mm_uncow(mm_struct *mm, vm_addrptr va)
 			assert(current->cow);
 			ret = mm_split_or_merge(mm, current, addr, addr + PGSIZE, perm,
 				&__mm_uncow, &found);
+			found->cow = 0;
 			assert(found != NULL);
 			break;
 		}
@@ -328,10 +339,8 @@ void mm_dump(mm_struct *mm)
 
 static void __compare_permissions(unsigned long flags, ptent_t pte)
 {
-	if (flags & PERM_U) {
-		if (!(pte & PTE_U))
+	if (flags & PERM_U)
 		assert(pte & PTE_U);
-	}
 	else 
 		assert(!(pte & PTE_U));
 
@@ -367,6 +376,9 @@ int mm_verify_mappings(mm_struct *mm)
 
 	Q_FOREACH(current, mm->mmap, lk_areas) {
 		ret = dune_vm_has_mapping(mm->pml4, (void*) current->vm_start);
+		if (!ret == 0) {
+			printf("%d: The faulty address: 0x%016lx\n", ret, current->vm_start);
+		}
 		assert(ret == 0);
 		vm_addrptr mid = (current->vm_start + current->vm_end) /2;
 		ret = dune_vm_has_mapping(mm->pml4, (void*) mid);
@@ -383,6 +395,8 @@ int mm_verify_mappings(mm_struct *mm)
 			assert(current->vm_flags & PERM_COW);
 			assert(current->vm_flags & PERM_U);
 			assert(!(current->vm_flags & PERM_W));
+		} else {
+			assert(!(current->vm_flags & PERM_COW));
 		}
 
 	}

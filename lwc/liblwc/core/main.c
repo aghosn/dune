@@ -2,6 +2,7 @@
 
 #include <dune.h>
 #include <sandbox/sandbox.h>
+#include <mm/memory.h>
 
 #include "lwc.h"
 
@@ -22,6 +23,12 @@ int main(int argc, char* argv[])
     	return ret;
     printf("Lwc: initialized\n");
 
+    assert(lwc_root != NULL && lwc_root->vm_mm == mm_root && mm_root != NULL &&
+        mm_root->pml4 == pgroot);
+    
+    //TODO: remove, for debugging.
+    mm_verify_mappings(lwc_root->vm_mm);
+    
     /* Entering the sandbox.*/
     //TODO: sanitize arguments.
     uintptr_t sp, entry;
@@ -30,6 +37,9 @@ int main(int argc, char* argv[])
     	return ret;
     }
 
+    //TODO: remove, for debugging.
+    mm_verify_mappings(lwc_root->vm_mm);
+    
     ret = sandbox_run_app(sp, entry);
     
     printf("Lwc: execution completed. Goodbye!\n");

@@ -88,7 +88,7 @@ vm_area_struct *vma_copy(vm_area_struct *vma, bool cow)
 	}
 
 	assert(shared != NULL);
-	/* Copy the */
+	/* Copy the vma content.*/
 	*copy = *vma;
 	Q_INIT_ELEM(copy, lk_shared);
 	Q_INIT_ELEM(copy, lk_areas);
