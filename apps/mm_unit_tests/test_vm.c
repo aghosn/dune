@@ -69,7 +69,7 @@ int test_swap()
 }
 
 int test_cow() {
-	mm_struct *copy = mm_copy(mm_root, true, true);
+	mm_struct *copy = mm_copy(memory_get_mm(), true, true);
 	assert(copy);
 	return 0;
 }

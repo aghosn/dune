@@ -129,7 +129,7 @@ static int umm_mmap_file(void *addr, size_t len, int prot, int flags,
 	if (mem != addr)
 		return -errno;
 
-	/*ret = dune_vm_map_phys(mm_root->pml4, addr, len,
+	/*ret = dune_vm_map_phys(memory_get_mm()->pml4, addr, len,
 			       (void *) dune_va_to_pa(addr),
 			       prot_to_perm(prot));*/
 	//TODO aghosn: the EPT violation was here due to non page aligned.

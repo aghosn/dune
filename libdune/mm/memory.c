@@ -75,9 +75,10 @@ void memory_pgflt_handler(uintptr_t addr, uint64_t fec)
 {
 	assert(fec & FEC_W);
 	/* Check that everything is set properly*/
-	assert(mm_root->pml4 == pgroot);
-	mm_verify_mappings(mm_root);
-	
+	mm_struct *current_mm = memory_get_mm();
+	assert(current_mm->pml4 == pgroot);
+	mm_verify_mappings(current_mm);
+
 	/* Do the uncow for the memory region.*/
-	mm_uncow(mm_root, (vm_addrptr) addr);
+	mm_uncow(current_mm, (vm_addrptr) addr);
 }

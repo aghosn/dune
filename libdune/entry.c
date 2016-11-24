@@ -95,7 +95,8 @@ static void map_ptr(void *p, int len)
 
 	/*dune_vm_map_phys(pgroot, pg, l, (void*) dune_va_to_pa(pg),
 			 PERM_R | PERM_W);*/
-	mm_create_phys_mapping(mm_root, (vm_addrptr)pg, ((vm_addrptr)pg) + l,
+	mm_struct *current_mm = memory_get_mm();
+	mm_create_phys_mapping(current_mm, (vm_addrptr)pg, ((vm_addrptr)pg) + l,
 								(void *) dune_va_to_pa(pg), PERM_R | PERM_W);
 }
 
@@ -257,8 +258,8 @@ static int setup_syscall(void)
 		uintptr_t pa = dune_mmap_addr_to_pa(page + i);
 		// dune_vm_lookup(pgroot, (void *) (lstara + i), 1, &pte);
 		// *pte = PTE_ADDR(pa) | PTE_P;
-		//FIXME: bug here.
-		mm_create_phys_mapping(mm_root, lstara + i, lstara + i + PGSIZE, (void*) pa, PTE_P | PTE_DEF_FLAGS);
+		mm_struct *current_mm = memory_get_mm();
+		mm_create_phys_mapping(current_mm, lstara + i, lstara + i + PGSIZE, (void*) pa, PTE_P | PTE_DEF_FLAGS);
 		// dune_vm_lookup(pgroot, (void *) (lstara + i), 1, &pte);
 		// *pte = PTE_ADDR(pa) | PTE_P;
 	}

@@ -24,6 +24,7 @@ int dune_fd;
 static void __mm_setup_mappings_cb(const struct dune_procmap_entry *ent)
 {
 	int ret;
+	mm_struct * current_mm = memory_get_mm();
 	/* page region already mapped*/
 	if (ent->begin == (unsigned long) PAGEBASE)
 		return;
@@ -34,7 +35,7 @@ static void __mm_setup_mappings_cb(const struct dune_procmap_entry *ent)
 		void * pa =(void *)dune_va_to_pa(&__dune_vsyscall_page);
 		
 		unsigned long perm = PERM_W;
-		ret = mm_create_phys_mapping(mm_root, start, end, pa, perm);
+		ret = mm_create_phys_mapping(current_mm, start, end, pa, perm);
 		assert(ret == 0);
 		return;
 	}
@@ -47,7 +48,7 @@ static void __mm_setup_mappings_cb(const struct dune_procmap_entry *ent)
 	if (ent->type == PROCMAP_TYPE_VDSO) {
 		/* VDSO is accessed in user mode for execution.*/
 		perm |= PERM_U | PERM_R | PERM_X;
-		ret = mm_create_phys_mapping(mm_root, start, end, pa, perm);
+		ret = mm_create_phys_mapping(current_mm, start, end, pa, perm);
 		assert(ret == 0);
 		return;
 	}
@@ -55,7 +56,7 @@ static void __mm_setup_mappings_cb(const struct dune_procmap_entry *ent)
 	if (ent->type == PROCMAP_TYPE_VVAR) {
 		/* I leave the user permission since we do not have write access.*/
 		perm |= PERM_U | PERM_R;
-		ret = mm_create_phys_mapping(mm_root, start, end, pa, perm);
+		ret = mm_create_phys_mapping(current_mm, start, end, pa, perm);
 		assert(ret == 0);
 		return;
 	}
@@ -68,7 +69,7 @@ static void __mm_setup_mappings_cb(const struct dune_procmap_entry *ent)
 		perm |= PERM_X;
 
 	/* Other physical mappings. For them we do not add user permission.*/
-	ret = mm_create_phys_mapping(mm_root, start, end, pa, perm);
+	ret = mm_create_phys_mapping(current_mm, start, end, pa, perm);
 	assert(ret == 0);
 }
 
@@ -81,6 +82,8 @@ int mm_init()
 	void *start = NULL, *end = NULL, *pa = NULL;
 	unsigned long perm = 0;
 	assert(mm_root != NULL);
+	mm_struct *current_mm = memory_get_mm();
+	assert(current_mm == mm_root);
 
 	/* Map the page base. */
 	start = (void*) PAGEBASE;
@@ -89,7 +92,7 @@ int mm_init()
 	
 
 	perm = PERM_R | PERM_W | PERM_BIG;
-	 if ((ret = mm_create_phys_mapping(mm_root,(vm_addrptr) start,
+	 if ((ret = mm_create_phys_mapping(current_mm,(vm_addrptr) start,
 	 	(vm_addrptr) end, pa, perm)))
 	 	return ret;
 
@@ -97,7 +100,7 @@ int mm_init()
 	dune_procmap_iterate(&__mm_setup_mappings_cb);
 
 	//TODO: for debugging, remove afterwards.
-	mm_verify_mappings(mm_root);
+	mm_verify_mappings(current_mm);
 	return 0;
 }
 

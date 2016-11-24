@@ -25,6 +25,7 @@ int main(int argc, char* argv[])
 
     assert(lwc_root != NULL && lwc_root->vm_mm == mm_root && mm_root != NULL &&
         mm_root->pml4 == pgroot);
+    assert(mm_root == memory_get_mm());
     
     //TODO: remove, for debugging.
     mm_verify_mappings(lwc_root->vm_mm);
