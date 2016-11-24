@@ -6,7 +6,8 @@
 #include "../mmu-x86.h"
 
 #define PDADDR(n, i)	(((unsigned long)(i)) << PDSHIFT(n))
-//TODO: bad flags.
+
+//FIXME: don't use this dune-defined thing.
 #define PTE_DEF_FLAGS	(PTE_P | PTE_W | PTE_U)
 #define PGSIZE_2MB		(1 << (PGSHIFT + NPTBITS))
 #define PGSIZE_1GB		(1 << (PGSHIFT + NPTBITS + NPTBITS))

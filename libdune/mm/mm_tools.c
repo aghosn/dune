@@ -73,7 +73,6 @@ int mm_overlap(vm_area_struct *vma, vm_addrptr start, vm_addrptr end)
 	return !(dont_overlap);
 }
 
-//FIXME: (handle cow. Need to de-cow f and t or whatever)-> obsolete maybe.
 int mm_split_or_merge(	mm_struct *mm,
 						vm_area_struct *vma,
 						vm_addrptr start,
@@ -284,6 +283,7 @@ void mm_uncow(mm_struct *mm, vm_addrptr va)
 	vm_uncow(mm->pml4, (void*) va);
 
 	//TODO: check the mm now.
+	mm_verify_mappings(mm);
 }
 
 /******************************************************************************/
@@ -299,7 +299,6 @@ void mm_dump(mm_struct *mm)
 	}
 }
 
-//FIXME:
 static void __compare_permissions(unsigned long flags, ptent_t pte)
 {
 	if (flags & PERM_U)

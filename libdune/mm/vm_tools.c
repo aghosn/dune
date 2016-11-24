@@ -170,7 +170,7 @@ ptent_t* vm_pgrot_copy(ptent_t* root, bool cow)
 		goto err;
 	memset(newRoot, 0, PGSIZE);
 
-	//TODO: Maybe add perm from original.
+	/* __vm_pgrot_copy copies the flags for intermediary levels for us.*/
 	struct cow_info info = {root, newRoot, cow};
 	ret = __vm_pgrot_walk(root, VA_START, VA_END, &__vm_pgrot_copy, NULL,
 		&info, 3);
@@ -286,7 +286,7 @@ int vm_uncow(ptent_t* root, void *addr)
 		dune_page_put(pg);
 	*pte = PTE_ADDR(newPage) | perm;
 
-	/* Invalidate.*/
+	/* Invalidate address in tlb.*/
 	dune_flush_tlb_one((unsigned long)addr);
 	return 0;
 }

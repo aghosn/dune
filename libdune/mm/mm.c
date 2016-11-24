@@ -176,7 +176,6 @@ int mm_create_phys_mapping(mm_struct *mm,
 
 int mm_apply_to_pgroot(vm_area_struct *vma, void *pa)
 {
-	//FIXME: this shit doesn't work.
 	assert(vma && vma->vm_mm && vma->vm_mm->pml4);
 
 	if (pa != NULL) {
@@ -263,11 +262,10 @@ int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end, bool apply)
 			Q_REMOVE(mm->mmap, to_rm, lk_areas);
 		
 			if (apply) {
-				//FIXME: problem here, what if was COW or shared?
+				/* Cow pages references are handled at page table level.*/
 				dune_vm_unmap(mm->pml4, (void*)(to_rm->vm_start), 
 					(size_t)(to_rm->vm_end - to_rm->vm_start));
 			}
-			//FIXME: same problem as above.
 			vma_free(to_rm);
 			
 			return ret;
