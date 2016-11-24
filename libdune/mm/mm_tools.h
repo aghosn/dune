@@ -38,5 +38,5 @@ void mm_dump(mm_struct *mm);
 
 /* Helper function to verify that regions correspond to entries inside pgrot.*/
 int mm_verify_mappings(mm_struct *mm);
-int mm_compare_mms(mm_struct *o, mm_struct *c);
+int mm_assert_equals(mm_struct *o, mm_struct *c);
 #endif /*__LIBDUNE_MM_MM_TOOLS_H__*/

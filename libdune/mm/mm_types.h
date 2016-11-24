@@ -27,18 +27,9 @@ typedef struct vm_area_struct {
 	/*Flags, see libdune/mm.h*/
 	unsigned long vm_flags;
 
-	/* Dune specific, 1 -> user, 0 -> supervisor*/
-	unsigned int user	: 1;
 	/* Flags vma modified but not applied to pgroot.*/
 	unsigned int dirty	: 1;
-	/* VMA is copy on write.*/
-	unsigned int cow 	: 1;
-	/* VMA shares page mappings with other vmas.*/
-	unsigned int shared	: 1;
-
-	/* Vmas that share the same page mappings or are copy-on-write.*/
-	l_vm_area *head_shared;
-	Q_NEW_LINK(vm_area_struct) lk_shared;
+	
 } vm_area_struct;
 
 typedef struct mm_struct {

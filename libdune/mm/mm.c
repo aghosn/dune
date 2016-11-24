@@ -80,6 +80,7 @@ int mm_init()
 	int ret;
 	void *start = NULL, *end = NULL, *pa = NULL;
 	unsigned long perm = 0;
+	assert(mm_root != NULL);
 
 	/* Map the page base. */
 	start = (void*) PAGEBASE;
@@ -118,7 +119,10 @@ int mm_create_phys_mapping(mm_struct *mm,
 	
 	if(!(mm->mmap))
 		return -EINVAL;
+
 	/* Fast paths*/
+
+	/* Insert at the front.*/
 	if (mm->mmap->head == NULL || mm->mmap->head->vm_start >= va_end) {
 		vm_area_struct *vma = vma_create(mm, va_start, va_end, perm);
 		if (!vma)
@@ -128,6 +132,7 @@ int mm_create_phys_mapping(mm_struct *mm,
 		return ret;
 	}
 	
+	/* Insert at the end.*/
 	if (mm->mmap->last->vm_end <= va_start) {
 		vm_area_struct *vma = vma_create(mm, va_start, va_end, perm);
 		if (!vma)
@@ -143,6 +148,7 @@ int mm_create_phys_mapping(mm_struct *mm,
 			current->vm_end == va_end &&
 			current->vm_flags == perm) {
 			/* The mapping already exists*/
+			//TODO: need to redo the mapping if that maps a new physical address.
 			return 0;
 		}
 
@@ -262,7 +268,7 @@ int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end, bool apply)
 					(size_t)(to_rm->vm_end - to_rm->vm_start));
 			}
 			//FIXME: same problem as above.
-			free(to_rm);
+			vma_free(to_rm);
 			
 			return ret;
 		}
@@ -278,12 +284,13 @@ void mm_apply(mm_struct *mm)
 	vm_area_struct *current = NULL;
 	Q_FOREACH(current, mm->mmap, lk_areas) {
 		assert(current->vm_mm == mm);
-		if (current->user == 0)
+		if (!vma_is_user(current))
 			continue;
 		if (current->dirty) {
 			size_t len = (size_t)(current->vm_end - current->vm_start);
 			dune_vm_mprotect(mm->pml4,(void*)(current->vm_start), len, 
 				current->vm_flags);
+			current->dirty = 0;
 		}
 	}
 }

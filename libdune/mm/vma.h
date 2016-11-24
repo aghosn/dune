@@ -1,5 +1,7 @@
 #ifndef __LIBDUNE_MM_VMA_H__
 #define __LIBDUNE_MM_VMA_H__
+#include <stdbool.h>
+#include <assert.h>
 
 #include "mm_types.h"
 
@@ -7,6 +9,15 @@
 #define MM_PGALIGN_DN(addr) ((addr) & ~(PGSIZE - 1))
 #define MM_PGALIGN_UP(addr) (((addr) + (PGSIZE-1)) & ~(PGSIZE - 1))
 
+/* Helper functions*/
+
+static inline bool vma_is_user(vm_area_struct *vma)
+{
+	assert(vma);
+	return (vma->vm_flags & PERM_U);
+}
+
+/* API*/
 vm_area_struct *vma_create(	mm_struct *mm,
 							vm_addrptr start,
 							vm_addrptr end,

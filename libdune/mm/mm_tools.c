@@ -11,6 +11,7 @@
 
 #define DEBUG_MM
 
+//FIXME: change the interface, it doesn't make sense to have both apply and cow.
 mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 {
 	assert(mm && mm->mmap);
@@ -32,8 +33,7 @@ mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 	Q_FOREACH(current, mm->mmap, lk_areas) {
 		vm_area_struct *vmcpy = NULL;
 		/* The kernel mappings and read only pages are never cowed.*/
-		if (current->user == 0 ||
-			(current->user && !(current->vm_flags & (PERM_COW | PERM_W)))) {
+		if (!vma_is_user(current) || !(current->vm_flags & PERM_W)) {
 			vmcpy = vma_copy(current, false);
 		} else {
 			vmcpy = vma_copy(current, cow);
@@ -53,7 +53,7 @@ mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 	assert(copy->pml4 != NULL);
 
 #ifdef DEBUG_MM
-	mm_compare_mms(mm, copy);
+	mm_assert_equals(mm, copy);
 	vm_compare_pgroots(mm->pml4, copy->pml4);
 	//FIXME: bug is here.
 	mm_verify_mappings(mm);
@@ -73,7 +73,7 @@ int mm_overlap(vm_area_struct *vma, vm_addrptr start, vm_addrptr end)
 	return !(dont_overlap);
 }
 
-//FIXME: handle cow. Need to de-cow f and t or whatever.
+//FIXME: (handle cow. Need to de-cow f and t or whatever)-> obsolete maybe.
 int mm_split_or_merge(	mm_struct *mm,
 						vm_area_struct *vma,
 						vm_addrptr start,
@@ -87,7 +87,6 @@ int mm_split_or_merge(	mm_struct *mm,
 	int ret;
 	vm_area_struct *iter = NULL, *last = NULL;
 	
-	printf("Split or merge.\n");
 	fflush(stdout);
 	/* Find the last conflicting block.*/
 	for (iter = vma->lk_areas.next; iter != NULL; iter = iter->lk_areas.next) {
@@ -247,13 +246,6 @@ int mm_free(mm_struct *mm)
 	while(iter != NULL) {
 		vm_area_struct *current = iter;
 		iter = iter->lk_areas.next;
-
-		if ((current->cow || current->shared) && current->head_shared) {
-			Q_REMOVE(current->head_shared, current, lk_shared);
-			if (current->head_shared->head == NULL)
-				free(current->head_shared);
-		}
-
 		vma_free(current);
 	}
 
@@ -264,57 +256,27 @@ int mm_free(mm_struct *mm)
 	return ret;
 }
 
-static int __mm_uncow(vm_area_struct *vma, void* args)
-{
-	vm_area_struct** found = (vm_area_struct**) args;
-	*found = vma;
-	return 0;
-}
-
 void mm_uncow(mm_struct *mm, vm_addrptr va)
 {
 	vm_area_struct *current = NULL;
 	vm_area_struct *found = NULL;
 	vm_addrptr addr = MM_PGALIGN_DN(va);
 
+	//TODO: keep only the else. This is for debugging purposes.
 	Q_FOREACH(current, mm->mmap, lk_areas) {
 		if (current->vm_start == addr &&
 			current->vm_end == (addr + PGSIZE)) {
 			found = current;
 
-			//TODO: fails here.
-			if (!(current->head_shared)) {
-				vma_dump(current);
-				fflush(stdout);
-			}
-			assert(current->head_shared);
-			assert(current->cow);
-
-			l_vm_area *shared = current->head_shared;
-			Q_REMOVE(shared, current, lk_shared);
-
-			/* It was the only element in the cow.*/
-			if (shared->head == NULL) {
-				free(shared);
-				found->head_shared = NULL;
-			}
+			assert(current->vm_flags & PERM_W);
+			assert(current->vm_flags & PERM_U);
 			break;
 		} else if (mm_overlap(current, addr, addr + PGSIZE)) {
-			ptent_t *pte = NULL;
-			int ret = vm_lookup(mm->pml4, (void*) va, &pte, CREATE_NONE, 0);
-			assert(ret == 0);
-			assert(!pte_big(*pte));
-			assert(*pte & PTE_COW);
-			assert(*pte & PTE_U);
-			assert(!(*pte & PTE_W));
-			unsigned long perm = ((current->vm_flags) & ~(PERM_COW)) | PERM_W;
-			
-			/* The shared queue is handled isnide split or merge.*/
-			assert(current->cow);
-			ret = mm_split_or_merge(mm, current, addr, addr + PGSIZE, perm,
-				&__mm_uncow, &found);
-			found->cow = 0;
-			assert(found != NULL);
+			/* There is no allocation smaller than one page, and everything is 
+			 * page-aligned, hence the fault should overlap with a single vma.*/
+			assert(current->vm_start <= addr);
+			assert(current->vm_end >= (addr + PGSIZE));
+			found = current;
 			break;
 		}
 	}
@@ -337,6 +299,7 @@ void mm_dump(mm_struct *mm)
 	}
 }
 
+//FIXME:
 static void __compare_permissions(unsigned long flags, ptent_t pte)
 {
 	if (flags & PERM_U)
@@ -344,15 +307,15 @@ static void __compare_permissions(unsigned long flags, ptent_t pte)
 	else 
 		assert(!(pte & PTE_U));
 
-	if (flags & PERM_W)
-		assert(pte & PTE_W);
-	else
-		assert(!(pte & PTE_W));
-
-	if (flags & PERM_COW)
-		assert(pte & PTE_COW);
+	if (pte & PTE_W)
+		assert(flags & PERM_W);
 	else 
-		assert(!(pte & PTE_COW));
+		assert(!(flags & PERM_W) || ((flags & PERM_U) && (pte & PTE_COW)));
+
+	assert(!(flags & PERM_COW));
+
+	if (pte & PTE_COW)
+		assert((flags & PERM_W) && (flags & PERM_U));
 
 	//TODO: check that this is correct.
 	if (flags & PERM_X)
@@ -375,35 +338,28 @@ int mm_verify_mappings(mm_struct *mm)
 	vm_area_struct *current = NULL;
 
 	Q_FOREACH(current, mm->mmap, lk_areas) {
+		/* Check the start.*/
 		ret = dune_vm_has_mapping(mm->pml4, (void*) current->vm_start);
-		if (!ret == 0) {
-			printf("%d: The faulty address: 0x%016lx\n", ret, current->vm_start);
-		}
 		assert(ret == 0);
+
+		/* Check the middle.*/
 		vm_addrptr mid = (current->vm_start + current->vm_end) /2;
 		ret = dune_vm_has_mapping(mm->pml4, (void*) mid);
 		assert(ret == 0);
 
+		/* Lookup the rights in page table and compare with vma.*/
 		ptent_t *pte = NULL;
 		ret = vm_lookup(mm->pml4, (void*) current->vm_start, &pte, CREATE_NONE, 0);
 		assert(pte);
 		__compare_permissions(current->vm_flags, *pte);
 
-		/* Cow specific settings*/
-		if (current->cow) {
-			assert(current->head_shared);
-			assert(current->vm_flags & PERM_COW);
-			assert(current->vm_flags & PERM_U);
-			assert(!(current->vm_flags & PERM_W));
-		} else {
-			assert(!(current->vm_flags & PERM_COW));
-		}
-
+		/* Check that we do not use forbidden flags (i.e., PERM_COW)*/
+		assert(!(current->vm_flags & PERM_COW));
 	}
 	return 0;
 }
 
-int mm_compare_mms(mm_struct *o, mm_struct *c)
+int mm_assert_equals(mm_struct *o, mm_struct *c)
 {
 	vm_area_struct *o_current = NULL, *c_current = NULL;
 	for (o_current = o->mmap->head, c_current = c->mmap->head;
@@ -414,9 +370,8 @@ int mm_compare_mms(mm_struct *o, mm_struct *c)
 		assert(o_current->vm_start == c_current->vm_start);
 		assert(o_current->vm_end == c_current->vm_end);
 		assert(o_current->vm_flags == c_current->vm_flags);
-		assert(o_current->cow == c_current->cow);
-		assert(o_current->shared == c_current->shared);
 	}
-
+	/* Assert they have the same size.*/
+	assert(o_current == NULL && c_current == NULL);
 	return 0;
 }
