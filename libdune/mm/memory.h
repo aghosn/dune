@@ -41,6 +41,19 @@ static inline ptent_t* memory_get_pgrot() {
 	assert(current && current->pml4);
 	assert(current->pml4 == pgroot);
 	return current->pml4;
+}
+
+/* Change the current memory mapping*/
+static inline void memory_switch(mm_struct *mm) {
+	assert(mm);
+	assert(mm->pml4);
+	mm_struct *current = Q_GET_FRONT(mm_queue);
+	assert(pgroot == current->pml4);
+
+	Q_REMOVE(mm_queue, mm, lk_mms);
+	Q_INSERT_FRONT(mm_queue, mm, lk_mms);
+	pgroot = mm->pml4;
+	load_cr3((unsigned long)(mm->pml4));
 } 
 
 

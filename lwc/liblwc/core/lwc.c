@@ -8,6 +8,7 @@
 #include <mm/memory.h>
 #include <sandbox/sandbox.h>
 
+
 #include "lwc.h"
 #include "lwc_types.h"
 
@@ -84,10 +85,11 @@ err:
     return NULL;
 }
 
-lwc_struct* sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod)
+lwc_result_t* sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod)
 {
     mm_struct *copy = NULL;
     lwc_struct *n_lwc = NULL, *current = NULL;
+    lwc_result_t *child_result = NULL, *caller_result = NULL;
 
     /* The current context.*/
     current = Q_GET_FRONT(contexts);
@@ -116,8 +118,21 @@ create:
 
     /* Initialize the dune trap frame.*/
     memcpy(&(n_lwc->tf), tf, sizeof(struct dune_tf));
-    /* The child gets a NULL result for the lwc_create call.*/
-    n_lwc->tf.rax = 0;
+    
+    /* Create the child result.*/
+    child_result = malloc(sizeof(lwc_result_t));
+    if (!child_result) goto err;
+    child_result->n_lwc = NULL;
+    child_result->caller = current;
+    child_result->args = NULL;
+    n_lwc->tf.rax = (uint64_t)(child_result);
+    
+    /*Create the result for the caller.*/
+    caller_result = malloc(sizeof(lwc_result_t));
+    if (!caller_result) goto err;
+    caller_result->n_lwc = n_lwc;
+    caller_result->caller = NULL;
+    caller_result->args = NULL;
 
     Q_INIT_ELEM(n_lwc, lk_ctx);
     Q_INIT_ELEM(n_lwc, lk_parent);
@@ -127,23 +142,31 @@ create:
     Q_INIT_ELEM(n_lwc->vm_mm, lk_mms);
     Q_INSERT_TAIL(mm_queue, n_lwc->vm_mm, lk_mms);
 
-    return n_lwc;
+    return caller_result;
 err:
+    if (child_result)
+        free(child_result);
+    if (caller_result)
+        free(caller_result);
     if (n_lwc)
         lwc_free(n_lwc);
     return NULL;
 }
 
-//FIXME: check that it works.
 int sys_lwc_switch(struct dune_tf *tf, lwc_struct *lwc, void *args)
 {
     assert(tf);
     assert(lwc);
-    int ret = 0;
     
     /* Get the current context.*/
     lwc_struct *current = Q_GET_FRONT(contexts);
+    
+    /* Sanity checks.*/
     assert(current);
+    assert(current->vm_mm);
+    mm_struct * __current_mm = Q_GET_FRONT(mm_queue);
+    assert(current->vm_mm == __current_mm);
+    assert(__current_mm->pml4 == pgroot);
 
     Q_REMOVE(contexts, lwc, lk_ctx);
     Q_INSERT_FRONT(contexts, lwc, lk_ctx);
@@ -153,11 +176,9 @@ int sys_lwc_switch(struct dune_tf *tf, lwc_struct *lwc, void *args)
 
     //FIXME: give args to the context.
     /* Do the switch*/
-    printf("Before the switch!\n");
-    load_cr3((unsigned long)lwc->vm_mm->pml4);
-    printf("After the switch! %p\n", &ret);
-    //ret = dune_jump_to_user(&(lwc->tf));
-    //TODO: do we even get here at some point?
+    *tf = lwc->tf;
+    memory_switch(lwc->vm_mm);
+    
     return 0;
 }
 
