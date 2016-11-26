@@ -133,8 +133,8 @@ create:
     res->caller = NULL;
     res->args = NULL;
 
-    /* Child get 0 as result.*/
-    n_lwc->tf.rax = 0;
+    /* Child get store the result address for now.*/
+    n_lwc->tf.rax = (uint64_t) res;
 
     Q_INIT_ELEM(n_lwc, lk_ctx);
     Q_INIT_ELEM(n_lwc, lk_parent);
@@ -151,7 +151,10 @@ err:
     return -1;
 }
 
-int sys_lwc_switch(struct dune_tf *tf, lwc_struct *lwc, void *args)
+int sys_lwc_switch( struct dune_tf *tf,
+                    lwc_struct *lwc,
+                    void *args,
+                    lwc_res_t *res)
 {
     assert(tf);
     assert(lwc);
@@ -172,10 +175,23 @@ int sys_lwc_switch(struct dune_tf *tf, lwc_struct *lwc, void *args)
     /* Save the current point.*/
     memcpy(&(current->tf), tf, sizeof(struct dune_tf));
 
-    //FIXME: give args to the context.
+    /* Set the pointer to the result for when we switch back.*/
+    current->tf.rax = (uint64_t) res;
+
     /* Do the switch*/
     *tf = lwc->tf;
     memory_switch(lwc->vm_mm);
+    lwc_res_t *target_res = (lwc_res_t*) (lwc->tf.rax);
+    
+    if (!target_res)
+        return -1;
+    target_res->n_lwc = NULL;
+    target_res->caller = current;
+    target_res->args = args;
+
+    /* Set return value.*/
+    lwc->tf.rax = 0;
+    tf->rax = 0;
     
     return 0;
 }
@@ -192,29 +208,3 @@ int lwc_free(lwc_struct *lwc)
     free(lwc);
     return 0;
 }
-
-ptent_t* test_root = NULL;
-struct dune_tf *tf_root = NULL;
-
-int sys_fake_create(struct dune_tf *tf)
-{
-    dune_dump_trap_frame(tf);
-    tf_root = malloc(sizeof(struct dune_tf));
-    *tf_root = *tf;
-    tf_root->rax = 1;
-    test_root = dune_vm_clone(pgroot);
-    return 0;
-}
-
-int sys_fake_switch(struct dune_tf *tf)
-{
-    assert(test_root);
-    assert(tf_root);
-    //load_cr3(test_root);
-    *tf = *tf_root;
-    dune_dump_trap_frame(tf);
-    return 0; //dune_jump_to_user(tf_root);
-}
-
-
-
