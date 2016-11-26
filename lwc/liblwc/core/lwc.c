@@ -85,11 +85,15 @@ err:
     return NULL;
 }
 
-lwc_struct* sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod)
+int sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod, lwc_res_t *res)
 {
     mm_struct *copy = NULL;
     lwc_struct *n_lwc = NULL, *current = NULL;
-    //lwc_result_t *child_result = NULL, *caller_result = NULL;
+
+    /* Error.*/
+    if (!res)
+        return -1;
+    
 
     /* The current context.*/
     current = Q_GET_FRONT(contexts);
@@ -98,6 +102,11 @@ lwc_struct* sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod)
 
     //TODO: remove, for debugging.
     mm_verify_mappings(current->vm_mm);
+
+    /* Set the result for the child.*/
+    res->n_lwc = NULL;
+    res->caller = current;
+    res->args = NULL;
 
     /* Default copy-on-write behaviour.*/
     if (!mod || mod->ranges.head == NULL) {
@@ -119,20 +128,13 @@ create:
     /* Initialize the dune trap frame.*/
     memcpy(&(n_lwc->tf), tf, sizeof(struct dune_tf));
     
-    /* Create the child result.*/
-    // child_result = malloc(sizeof(lwc_result_t));
-    // if (!child_result) goto err;
-    // child_result->n_lwc = NULL;
-    // child_result->caller = current;
-    // child_result->args = NULL;
+    /* Create the child result, might fault.*/
+    res->n_lwc = n_lwc;
+    res->caller = NULL;
+    res->args = NULL;
+
+    /* Child get 0 as result.*/
     n_lwc->tf.rax = 0;
-    
-    /*Create the result for the caller.*/
-    // caller_result = malloc(sizeof(lwc_result_t));
-    // if (!caller_result) goto err;
-    // caller_result->n_lwc = n_lwc;
-    // caller_result->caller = NULL;
-    // caller_result->args = NULL;
 
     Q_INIT_ELEM(n_lwc, lk_ctx);
     Q_INIT_ELEM(n_lwc, lk_parent);
@@ -142,15 +144,11 @@ create:
     Q_INIT_ELEM(n_lwc->vm_mm, lk_mms);
     Q_INSERT_TAIL(mm_queue, n_lwc->vm_mm, lk_mms);
 
-    return n_lwc;
+    return 1;
 err:
     if (n_lwc)
         lwc_free(n_lwc);
-    return NULL;
-    // if (child_result)
-    //     free(child_result);
-    // if (caller_result)
-    //     free(caller_result);
+    return -1;
 }
 
 int sys_lwc_switch(struct dune_tf *tf, lwc_struct *lwc, void *args)

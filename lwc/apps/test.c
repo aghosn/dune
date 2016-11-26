@@ -3,36 +3,20 @@
 #include <core/lwc_types.h>
 
 int main(int argc, char *argv[]) {
-	// lwc_result_t* sp = lwc_create(NULL);
-	// if (!sp) goto err;
-
-	// printf("Hello world");
-	// fflush(stdout);
-
-	// if (sp->n_lwc) {
-	// 	printf(" from the parent.\n");
-	// 	fflush(stdout);
-	// 	lwc_switch(sp->n_lwc, NULL);
-	// } else {
-	// 	printf(" from the child.\n");
-	// 	fflush(stdout);
-	// }
-	lwc_struct *safe_point = NULL;
-	lwc_rsrc_spec *mod = NULL;	
-	safe_point = lwc_create(mod);
+	int i = -1;
+	lwc_res_t result;
+	i = lwc_create(NULL, &result);
 	printf("Hello world");
 	fflush(stdout);
-	if (safe_point) {
+	/* We are the child.*/
+	if (i == 0) {
+		printf(" from the child.\n");
+		fflush(stdout);
+	} else if (i == 1) {
 		printf(" from the parent.\n");
 		fflush(stdout);
-		lwc_switch(safe_point, NULL);
-	} else {
-		printf(" from the child.\n");
+		lwc_switch(result.n_lwc, NULL);
 	}
 
 	return 0;
-// err:
-// 	printf("Error!\n");
-// 	fflush(stdout);
-//	return 1;
 }

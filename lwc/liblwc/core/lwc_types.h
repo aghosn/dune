@@ -47,12 +47,12 @@ typedef struct lwc_rsrc_spec {
 } lwc_rsrc_spec;
 
 /* The result type for lwc system calls*/
-typedef struct lwc_result_t {
+typedef struct lwc_res_t {
 	lwc_struct *n_lwc;
 	lwc_struct *caller;
 
 	/* Extra arguments.*/
 	void *args;
-} lwc_result_t;
+} lwc_res_t;
 
 #endif /*__LWC_CORE_LWC_TYPES_H__*/

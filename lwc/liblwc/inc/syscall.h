@@ -7,9 +7,9 @@
 #include "../core/lwc_types.h"
 #include "../syscalls/lwc_sysnr.h"
 
-static inline lwc_struct* lwc_create(lwc_rsrc_spec *mod)
+static inline int lwc_create(lwc_rsrc_spec *mod, lwc_res_t *res)
 {
-	return (lwc_struct*) syscall(SYS_LWC_CREATE, mod);
+	return (int) syscall(SYS_LWC_CREATE, mod, res);
 }
 static inline int lwc_switch(lwc_struct *lwc, void *args)
 {
