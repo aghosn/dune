@@ -85,11 +85,11 @@ err:
     return NULL;
 }
 
-lwc_result_t* sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod)
+lwc_struct* sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod)
 {
     mm_struct *copy = NULL;
     lwc_struct *n_lwc = NULL, *current = NULL;
-    lwc_result_t *child_result = NULL, *caller_result = NULL;
+    //lwc_result_t *child_result = NULL, *caller_result = NULL;
 
     /* The current context.*/
     current = Q_GET_FRONT(contexts);
@@ -120,19 +120,19 @@ create:
     memcpy(&(n_lwc->tf), tf, sizeof(struct dune_tf));
     
     /* Create the child result.*/
-    child_result = malloc(sizeof(lwc_result_t));
-    if (!child_result) goto err;
-    child_result->n_lwc = NULL;
-    child_result->caller = current;
-    child_result->args = NULL;
-    n_lwc->tf.rax = (uint64_t)(child_result);
+    // child_result = malloc(sizeof(lwc_result_t));
+    // if (!child_result) goto err;
+    // child_result->n_lwc = NULL;
+    // child_result->caller = current;
+    // child_result->args = NULL;
+    n_lwc->tf.rax = 0;
     
     /*Create the result for the caller.*/
-    caller_result = malloc(sizeof(lwc_result_t));
-    if (!caller_result) goto err;
-    caller_result->n_lwc = n_lwc;
-    caller_result->caller = NULL;
-    caller_result->args = NULL;
+    // caller_result = malloc(sizeof(lwc_result_t));
+    // if (!caller_result) goto err;
+    // caller_result->n_lwc = n_lwc;
+    // caller_result->caller = NULL;
+    // caller_result->args = NULL;
 
     Q_INIT_ELEM(n_lwc, lk_ctx);
     Q_INIT_ELEM(n_lwc, lk_parent);
@@ -142,15 +142,15 @@ create:
     Q_INIT_ELEM(n_lwc->vm_mm, lk_mms);
     Q_INSERT_TAIL(mm_queue, n_lwc->vm_mm, lk_mms);
 
-    return caller_result;
+    return n_lwc;
 err:
-    if (child_result)
-        free(child_result);
-    if (caller_result)
-        free(caller_result);
     if (n_lwc)
         lwc_free(n_lwc);
     return NULL;
+    // if (child_result)
+    //     free(child_result);
+    // if (caller_result)
+    //     free(caller_result);
 }
 
 int sys_lwc_switch(struct dune_tf *tf, lwc_struct *lwc, void *args)

@@ -24,10 +24,10 @@
 # path for this Makefile to work properly.
 
 DUNE = ../../
-# LINUX=/usr/src/linux-headers-$(shell uname -r)/include/
+LINUX=/usr/src/linux-headers-$(shell uname -r)/include/
 # $(info $$LINUX is [${LINUX}])
 
-INC = -I$(DUNE)/libdune -include$(DUNE)/kern/dune.h
+INC = -I$(DUNE)/libdune -include$(DUNE)/kern/dune.h 
 
 
 
