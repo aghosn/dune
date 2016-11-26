@@ -16,6 +16,9 @@ int main(int argc, char *argv[]) {
 		printf(" from the parent.\n");
 		fflush(stdout);
 		lwc_switch(result.n_lwc, NULL);
+	} else {
+		printf("Error\n");
+		return -1;
 	}
 
 	return 0;
