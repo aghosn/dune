@@ -73,7 +73,7 @@ int mm_overlap(vm_area_struct *vma, vm_addrptr start, vm_addrptr end)
 	return !(dont_overlap);
 }
 
-int mm_split_or_merge(	mm_struct *mm,
+int mm_split_and_merge(	mm_struct *mm,
 						vm_area_struct *vma,
 						vm_addrptr start,
 						vm_addrptr end,
@@ -86,7 +86,6 @@ int mm_split_or_merge(	mm_struct *mm,
 	int ret;
 	vm_area_struct *iter = NULL, *last = NULL;
 	
-	fflush(stdout);
 	/* Find the last conflicting block.*/
 	for (iter = vma->lk_areas.next; iter != NULL; iter = iter->lk_areas.next) {
 		if (!mm_overlap(iter, start, end)) {
@@ -209,6 +208,94 @@ err:
 		free(s_vma);
 	if (t_vma)
 		free(t_vma);
+	return ret;
+}
+
+typedef struct snm_struct {
+	vm_area_struct *n_head;
+	mm_cb_ft f;
+	void *args;
+} snm_struct;
+
+static int __mm_split_no_merge(vm_area_struct *vma, void* args)
+{
+	assert(args);
+	snm_struct *snm = (snm_struct*)(args);
+	snm->n_head = vma;
+
+	/* Do the proper callback.*/
+	return (snm->f(vma, snm->args));
+}
+
+
+int mm_split_no_merge(	mm_struct *mm,
+						vm_area_struct *vma,
+						vm_addrptr start,
+						vm_addrptr end,
+						unsigned long perm,
+						mm_cb_ft f,
+						void *args)
+{
+	assert(mm);
+	assert(vma);
+	assert(start <= end);
+	int ret;
+	vm_area_struct *iter = NULL, *last = NULL;
+
+	/* Find last conflicting block.*/
+	for (iter = vma->lk_areas.next; iter != NULL; iter = iter->lk_areas.next) {
+		if (!mm_overlap(iter, start, end)) {
+			last = iter->lk_areas.prev;
+			break;
+		}
+	}
+
+	/* Check that the last is correctly set.*/
+	last = (last != NULL)? last : mm->mmap->last;
+	assert(last != NULL);
+
+	/* Fix the conflict with the last vma.*/
+	snm_struct snm_last = {NULL, f, args};
+	if (vma != last) {
+		ret = mm_split_and_merge(mm, last, last->vm_start, end, perm, 
+											&__mm_split_no_merge, &snm_last);
+		if (ret)
+			goto err;
+
+		assert(snm_last.n_head);
+	}
+
+	/* Fix the conflict with the first vma.*/
+	vm_addrptr n_end = (vma->vm_end < end)? vma->vm_end : end;
+	
+	/* Get the pointer to the new head. After this call, vma might not be valid.*/
+	snm_struct snm_first = {NULL, f, args};
+	if ((ret = mm_split_and_merge(mm, vma, start, n_end, perm, &__mm_split_no_merge, &snm_first)))
+		goto err;
+
+	/* Should have a pointer to the new head.*/
+	assert(snm_first.n_head);
+
+	/* Work is done, only one vm was conflicting.*/
+	if (snm_last.n_head == NULL)
+		return 0;
+
+	/* Have vmas to modify in-between.*/
+	for (iter = snm_first.n_head->lk_areas.next; 
+		iter != NULL; 
+		iter = iter->lk_areas.next) {
+		iter->vm_flags = perm;
+		iter->dirty = 1;
+		if ((ret = f(iter, args)))
+			goto err;
+
+		/* Reached the last vma.*/
+		if (iter == snm_last.n_head)
+			break;
+	}
+	
+	return 0;
+err:
 	return ret;
 }
 

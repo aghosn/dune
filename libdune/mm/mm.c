@@ -104,7 +104,7 @@ int mm_init()
 	return 0;
 }
 
-//TODO: lack of merging when creating a new vma
+//TODO: FIXME, this method actually allocates when it is not supposed to.
 int mm_create_phys_mapping(mm_struct *mm, 
 							vm_addrptr va_start, 
 							vm_addrptr va_end, 
@@ -156,7 +156,7 @@ int mm_create_phys_mapping(mm_struct *mm,
 		}
 
 		if (mm_overlap(current, va_start, va_end)) {
-			ret = mm_split_or_merge(mm, current, va_start, va_end, perm, 
+			ret = mm_split_and_merge(mm, current, va_start, va_end, perm, 
 				&mm_apply_to_pgroot, pa);
 
 			return ret;
@@ -205,6 +205,8 @@ static int __mm_apply_protect(vm_area_struct *vma, void* perm)
 /* Modifies the permissions for the vmas that map the provided range.
  * If the virtual memory region is not mapped, it is NOT created.
  * If the start or end address is within a vma, we split it (if possible).*/
+//FIXME: BUG, mm_split_or_merge should not be allocating anything, but it might
+//fill gaps in memory.
 int mm_mprotect(mm_struct *mm, vm_addrptr start,
 				vm_addrptr end, unsigned long perm)
 {
@@ -224,7 +226,7 @@ int mm_mprotect(mm_struct *mm, vm_addrptr start,
 		}
 
 		if (mm_overlap(current, start, end)) {
-			ret = mm_split_or_merge(mm, current, start, end, perm, 
+			ret = mm_split_no_merge(mm, current, start, end, perm, 
 				&__mm_apply_protect, &perm);
 			return ret;
 		}
@@ -255,7 +257,7 @@ int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end, bool apply)
 
 	Q_FOREACH(current, mm->mmap, lk_areas) {
 		if (mm_overlap(current, start, end)) {
-			ret = mm_split_or_merge(mm, current, start, end, 0, 
+			ret = mm_split_and_merge(mm, current, start, end, 0, 
 				&__mm_unmap, &to_rm);
 			
 			if (ret)

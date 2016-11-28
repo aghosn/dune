@@ -55,6 +55,7 @@ err:
 static mm_struct* lwc_apply_mm(lwc_rsrc_spec *mod, mm_struct *o)
 {
     assert(mod && o);
+    //Cannot actually do that, have to go step by step.
     mm_struct *copy = mm_copy(o, false, true);
     if (!copy)
         goto err;
@@ -63,13 +64,20 @@ static mm_struct* lwc_apply_mm(lwc_rsrc_spec *mod, mm_struct *o)
     Q_FOREACH(current, &(mod->ranges), lk_rg) {
         switch(current->opt) {
             case LWC_COW:
-                //mm_cow(o, copy, current->start, current->end, false);
+                /* By default everything is cowed. Just check that user is not
+                 * trying to cow some kernel memory.*/
+                //TODO:
+        
                 break;
             case LWC_SHARED:
                 //mm_shared(o, copy, current->start, current->end, false);
+                //TODO: check that this is only user space.
+                //TODO: go through the pages and if they are cow, need to uncow
+                //them. How do you do that since the copy is already done..
                 break;
             case LWC_UNMAP:
                 //mm_unmap(copy, current->start, current->end, false);
+                
                 break;
             default:
                 //TODO: logg error.
@@ -82,6 +90,7 @@ static mm_struct* lwc_apply_mm(lwc_rsrc_spec *mod, mm_struct *o)
     return copy;
 
 err:
+    //TODO: clean up.
     return NULL;
 }
 

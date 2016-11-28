@@ -17,13 +17,21 @@ mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow);
 int mm_overlap(vm_area_struct *vma, vm_addrptr s, vm_addrptr e);
 
 /* Handles the splitting of vmas.*/
-int mm_split_or_merge(	mm_struct *mm,
+int mm_split_and_merge(	mm_struct *mm,
 						vm_area_struct *vma, 
 						vm_addrptr start,
 						vm_addrptr end,
 						unsigned long perm,
 						mm_cb_ft f,
-						void * args);
+						void *args);
+
+int mm_split_no_merge(	mm_struct *mm,
+						vm_area_struct *vma,
+						vm_addrptr start,
+						vm_addrptr end,
+						unsigned long perm,
+						mm_cb_ft f,
+						void *args);
 
 /* Deletes the defined region from the memory mappings.*/
 int mm_delete_region(	mm_struct *mm,

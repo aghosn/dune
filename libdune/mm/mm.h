@@ -8,6 +8,7 @@
 
 /* The memory mappings API*/
 int mm_init();
+
 int mm_create_phys_mapping(	mm_struct *mm, 
 							vm_addrptr start, 
 							vm_addrptr end, 
