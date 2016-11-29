@@ -6,8 +6,9 @@
 
 #include <dune.h>
 #include <mm/memory.h>
+#include <mm/vm_tools.h>
+#include <mm/mm_tools.h>
 #include <sandbox/sandbox.h>
-
 
 #include "lwc.h"
 #include "lwc_types.h"
@@ -51,12 +52,112 @@ err:
     return ret;
 }
 
+static int __lwc_validate_mod(vm_area_struct *vma, void* args)
+{
+    assert(vma);
+    if (vma->vm_flags & PERM_U)
+        return 0;
+    return 1;
+}
+
+static int lwc_validate_mod(lwc_rsrc_spec *mod, mm_struct *o)
+{
+    assert(o);
+    assert(mod);
+
+    lwc_rg_struct *prev = NULL, *curr = NULL;
+    Q_FOREACH(curr, &(mod->ranges), lk_rg) {
+        
+        if ((prev && !(prev->end <= prev->start)) ||
+            !(curr->start <= curr->end)) {
+            /* The ranges are not increasing.*/
+            return 1;
+        }
+
+        vm_area_struct *start = mm_find(o, curr->start, false);
+        vm_area_struct *end = mm_find(o, curr->end, true);
+
+        if (!start || !end)
+            continue;
+
+        if (start->vm_end > end->vm_start)
+            return 2;
+
+        /*Check that none is kernel.*/
+        if (mm_vmas_walk(start, end, &__lwc_validate_mod, NULL))
+            return 1;
+
+        /* Update prev.*/
+        prev = curr;
+    }
+
+    return 0;
+}
+
+static int __share_mem_helper(ptent_t *pte, void *va, cb_info *args)
+{
+    assert(pte && args);
+    int ret;
+    ptent_t* pte_c = NULL;
+    mm_struct *copy = (mm_struct*)(args->args);
+    ret = vm_lookup(copy->pml4, va, &pte_c, CREATE_NONE, 0);
+    if (ret != 0)
+        return ret;
+
+    /* Remap the page in the copy.*/
+    assert(*pte & PTE_U);
+    assert(*pte & PTE_P);
+    assert(!(*pte & PTE_COW));
+    assert(*pte_c & PTE_U);
+    assert(*pte_c & PTE_P);
+    assert(*pte_c & PTE_COW);
+    assert(!(*pte_c & PTE_W));
+    struct page *pg = dune_pa2page(PTE_ADDR(*pte_c));
+    
+    if (dune_page_isfrompool(PTE_ADDR(*pte_c)))
+        dune_page_put(pg);
+
+    *pte_c = *pte; 
+
+    return ret;
+}
+
+static int __share_mem(mm_struct *o, mm_struct *c, lwc_rg_struct *mod)
+{
+    assert(o && c && mod);
+    int ret;
+    vm_addrptr start, end, curr;
+
+    /* Uncow in original and remap in the copy.*/
+    start = MM_PGALIGN_DN(mod->start);
+    end = MM_PGALIGN_UP(mod->end);
+    for (curr = start; curr <= end; curr += PGSIZE) {
+        mm_uncow(o, curr);
+    }
+
+    ret = vm_pgrot_walk(o->pml4, (void*)(mod->start), (void*)(mod->end),
+        &__share_mem_helper, NULL, c);
+    
+    return ret;
+}
+
+static int __unmap_mem(mm_struct *o, mm_struct *c, lwc_rg_struct *mod)
+{
+    assert(o && c && mod);
+
+    return mm_unmap(c, mod->start, mod->end, true);
+}
+
 //TODO hum for cow might need the original.
-static mm_struct* lwc_apply_mm(lwc_rsrc_spec *mod, mm_struct *o)
+static mm_struct* lwc_apply_mm(mm_struct *o, lwc_rsrc_spec *mod)
 {
     assert(mod && o);
-    //Cannot actually do that, have to go step by step.
-    mm_struct *copy = mm_copy(o, false, true);
+    mm_struct *copy = NULL;
+     if (lwc_validate_mod(mod, o))
+        goto err;
+    
+    //FIXME: Cannot actually do that, have to go step by step.
+    copy = mm_copy(o, false, true);
     if (!copy)
         goto err;
 
@@ -74,10 +175,12 @@ static mm_struct* lwc_apply_mm(lwc_rsrc_spec *mod, mm_struct *o)
                 //TODO: check that this is only user space.
                 //TODO: go through the pages and if they are cow, need to uncow
                 //them. How do you do that since the copy is already done..
+                if (__share_mem(o, copy, current))
+                    goto err;
                 break;
             case LWC_UNMAP:
-                //mm_unmap(copy, current->start, current->end, false);
-                
+                if (__unmap_mem(o, copy, current))
+                    goto err;
                 break;
             default:
                 //TODO: logg error.
@@ -91,6 +194,7 @@ static mm_struct* lwc_apply_mm(lwc_rsrc_spec *mod, mm_struct *o)
 
 err:
     //TODO: clean up.
+    //and also should retrofit to original mappings?
     return NULL;
 }
 
@@ -124,7 +228,7 @@ int sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod, lwc_res_t *res)
     }
 
     /* Slower copy.*/
-    copy = lwc_apply_mm(mod, current->vm_mm);
+    copy = lwc_apply_mm(current->vm_mm, mod);
 
 create:
     n_lwc = malloc(sizeof(lwc_struct));

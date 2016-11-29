@@ -9,6 +9,11 @@
 /* The memory mappings API*/
 int mm_init();
 
+/* Find the vma containing the address.
+ * If no vma contains the given addr, it returns the vma that comes before that
+ * or the first vma if there is no predecessor.*/
+vm_area_struct* mm_find(mm_struct *mm, vm_addrptr addr, bool is_end);
+
 int mm_create_phys_mapping(	mm_struct *mm, 
 							vm_addrptr start, 
 							vm_addrptr end, 

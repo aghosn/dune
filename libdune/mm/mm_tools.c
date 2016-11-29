@@ -270,7 +270,9 @@ int mm_split_no_merge(	mm_struct *mm,
 	
 	/* Get the pointer to the new head. After this call, vma might not be valid.*/
 	snm_struct snm_first = {NULL, f, args};
-	if ((ret = mm_split_and_merge(mm, vma, start, n_end, perm, &__mm_split_no_merge, &snm_first)))
+	ret = mm_split_and_merge(mm, vma, start, n_end, perm, &__mm_split_no_merge,
+																	&snm_first);
+	if (ret)
 		goto err;
 
 	/* Should have a pointer to the new head.*/
@@ -297,6 +299,26 @@ int mm_split_no_merge(	mm_struct *mm,
 	return 0;
 err:
 	return ret;
+}
+
+
+int mm_vmas_walk(	vm_area_struct *start,
+					vm_area_struct *end,
+					mm_cb_ft f,
+					void* args)
+{
+	assert(start);
+	assert(end);
+	int ret;
+	vm_area_struct *current;
+	for (current = start; current != NULL; current = current->lk_areas.next) {
+		if ((ret = f(current, args)))
+			return ret;
+		if (current == end)
+			break;
+	}
+
+	return 0;
 }
 
 /* Removes the vmas between start (not included) and end (not included) for the mm->mmap.

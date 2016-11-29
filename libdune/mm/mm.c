@@ -104,6 +104,49 @@ int mm_init()
 	return 0;
 }
 
+vm_area_struct* mm_find(mm_struct *mm, vm_addrptr addr, bool is_end)
+{
+	assert(mm);
+	vm_area_struct *res = NULL, *current = NULL;
+
+	/* Fast paths.*/
+
+	/* Before the start.*/
+	if (mm->mmap->head->vm_start >= addr) {
+		if (!is_end)
+			res = mm->mmap->head;
+		goto ret;
+	}
+
+	/* After the end.*/
+	if (mm->mmap->last->vm_end <= addr) {
+		if (is_end)
+			res = mm->mmap->last;
+		goto ret;
+	}
+
+	/* Slow path.*/
+	Q_FOREACH(current, mm->mmap, lk_areas) {
+		/* Within the vma.*/
+		if (mm_overlap(current, addr, addr)) {
+			res = current;
+			break;
+		}
+
+		/* Address is between the two vmas.*/
+		if (res && res->vm_end < addr && current->vm_start > addr) {
+			if (!is_end)
+				res = current;
+			break;
+		}
+
+		res = current;
+	}
+ret:
+	assert(res);
+	return res;
+}
+
 //TODO: FIXME, this method actually allocates when it is not supposed to.
 int mm_create_phys_mapping(mm_struct *mm, 
 							vm_addrptr va_start, 

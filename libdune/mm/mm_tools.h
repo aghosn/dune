@@ -33,6 +33,11 @@ int mm_split_no_merge(	mm_struct *mm,
 						mm_cb_ft f,
 						void *args);
 
+int mm_vmas_walk(	vm_area_struct *start,
+					vm_area_struct *end,
+					mm_cb_ft f,
+					void* args);
+
 /* Deletes the defined region from the memory mappings.*/
 int mm_delete_region(	mm_struct *mm,
 						vm_area_struct *start,
@@ -40,6 +45,9 @@ int mm_delete_region(	mm_struct *mm,
 
 /* Frees the memory mappings.*/
 int mm_free(mm_struct *mm);
+
+/* Uncows a mapping.*/
+void mm_uncow(mm_struct *mm, vm_addrptr va);
 
 /* Pretty prints the mm regions.*/
 void mm_dump(mm_struct *mm);
