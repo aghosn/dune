@@ -49,6 +49,7 @@ mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 	if (apply && cow) {
 		mm_apply(mm);
 	}
+
 	copy->pml4 = vm_pgrot_copy(mm->pml4, cow);
 	assert(copy->pml4 != NULL);
 
@@ -443,9 +444,15 @@ int mm_verify_mappings(mm_struct *mm)
 	assert(mm);
 	assert(mm->mmap);
 	assert(mm->pml4);
-	vm_area_struct *current = NULL;
+	vm_area_struct *current = NULL, *prev = NULL;
 
 	Q_FOREACH(current, mm->mmap, lk_areas) {
+		
+		/* Check that it's sorted.*/
+		if (prev) {
+			assert(prev->vm_end <= current->vm_start);
+		}
+
 		/* Check the start.*/
 		ret = dune_vm_has_mapping(mm->pml4, (void*) current->vm_start);
 		assert(ret == 0);
@@ -463,6 +470,8 @@ int mm_verify_mappings(mm_struct *mm)
 
 		/* Check that we do not use forbidden flags (i.e., PERM_COW)*/
 		assert(!(current->vm_flags & PERM_COW));
+
+		prev = current;
 	}
 	return 0;
 }

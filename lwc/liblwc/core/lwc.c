@@ -67,26 +67,31 @@ static int lwc_validate_mod(lwc_rsrc_spec *mod, mm_struct *o)
 
     lwc_rg_struct *prev = NULL, *curr = NULL;
     Q_FOREACH(curr, &(mod->ranges), lk_rg) {
-        
         if ((prev && !(prev->end <= prev->start)) ||
             !(curr->start <= curr->end)) {
             /* The ranges are not increasing.*/
             return 1;
         }
 
+        //FIXME: does not find the correct one.
         vm_area_struct *start = mm_find(o, curr->start, false);
         vm_area_struct *end = mm_find(o, curr->end, true);
-
-        if (!start || !end)
-            continue;
-
-        if (start->vm_end > end->vm_start)
+        
+        if (!start || !end) {
             return 2;
+        }
 
+        if (start->vm_end > end->vm_start) {
+            vma_dump(start);
+            vma_dump(end);
+            assert(0);
+            return 3;
+        }
+        
         /*Check that none is kernel.*/
         if (mm_vmas_walk(start, end, &__lwc_validate_mod, NULL))
-            return 1;
-
+            return 4;
+        assert(0);
         /* Update prev.*/
         prev = curr;
     }
@@ -101,8 +106,9 @@ static int __share_mem_helper(ptent_t *pte, void *va, cb_info *args)
     ptent_t* pte_c = NULL;
     mm_struct *copy = (mm_struct*)(args->args);
     ret = vm_lookup(copy->pml4, va, &pte_c, CREATE_NONE, 0);
-    if (ret != 0)
+    if (ret != 0) {
         return ret;
+    }
 
     /* Remap the page in the copy.*/
     assert(*pte & PTE_U);
@@ -117,7 +123,7 @@ static int __share_mem_helper(ptent_t *pte, void *va, cb_info *args)
     if (dune_page_isfrompool(PTE_ADDR(*pte_c)))
         dune_page_put(pg);
 
-    *pte_c = *pte; 
+    *pte_c = *pte;
 
     return ret;
 }
@@ -152,6 +158,7 @@ static int __unmap_mem(mm_struct *o, mm_struct *c, lwc_rg_struct *mod)
 static mm_struct* lwc_apply_mm(mm_struct *o, lwc_rsrc_spec *mod)
 {
     assert(mod && o);
+    
     mm_struct *copy = NULL;
      if (lwc_validate_mod(mod, o))
         goto err;
@@ -160,7 +167,7 @@ static mm_struct* lwc_apply_mm(mm_struct *o, lwc_rsrc_spec *mod)
     copy = mm_copy(o, false, true);
     if (!copy)
         goto err;
-
+    
     lwc_rg_struct *current = NULL;
     Q_FOREACH(current, &(mod->ranges), lk_rg) {
         switch(current->opt) {
@@ -171,10 +178,6 @@ static mm_struct* lwc_apply_mm(mm_struct *o, lwc_rsrc_spec *mod)
         
                 break;
             case LWC_SHARED:
-                //mm_shared(o, copy, current->start, current->end, false);
-                //TODO: check that this is only user space.
-                //TODO: go through the pages and if they are cow, need to uncow
-                //them. How do you do that since the copy is already done..
                 if (__share_mem(o, copy, current))
                     goto err;
                 break;
@@ -207,7 +210,6 @@ int sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod, lwc_res_t *res)
     if (!res)
         return -1;
     
-
     /* The current context.*/
     current = Q_GET_FRONT(contexts);
     if (!current)
@@ -229,7 +231,7 @@ int sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod, lwc_res_t *res)
 
     /* Slower copy.*/
     copy = lwc_apply_mm(current->vm_mm, mod);
-
+    
 create:
     n_lwc = malloc(sizeof(lwc_struct));
     if (!n_lwc)
