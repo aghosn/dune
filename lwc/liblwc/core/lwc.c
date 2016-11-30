@@ -73,24 +73,21 @@ static int lwc_validate_mod(lwc_rsrc_spec *mod, mm_struct *o)
             return 1;
         }
 
+        //FIXME: doesn't work.
         vm_area_struct *start = mm_find(o, curr->start, false);
-        vm_area_struct *end = mm_find(o, curr->end, true);
+        vm_area_struct *end = mm_find(o, curr->end -1, true);
         
         if (!start || !end) {
             return 2;
         }
 
-        if (start->vm_end > end->vm_start) {
-            vma_dump(start);
-            vma_dump(end);
-            assert(0);
-            return 3;
-        }
+        if (start != end)
+            assert(start->vm_end <= end->vm_start);
         
         /*Check that none is kernel.*/
         if (mm_vmas_walk(start, end, &__lwc_validate_mod, NULL))
             return 4;
-        assert(0);
+        
         /* Update prev.*/
         prev = curr;
     }
@@ -136,7 +133,7 @@ static int __share_mem(mm_struct *o, mm_struct *c, lwc_rg_struct *mod)
     /* Uncow in original and remap in the copy.*/
     start = MM_PGALIGN_DN(mod->start);
     end = MM_PGALIGN_UP(mod->end);
-    for (curr = start; curr <= end; curr += PGSIZE) {
+    for (curr = start; curr < end; curr += PGSIZE) {
         mm_uncow(o, curr);
     }
 

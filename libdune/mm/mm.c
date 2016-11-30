@@ -128,7 +128,7 @@ vm_area_struct* mm_find(mm_struct *mm, vm_addrptr addr, bool is_end)
 	/* Slow path.*/
 	Q_FOREACH(current, mm->mmap, lk_areas) {
 		/* Within the vma.*/
-		if (mm_overlap(current, addr, addr)) {
+		if (current->vm_start <= addr && current->vm_end > addr) {
 			res = current;
 			break;
 		}
