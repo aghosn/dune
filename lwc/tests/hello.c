@@ -6,7 +6,7 @@
 int main(int argc, char *argv[]) {
 	int i = -1;
 	lwc_res_t result;
-
+	
 	i = lwc_create(NULL, &result);
 
 	/* We are the child.*/

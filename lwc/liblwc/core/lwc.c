@@ -137,7 +137,7 @@ static int __share_mem(mm_struct *o, mm_struct *c, lwc_rg_struct *mod)
         mm_uncow(o, curr);
     }
 
-    ret = vm_pgrot_walk(o->pml4, (void*)(mod->start), (void*)(mod->end),
+    ret = vm_pgrot_walk(o->pml4, (void*)(mod->start), (void*)(mod->end -1),
         &__share_mem_helper, NULL, c);
     
     return ret;
@@ -269,7 +269,6 @@ int sys_lwc_switch( struct dune_tf *tf,
 {
     assert(tf);
     assert(lwc);
-    
     /* Get the current context.*/
     lwc_struct *current = Q_GET_FRONT(contexts);
     
@@ -294,8 +293,9 @@ int sys_lwc_switch( struct dune_tf *tf,
     memory_switch(lwc->vm_mm);
     lwc_res_t *target_res = (lwc_res_t*) (lwc->tf.rax);
     
-    if (!target_res)
+    if (!target_res) {
         return -1;
+    }
     target_res->n_lwc = NULL;
     target_res->caller = current;
     target_res->args = args;
