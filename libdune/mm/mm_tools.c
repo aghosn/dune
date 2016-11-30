@@ -19,7 +19,6 @@ mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 
 	//TODO: remove, for debugging.
 	mm_verify_mappings(mm);
-	
 
 	mm_struct *copy = malloc(sizeof(mm_struct));
 	if (!copy) goto err;
@@ -56,7 +55,6 @@ mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 #ifdef DEBUG_MM
 	mm_assert_equals(mm, copy);
 	vm_compare_pgroots(mm->pml4, copy->pml4);
-	//FIXME: bug is here.
 	mm_verify_mappings(mm);
 	mm_verify_mappings(copy);
 #endif
@@ -188,7 +186,7 @@ alloc: ;
 	
 	/* Insert the f_vma*/
 	if (in_q) {
-		Q_INSERT_BEFORE(mm->mmap, in_q, f_vma, lk_areas);
+		Q_INSERT_AFTER(mm->mmap, in_q, f_vma, lk_areas);
 	}
 	else {
 		Q_INSERT_FRONT(mm->mmap, f_vma, lk_areas);
@@ -449,9 +447,8 @@ int mm_verify_mappings(mm_struct *mm)
 	Q_FOREACH(current, mm->mmap, lk_areas) {
 		
 		/* Check that it's sorted.*/
-		if (prev) {
+		if (prev)
 			assert(prev->vm_end <= current->vm_start);
-		}
 
 		/* Check the start.*/
 		ret = dune_vm_has_mapping(mm->pml4, (void*) current->vm_start);

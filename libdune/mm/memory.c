@@ -78,7 +78,6 @@ void memory_pgflt_handler(uintptr_t addr, uint64_t fec)
 	mm_struct *current_mm = memory_get_mm();
 	assert(current_mm->pml4 == pgroot);
 	mm_verify_mappings(current_mm);
-	
 	/* Do the uncow for the memory region.*/
 	mm_uncow(current_mm, (vm_addrptr) addr);
 }

@@ -73,7 +73,6 @@ static int lwc_validate_mod(lwc_rsrc_spec *mod, mm_struct *o)
             return 1;
         }
 
-        //FIXME: does not find the correct one.
         vm_area_struct *start = mm_find(o, curr->start, false);
         vm_area_struct *end = mm_find(o, curr->end, true);
         

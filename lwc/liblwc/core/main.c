@@ -1,5 +1,5 @@
 #include <stdio.h>
-
+#include <stdlib.h>
 #include <dune.h>
 #include <sandbox/sandbox.h>
 #include <mm/memory.h>
@@ -17,10 +17,9 @@ int main(int argc, char* argv[])
     if ((ret = dune_enter()))
     	return ret;
 
-    printf("Dune: initialized\n");
-
     if ((ret = lwc_init()))
     	return ret;
+
     printf("Lwc: initialized\n");
 
     assert(lwc_root != NULL && lwc_root->vm_mm == mm_root && mm_root != NULL &&
@@ -40,7 +39,7 @@ int main(int argc, char* argv[])
 
     //TODO: remove, for debugging.
     mm_verify_mappings(lwc_root->vm_mm);
-    
+
     ret = sandbox_run_app(sp, entry);
     
     printf("Lwc: execution completed. Goodbye!\n");
