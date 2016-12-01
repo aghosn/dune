@@ -77,6 +77,7 @@ static int process_elf_ph(struct dune_elf *elf, Elf64_Phdr *phdr)
 									phdr->p_vaddr + off + phdr->p_memsz,
 									(void *)(phdr->p_vaddr + off),
 									PERM_R | PERM_W | PERM_U);
+
 	if (ret) {
 		log_err("sandbox: segment mapping failed\n");
 		return ret;

@@ -410,10 +410,12 @@ int umm_alloc_stack(uintptr_t *stack_top)
 	// Make sure the last page is left unmapped so hopefully
 	// we can at least catch most common stack overruns.
 	// If not, the untrusted code is only harming itself.
+	
 	ret = umm_mmap_anom_flags((void *)(PGADDR(base) -
 					   APP_STACK_SIZE + PGSIZE),
 				  APP_STACK_SIZE - PGSIZE,
 				  PROT_READ | PROT_WRITE, 0, MAP_GROWSDOWN);
+	
 	if (ret)
 		return ret;
 

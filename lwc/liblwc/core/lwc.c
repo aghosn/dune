@@ -159,8 +159,7 @@ static mm_struct* lwc_apply_mm(mm_struct *o, lwc_rsrc_spec *mod)
      if (lwc_validate_mod(mod, o))
         goto err;
     
-    //FIXME: Cannot actually do that, have to go step by step.
-    copy = mm_copy(o, false, true);
+    copy = mm_copy(o, true, true);
     if (!copy)
         goto err;
     
@@ -186,7 +185,6 @@ static mm_struct* lwc_apply_mm(mm_struct *o, lwc_rsrc_spec *mod)
                 goto err;
         }
     }
-    //FIXME: do the apply.
     mm_apply(o);
     mm_apply(copy);
     return copy;
@@ -210,6 +208,7 @@ int sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod, lwc_res_t *res)
     current = Q_GET_FRONT(contexts);
     if (!current)
         goto err;
+
 
     //TODO: remove, for debugging.
     mm_verify_mappings(current->vm_mm);
@@ -292,7 +291,7 @@ int sys_lwc_switch( struct dune_tf *tf,
     *tf = lwc->tf;
     memory_switch(lwc->vm_mm);
     lwc_res_t *target_res = (lwc_res_t*) (lwc->tf.rax);
-    
+
     if (!target_res) {
         return -1;
     }

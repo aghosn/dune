@@ -275,7 +275,7 @@ int vm_uncow(ptent_t* root, void *addr)
 		*pte = PTE_ADDR(*pte) | perm;
 		return 0;
 	}
-
+	
 	/* We duplicate the page.*/
 	newPage = alloc_page();
 	assert(newPage);
@@ -288,6 +288,7 @@ int vm_uncow(ptent_t* root, void *addr)
 
 	/* Invalidate address in tlb.*/
 	dune_flush_tlb_one((unsigned long)addr);
+	asm("mov %cr3,%rax; mov %rax,%cr3");
 	return 0;
 }
 

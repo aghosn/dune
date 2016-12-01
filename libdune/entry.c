@@ -259,9 +259,8 @@ static int setup_syscall(void)
 		// dune_vm_lookup(pgroot, (void *) (lstara + i), 1, &pte);
 		// *pte = PTE_ADDR(pa) | PTE_P;
 		mm_struct *current_mm = memory_get_mm();
-		mm_create_phys_mapping(current_mm, lstara + i, lstara + i + PGSIZE, (void*) pa, PTE_P | PTE_DEF_FLAGS);
-		// dune_vm_lookup(pgroot, (void *) (lstara + i), 1, &pte);
-		// *pte = PTE_ADDR(pa) | PTE_P;
+		mm_create_phys_mapping(current_mm, lstara + i, lstara + i + PGSIZE, 
+			(void*) pa, PERM_R | PERM_W | PERM_X);
 	}
 	
 	return 0;

@@ -14,6 +14,11 @@ vm_area_struct *vma_create(	mm_struct *mm,
 	assert(start == MM_PGALIGN_DN(start));
 	assert(end == MM_PGALIGN_UP(end));
 
+	/*if (start <= 0x0000007efffff540 && end > 0x0000007efffff540) {
+		printf("We create the vma here.\n");
+		exit(1);
+	}*/
+
 	vm_area_struct *vma = malloc(sizeof(vm_area_struct));
 	if (!vma)
 		return NULL;

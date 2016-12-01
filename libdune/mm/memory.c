@@ -71,12 +71,28 @@ err:
 	return ret;
 }
 
-void memory_pgflt_handler(uintptr_t addr, uint64_t fec)
+static uint64_t read_cr3() {
+    uint64_t cr3 = 0xdeadbeef;
+    __asm__ __volatile__ (
+        "mov %%cr3, %%rax\n\t"
+        "mov %%rax, %0\n\t"
+        : "=m" (cr3)
+        : /* no input */
+        : "%rax"
+    );
+
+    return cr3;
+}
+
+void memory_pgflt_handler(uintptr_t addr, uint64_t fec, struct dune_tf *tf)
 {
 	assert(fec & FEC_W);
 	/* Check that everything is set properly*/
 	mm_struct *current_mm = memory_get_mm();
 	assert(current_mm->pml4 == pgroot);
+	ptent_t* cr3 = (ptent_t*)read_cr3();
+	assert(pgroot == cr3);
+
 	mm_verify_mappings(current_mm);
 	/* Do the uncow for the memory region.*/
 	mm_uncow(current_mm, (vm_addrptr) addr);

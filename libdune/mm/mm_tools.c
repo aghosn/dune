@@ -155,7 +155,6 @@ create12:
 		ret = -ENOMEM;
 		goto err;
 	}
-
 	s_vma = vma_create(vma->vm_mm, s_start, s_end, s_perm);
 	if (!s_vma) {
 		ret = -ENOMEM;

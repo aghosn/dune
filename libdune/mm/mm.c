@@ -92,6 +92,7 @@ int mm_init()
 	
 
 	perm = PERM_R | PERM_W | PERM_BIG;
+
 	 if ((ret = mm_create_phys_mapping(current_mm,(vm_addrptr) start,
 	 	(vm_addrptr) end, pa, perm)))
 	 	return ret;
@@ -206,6 +207,7 @@ int mm_create_phys_mapping(mm_struct *mm,
 		}
 
 		/*Try to insert*/
+		//FIXME: current bug is here.
 		if (current->vm_start >=  va_end) {
 			vm_area_struct *vma = vma_create(mm, va_start, va_end, perm);
 			if (!vma)

@@ -58,5 +58,5 @@ static inline void memory_switch(mm_struct *mm) {
 
 
 int dune_memory_init();
-void memory_pgflt_handler(uintptr_t addr, uint64_t fec);
+void memory_pgflt_handler(uintptr_t addr, uint64_t fec, struct dune_tf *tf);
 #endif /*__LIBDUNE_MM_MEMORY_H__*/
