@@ -14,8 +14,8 @@ int main(void)
 	void *shared = mmap(address, (size_t)(1 << 12), PROT_READ | PROT_WRITE, 
 						MAP_ANONYMOUS, 0, 0);
 	
-	printf("Shared is %p\n", shared);
-	fflush(stdout);
+	// printf("Shared is %p\n", shared);
+	// fflush(stdout);
 	
 	vm_addrptr start = (vm_addrptr)shared;
 	vm_addrptr end = start + PGSIZE;
