@@ -4,6 +4,8 @@ SUBDIRS	= kern libdune lwc
 all: $(SUBDIRS)
 libc: $(LIBC)
 
+lwc: libdune
+
 $(SUBDIRS):
 	$(MAKE) -C $(@)
 
