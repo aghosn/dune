@@ -5,6 +5,11 @@
 #include <utils/vq.h>
 #include <mm/mm_types.h>
 
+#define D_NORMA 0x0001
+#define D_DEREF 0x0002
+#define D_MMMAP	0x0008
+#define D_TRAPF 0x0010
+
 /* Defines a list of lwc_structs.*/
 Q_NEW_HEAD(l_lwc, lwc_struct); 
 

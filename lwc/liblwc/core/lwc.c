@@ -302,7 +302,34 @@ int sys_lwc_switch( struct dune_tf *tf,
     /* Set return value.*/
     lwc->tf.rax = 0;
     tf->rax = 0;
-    
+    return 0;
+}
+
+int sys_fake_println(struct dune_tf *tf, void* arg, int flags, int id)
+{
+    printf("--------------------------------------------------------------------------------\n");
+    if (flags & D_NORMA) {
+        printf("%d__(NORMA) argument address: 0x%016lx\n", id, (unsigned long)arg);
+    }
+
+    if (flags & D_DEREF) {
+        printf("%d__(DEREF) deref element: 0x%016lx\n", id,
+            (unsigned long) *((char *)arg));
+    }
+
+    if (flags & D_MMMAP) {
+        printf("%d__(MMAP) dumping the memory mappings.\n", id);
+        mm_struct* current = memory_get_mm();
+        assert(current);
+        mm_dump(current);
+    }
+
+    if (flags & D_TRAPF) {
+        printf("%d__(TRAPF) dumping the trap frame.\n", id);
+        dune_dump_trap_frame(tf);
+    }
+    printf("\n");
+    fflush(stdout);
     return 0;
 }
 

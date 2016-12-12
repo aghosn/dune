@@ -18,5 +18,7 @@ int sys_lwc_switch(	struct dune_tf *tf,
 					void *args,
 					lwc_res_t * res);
 
+int sys_fake_println(struct dune_tf *tf, void* arg, int flags, int id);
+
 int lwc_free(lwc_struct *lwc);
 #endif /*__LWC_CORE_LWC_H__*/

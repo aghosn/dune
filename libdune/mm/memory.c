@@ -86,6 +86,19 @@ static uint64_t read_cr3() {
 
 void memory_pgflt_handler(uintptr_t addr, uint64_t fec, struct dune_tf *tf)
 {
+	//FIXME: remove this if.
+	if (!(fec & FEC_W)) {
+		printf("fault: addr{0x%016lx}, fec{%lx}\n", addr, fec);
+		fflush(stdout);
+		mm_struct *current_mm = memory_get_mm();
+		ptent_t *pte = NULL;
+		int res = vm_lookup(current_mm->pml4, (void*)addr, &pte, CREATE_NONE, 0);
+		if (res) 
+			printf("Address not found.\n");
+		else 
+			printf("Address is found actually.\npte: 0x%016lx\n", *pte);
+		fflush(stdout);
+	}
 	assert(fec & FEC_W);
 	/* Check that everything is set properly*/
 	mm_struct *current_mm = memory_get_mm();
