@@ -22,7 +22,6 @@ do {\
 	}\
 } while(0)
 
-
 typedef void (*sighandler_t)(int);
 
 // utilities
