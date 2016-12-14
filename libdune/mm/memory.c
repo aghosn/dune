@@ -1,11 +1,12 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <malloc.h>
 #include <stdbool.h>
-
 
 #include "memory.h"
 #include "vm_tools.h"
+#include "../local.h"
 
 /*Global variables*/
 ptent_t *pgroot = NULL;
@@ -86,25 +87,19 @@ static uint64_t read_cr3() {
 
 void memory_pgflt_handler(uintptr_t addr, uint64_t fec, struct dune_tf *tf)
 {
-	//FIXME: remove this if.
-	if (!(fec & FEC_W)) {
-		printf("fault: addr{0x%016lx}, fec{%lx}\n", addr, fec);
-		fflush(stdout);
-		mm_struct *current_mm = memory_get_mm();
-		ptent_t *pte = NULL;
-		int res = vm_lookup(current_mm->pml4, (void*)addr, &pte, CREATE_NONE, 0);
-		if (res) 
-			printf("Address not found.\n");
-		else 
-			printf("Address is found actually.\npte: 0x%016lx\n", *pte);
-		fflush(stdout);
-	}
-	assert(fec & FEC_W);
+	/* We handle only COW page faults.*/
+	ASSERT_DBG(fec & FEC_W, " addr{0x%016lx}, fec{%lx}\n", addr, fec);
+	
 	/* Check that everything is set properly*/
 	mm_struct *current_mm = memory_get_mm();
-	assert(current_mm->pml4 == pgroot);
+	ASSERT_DBG(	current_mm->pml4 == pgroot,
+				"current_mm{0x%016lx}, pgroot{0x%016lx}",
+				(unsigned long)current_mm->pml4,
+				(unsigned long)pgroot);
+
 	ptent_t* cr3 = (ptent_t*)read_cr3();
-	assert(pgroot == cr3);
+	ASSERT_DBG(pgroot == cr3, "pgroot{0x%016lx}, cr3{0x%016lx}", 
+			(unsigned long)pgroot, (unsigned long)cr3);
 
 	mm_verify_mappings(current_mm);
 	/* Do the uncow for the memory region.*/

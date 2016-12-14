@@ -6,15 +6,16 @@
 
 #define my_assert(cond) do { \
 	if (cond) \
-		write(1, #cond " OK\n", strlen( #cond " OK\n")); \
+		_wi = write(1, #cond " OK\n", strlen( #cond " OK\n")); \
 	else \
-		write(1, #cond " FAIL\n", strlen( #cond " FAIL\n")); \
+		_wi = write(1, #cond " FAIL\n", strlen( #cond " FAIL\n")); \
 } while(0)
 
 int main(int argc, char *argv[]) {
 	int i = -1;
 	lwc_res_t result;
 	char *p = NULL;
+	int _wi = 0;
 
 	i = lwc_create(NULL, &result);
 
@@ -23,11 +24,7 @@ int main(int argc, char *argv[]) {
 			| MAP_ANONYMOUS, 0, 0);
 		my_assert(p != MAP_FAILED);
 		*p = 1;
-
-		lwc_println(p, D_TRAPF | D_NORMA, 1);
 		lwc_switch(result.n_lwc, NULL, &result);
-		lwc_println(p, D_TRAPF | D_NORMA, 1);
-
 		my_assert(2);
 		my_assert(*p == 1);
 	} else if (i == 0) {
@@ -37,8 +34,6 @@ int main(int argc, char *argv[]) {
 		*p = 2;
 		my_assert(1);
 		my_assert(*p == 2);
-		
-		lwc_println(p, D_TRAPF | D_NORMA, 2);
 		lwc_switch(result.caller, NULL, &result);
 	} else {
 		printf("Error.\n");

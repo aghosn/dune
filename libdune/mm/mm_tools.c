@@ -14,7 +14,8 @@
 //FIXME: change the interface, it doesn't make sense to have both apply and cow.
 mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 {
-	assert(mm && mm->mmap);
+	ASSERT_DBG(mm, "mm is null.\n");
+	ASSERT_DBG(mm->mmap, "mm->mmap is null.\n");
 	vm_area_struct *current = NULL;
 
 	//TODO: remove, for debugging.
@@ -50,7 +51,7 @@ mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 	}
 
 	copy->pml4 = vm_pgrot_copy(mm->pml4, cow);
-	assert(copy->pml4 != NULL);
+	ASSERT_DBG(copy->pml4, "copy->pml4 is null.\n");
 
 #ifdef DEBUG_MM
 	mm_assert_equals(mm, copy);
@@ -80,8 +81,8 @@ int mm_split_and_merge(	mm_struct *mm,
 						mm_cb_ft f,
 						void *args)
 {
-	assert(vma);
-	assert(start <= end);
+	ASSERT_DBG(vma, "vma is null.\n");
+	ASSERT_DBG(start <= end, "start{0x%016lx}, end{0x%016lx}.\n", start, end);
 	int ret;
 	vm_area_struct *iter = NULL, *last = NULL;
 	
@@ -94,7 +95,7 @@ int mm_split_and_merge(	mm_struct *mm,
 	}
 	/* Check that last is correctly set.*/
 	last = (last != NULL)? last : mm->mmap->last;
-	assert(last != NULL);
+	ASSERT_DBG(last, "last is null.\n");
 
 	/*1. creates only one vma, it is a merge 
 	 *2. creates only two blocks.
@@ -135,7 +136,9 @@ int mm_split_and_merge(	mm_struct *mm,
 
 	/*3.*/
 	/*TODO: Safety check, remove after making sure it works.*/
-	assert(start > vma->vm_start && end < last->vm_end);
+	ASSERT_DBG(start > vma->vm_start && end < last->vm_end, 
+	"start{0x%016lx}, vm_start{0x%016lx}, end{0x%016lx}, vm_end{0x%016lx}.\n",
+	start, vma->vm_start, end , last->vm_end);
 
 	f_start = vma->vm_start; f_end = start; f_perm = vma->vm_flags;
 
@@ -171,9 +174,18 @@ alloc: ;
 		to_remap = s_vma;
 	}
 
-	assert(to_remap->vm_start == start);
-	assert(to_remap->vm_end == end);
-	assert(to_remap->vm_flags == perm);
+	
+	ASSERT_DBG(	to_remap->vm_start == start,
+				"to_remap->vm_start{0x%016lx}, start{0x%016lx}",
+				to_remap->vm_start, start);
+
+	ASSERT_DBG(	to_remap->vm_end == end,
+				"to_remap->vm_end{0x%016lx}, end{0x%016lx}",
+				to_remap->vm_end, end);
+	
+	ASSERT_DBG(	to_remap->vm_flags == perm,
+				"to_remap->vm_flags{0x%016lx}, perm{0x%016lx}",
+				to_remap->vm_flags, perm);
 	
 	/* The mm_apply is only done on the portion that maps the given pa.*/
 	if ((ret = f(to_remap, args)))
@@ -217,7 +229,7 @@ typedef struct snm_struct {
 
 static int __mm_split_no_merge(vm_area_struct *vma, void* args)
 {
-	assert(args);
+	ASSERT_DBG(args, "args are null.\n");
 	snm_struct *snm = (snm_struct*)(args);
 	snm->n_head = vma;
 
@@ -234,9 +246,10 @@ int mm_split_no_merge(	mm_struct *mm,
 						mm_cb_ft f,
 						void *args)
 {
-	assert(mm);
-	assert(vma);
-	assert(start <= end);
+	ASSERT_DBG(mm, "mm is null.\n");
+	ASSERT_DBG(vma, "vma is null.\n");
+	ASSERT_DBG(start <= end, "start{0x%016lx}, end{0x%016lx}", start, end);
+	
 	int ret;
 	vm_area_struct *iter = NULL, *last = NULL;
 
@@ -250,7 +263,7 @@ int mm_split_no_merge(	mm_struct *mm,
 
 	/* Check that the last is correctly set.*/
 	last = (last != NULL)? last : mm->mmap->last;
-	assert(last != NULL);
+	ASSERT_DBG(last != NULL, "last is null.\n");
 
 	/* Fix the conflict with the last vma.*/
 	snm_struct snm_last = {NULL, f, args};
@@ -260,7 +273,7 @@ int mm_split_no_merge(	mm_struct *mm,
 		if (ret)
 			goto err;
 
-		assert(snm_last.n_head);
+		ASSERT_DBG(snm_last.n_head, "head is null.\n");
 	}
 
 	/* Fix the conflict with the first vma.*/
@@ -274,7 +287,7 @@ int mm_split_no_merge(	mm_struct *mm,
 		goto err;
 
 	/* Should have a pointer to the new head.*/
-	assert(snm_first.n_head);
+	ASSERT_DBG(snm_first.n_head, "head is null.\n");
 
 	/* Work is done, only one vm was conflicting.*/
 	if (snm_last.n_head == NULL)
@@ -305,8 +318,8 @@ int mm_vmas_walk(	vm_area_struct *start,
 					mm_cb_ft f,
 					void* args)
 {
-	assert(start);
-	assert(end);
+	ASSERT_DBG(start, "start is null.\n");
+	ASSERT_DBG(end, "end is null.\n");
 	int ret;
 	vm_area_struct *current;
 	for (current = start; current != NULL; current = current->lk_areas.next) {
@@ -341,7 +354,7 @@ int mm_delete_region(	mm_struct *mm,
 
 int mm_free(mm_struct *mm)
 {
-	assert(mm);
+	ASSERT_DBG(mm, "mm is null.\n");
 	int ret = 0;
 	if (!mm->mmap) {
 		free(mm);
@@ -368,28 +381,32 @@ void mm_uncow(mm_struct *mm, vm_addrptr va)
 	vm_area_struct *found = NULL;
 	vm_addrptr addr = MM_PGALIGN_DN(va);
 
-	//TODO: keep only the else. This is for debugging purposes.
 	Q_FOREACH(current, mm->mmap, lk_areas) {
 		if (current->vm_start == addr &&
 			current->vm_end == (addr + PGSIZE)) {
 			found = current;
 
-			assert(current->vm_flags & PERM_W);
-			assert(current->vm_flags & PERM_U);
+			ASSERT_DBG(current->vm_flags & PERM_W, "Missing write perm.\n");
+			ASSERT_DBG(current->vm_flags & PERM_U, "Missing user perm.\n");
 			break;
 		} else if (mm_overlap(current, addr, addr + PGSIZE)) {
 			/* There is no allocation smaller than one page, and everything is 
 			 * page-aligned, hence the fault should overlap with a single vma.*/
-			assert(current->vm_start <= addr);
-			assert(current->vm_end >= (addr + PGSIZE));
+			ASSERT_DBG(	current->vm_start <= addr,
+						"current->vm_start{0x%016lx}, addr{0x%016lx}\n",
+						current->vm_start, addr);
+
+			ASSERT_DBG(current->vm_end >= (addr + PGSIZE),
+				"current->vm_end{0x%016lx}, end{0x%016lx}\n",
+				current->vm_end, (addr + PGSIZE));
+
 			found = current;
 			break;
 		}
 	}
-	assert(found != NULL);
+	ASSERT_DBG(found != NULL, "Could not find the mapping to uncow.\n");
 	vm_uncow(mm->pml4, (void*) va);
 
-	//TODO: check the mm now.
 	mm_verify_mappings(mm);
 }
 
@@ -399,7 +416,7 @@ void mm_uncow(mm_struct *mm, vm_addrptr va)
 
 void mm_dump(mm_struct *mm)
 {
-	assert(mm);
+	ASSERT_DBG(mm, "mm is null.\n");
 	vm_area_struct *current = NULL;
 	Q_FOREACH(current, mm->mmap, lk_areas) {
 		vma_dump(current);
@@ -409,63 +426,73 @@ void mm_dump(mm_struct *mm)
 static void __compare_permissions(unsigned long flags, ptent_t pte)
 {
 	if (flags & PERM_U)
-		assert(pte & PTE_U);
-	else 
-		assert(!(pte & PTE_U));
+		ASSERT_DBG(pte & PTE_U, "missing user permission in pte.\n");
+	else
+		ASSERT_DBG(!(pte & PTE_U), "user perm in pte.\n");
 
 	if (pte & PTE_W)
-		assert(flags & PERM_W);
-	else 
-		assert(!(flags & PERM_W) || ((flags & PERM_U) && (pte & PTE_COW)));
+		ASSERT_DBG(flags & PERM_W, "missing write permission in flags.\n");
+	else {
+		ASSERT_DBG(!(flags & PERM_W) || ((flags & PERM_U) && (pte & PTE_COW)),
+			"flags have too many permissions.\n");
+	}
 
-	assert(!(flags & PERM_COW));
+	ASSERT_DBG(!(flags & PERM_COW), "COW bits in flags.\n");
 
-	if (pte & PTE_COW)
-		assert((flags & PERM_W) && (flags & PERM_U));
+	if (pte & PTE_COW) {
+		ASSERT_DBG((flags & PERM_W) && (flags & PERM_U),
+					"Missing perms for COW in the flags.\n");
+	}
 
 	//TODO: check that this is correct.
 	if (flags & PERM_X)
-		assert(!(pte & PTE_NX));
+		ASSERT_DBG(!(pte & PTE_NX), "missing execute in pte.\n");
 	// else 
 	// 	assert(pte & PTE_NX);
 
-	if (pte_big(pte))
-		assert(flags & PERM_BIG || flags & PERM_BIG_1GB);
-	else 
-		assert(!(flags & PERM_BIG || flags & PERM_BIG_1GB));
+	if (pte_big(pte)) {
+		ASSERT_DBG(	flags & PERM_BIG || flags & PERM_BIG_1GB,
+					"big not set in flags.\n");
+	} else {
+		ASSERT_DBG(!(flags & PERM_BIG || flags & PERM_BIG_1GB),
+					"big not set in perm.\n"); 
+	}
 }
 
 int mm_verify_mappings(mm_struct *mm)
 {
 	int ret = 0;
-	assert(mm);
-	assert(mm->mmap);
-	assert(mm->pml4);
+	ASSERT_DBG(mm, "mm is null.\n");
+	ASSERT_DBG(mm->mmap, "mm->mmap is null.\n");
+	ASSERT_DBG(mm->pml4, "mm->pml4 is null.\n");
 	vm_area_struct *current = NULL, *prev = NULL;
 
 	Q_FOREACH(current, mm->mmap, lk_areas) {
 		
 		/* Check that it's sorted.*/
-		if (prev)
-			assert(prev->vm_end <= current->vm_start);
+		if (prev) {
+			ASSERT_DBG(	prev->vm_end <= current->vm_start,
+						"prev->vm_end{0x%016lx}, current->vm_start{0x%016lx}\n",
+						prev->vm_end, current->vm_start);
+		}
 
 		/* Check the start.*/
 		ret = dune_vm_has_mapping(mm->pml4, (void*) current->vm_start);
-		assert(ret == 0);
+		ASSERT_DBG(ret == 0, "current->vm_start{0x%016lx}\n", current->vm_start);
 
 		/* Check the middle.*/
 		vm_addrptr mid = (current->vm_start + current->vm_end) /2;
 		ret = dune_vm_has_mapping(mm->pml4, (void*) mid);
-		assert(ret == 0);
+		ASSERT_DBG(ret == 0, "mid{0x%16lx}\n", mid);
 
 		/* Lookup the rights in page table and compare with vma.*/
 		ptent_t *pte = NULL;
 		ret = vm_lookup(mm->pml4, (void*) current->vm_start, &pte, CREATE_NONE, 0);
-		assert(pte);
+		ASSERT_DBG(pte, "pte is null.\n");
 		__compare_permissions(current->vm_flags, *pte);
 
 		/* Check that we do not use forbidden flags (i.e., PERM_COW)*/
-		assert(!(current->vm_flags & PERM_COW));
+		ASSERT_DBG(!(current->vm_flags & PERM_COW), "using COW flags.\n");
 
 		prev = current;
 	}
@@ -480,11 +507,20 @@ int mm_assert_equals(mm_struct *o, mm_struct *c)
 		o_current = o_current->lk_areas.next,
 		c_current = c_current->lk_areas.next) {
 
-		assert(o_current->vm_start == c_current->vm_start);
-		assert(o_current->vm_end == c_current->vm_end);
-		assert(o_current->vm_flags == c_current->vm_flags);
+		ASSERT_DBG(o_current->vm_start == c_current->vm_start, 
+			"o_current->vm_start{0x%016lx}, c_current->vm_start{0x%016lx}\n",
+			o_current->vm_start, c_current->vm_start);
+
+		ASSERT_DBG(o_current->vm_end == c_current->vm_end,
+				"o_current->vm_end{0x%016lx}, c_current->vm_end{0x%016lx}\n",
+				o_current->vm_end, c_current->vm_end);
+
+		ASSERT_DBG(o_current->vm_flags == c_current->vm_flags,
+			"o_current->vm_flags{0x%016lx}, c_current->vm_flags{0x%016lx}\n",
+			o_current->vm_flags, c_current->vm_flags);
 	}
 	/* Assert they have the same size.*/
-	assert(o_current == NULL && c_current == NULL);
+	ASSERT_DBG(o_current == NULL && c_current == NULL,
+		"o_current{%p}, c_current{%p}\n", o_current, c_current);
 	return 0;
 }

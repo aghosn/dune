@@ -309,6 +309,7 @@ __dune_syscall:
 	movq	%r11, RFLAGS(%rsp)
 	movq	%r10, RCX(%rsp) /* fixup to standard 64-bit calling ABI */
 	SAVE_REGS 0, 1
+	SAVE_REST
 	movq	%gs:TMP, %rax
 	movq	%rax, RSP(%rsp)
 
@@ -326,6 +327,7 @@ __dune_syscall:
 
 	/* then pop the trap frame off the stack */
 	RESTORE_REGS 0, 1
+	RESTORE_REST
 	movq	RCX(%rsp), %r10
 	movq	RFLAGS(%rsp), %r11
 	movq	RIP(%rsp), %rcx

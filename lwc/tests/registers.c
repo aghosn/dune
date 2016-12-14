@@ -26,15 +26,9 @@ int main(int argc, char *argv[]) {
 		asm("mov $13, %%r13;" : : : "r13");
 		asm("mov $14, %%r14;" : : : "r14");
 		asm("mov $15, %%r15;" : : : "r15");
-		/* TODO: missing registers */
+		
 		lwc_switch(result.n_lwc, NULL, &result);
-		//TODO: check registers are the same by failing.
-		asm("ud2");
-
-
-
 		uint64_t value;
-
 		//FIXME: gets changed to 21.
 		asm("mov %%rbx, %0" : "=r" (value));
 		lwc_println((void*)value, D_NORMA, 1);

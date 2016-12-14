@@ -11,7 +11,16 @@
 #include "elf.h"
 #include "fpu.h"
 #include "../kern/dune.h"
-//#include "mm/memory.h"
+
+#define ASSERT_DBG(cond, msg...)\
+do {\
+	if (!(cond)) {\
+		fprintf(stderr, "%s:%d: Assertion "#cond" failed.\n",__FILE__, __LINE__);\
+		fprintf(stderr, msg);\
+		fflush(stderr);\
+		exit(EXIT_FAILURE);\
+	}\
+} while(0)
 
 
 typedef void (*sighandler_t)(int);

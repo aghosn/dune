@@ -268,15 +268,15 @@ static int setup_syscall(void)
 
 #define VSYSCALL_ADDR 0xffffffffff600000
 
-static void setup_vsyscall(void)
+/*static void setup_vsyscall(void)
 {
 	ptent_t *pte;
 
 	dune_vm_lookup(pgroot, (void *) VSYSCALL_ADDR, 1, &pte);
 	*pte = PTE_ADDR(dune_va_to_pa(&__dune_vsyscall_page)) | PTE_P | PTE_U;
-}
+}*/
 
-static void __setup_mappings_cb(const struct dune_procmap_entry *ent)
+/*static void __setup_mappings_cb(const struct dune_procmap_entry *ent)
 {
 	int perm = PERM_NONE;
 	int ret;
@@ -312,9 +312,9 @@ static void __setup_mappings_cb(const struct dune_procmap_entry *ent)
 			      (void *) dune_va_to_pa((void *) ent->begin),
 			      perm);
 	assert(!ret);
-}
+}*/
 
-static int __setup_mappings_precise(void)
+/*static int __setup_mappings_precise(void)
 {
 	int ret;
 
@@ -328,9 +328,9 @@ static int __setup_mappings_precise(void)
 	dune_procmap_iterate(&__setup_mappings_cb);
 
 	return 0;
-}
+}*/
 
-static void setup_vdso_cb(const struct dune_procmap_entry *ent)
+/*static void setup_vdso_cb(const struct dune_procmap_entry *ent)
 {
 	if (ent->type == PROCMAP_TYPE_VDSO) {
 		dune_vm_map_phys(pgroot, (void *) ent->begin, ent->end - ent->begin, (void *) dune_va_to_pa((void *) ent->begin), PERM_U | PERM_R | PERM_X);
@@ -341,9 +341,9 @@ static void setup_vdso_cb(const struct dune_procmap_entry *ent)
 		dune_vm_map_phys(pgroot, (void *) ent->begin, ent->end - ent->begin, (void *) dune_va_to_pa((void *) ent->begin), PERM_U | PERM_R);
 		return;
 	}
-}
+}*/
 
-static int __setup_mappings_full(struct dune_layout *layout)
+/*static int __setup_mappings_full(struct dune_layout *layout)
 {
 	int ret;
 
@@ -369,9 +369,9 @@ static int __setup_mappings_full(struct dune_layout *layout)
 	setup_vsyscall();
 
 	return 0;
-}
+}*/
 
-static int setup_mappings(bool full)
+/*static int setup_mappings(bool full)
 {
 	struct dune_layout layout;
 	int ret = ioctl(dune_fd, DUNE_GET_LAYOUT, &layout);
@@ -388,7 +388,7 @@ static int setup_mappings(bool full)
 		ret = __setup_mappings_precise();
 
 	return ret;
-}
+}*/
 
 static struct dune_percpu *create_percpu(void)
 {

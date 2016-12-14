@@ -236,7 +236,7 @@ create:
     Q_INIT_HEAD(&(n_lwc->children));
 
     /* Initialize the dune trap frame.*/
-    memcpy(&(n_lwc->tf), tf, sizeof(struct dune_tf));
+    n_lwc->tf = *tf;
     
     /* Create the child result, might fault.*/
     res->n_lwc = n_lwc;
@@ -282,7 +282,7 @@ int sys_lwc_switch( struct dune_tf *tf,
     Q_INSERT_FRONT(contexts, lwc, lk_ctx);
     
     /* Save the current point.*/
-    memcpy(&(current->tf), tf, sizeof(struct dune_tf));
+    current->tf = *tf;
 
     /* Set the pointer to the result for when we switch back.*/
     current->tf.rax = (uint64_t) res;
