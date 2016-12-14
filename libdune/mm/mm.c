@@ -36,7 +36,11 @@ static void __mm_setup_mappings_cb(const struct dune_procmap_entry *ent)
 		
 		unsigned long perm = PERM_W;
 		ret = mm_create_phys_mapping(current_mm, start, end, pa, perm);
-		assert(ret == 0);
+		
+		ASSERT_DBG(ret == 0,
+		"start{0x%016lx}, end{0x%016lx}, pa{0x%016lx}, perm{0x%016lx}.\n",
+		start, end,(unsigned long)pa, perm);
+		
 		return;
 	}
 
@@ -49,7 +53,11 @@ static void __mm_setup_mappings_cb(const struct dune_procmap_entry *ent)
 		/* VDSO is accessed in user mode for execution.*/
 		perm |= PERM_U | PERM_R | PERM_X;
 		ret = mm_create_phys_mapping(current_mm, start, end, pa, perm);
-		assert(ret == 0);
+		
+		ASSERT_DBG(ret == 0,
+			"start{0x%016lx}, end{0x%016lx}, pa{0x%016lx}, perm{0x%016lx}\n",
+			start, end, (unsigned long)pa, (unsigned long)perm);
+
 		return;
 	}
 
@@ -57,7 +65,11 @@ static void __mm_setup_mappings_cb(const struct dune_procmap_entry *ent)
 		/* I leave the user permission since we do not have write access.*/
 		perm |= PERM_U | PERM_R;
 		ret = mm_create_phys_mapping(current_mm, start, end, pa, perm);
-		assert(ret == 0);
+		
+		ASSERT_DBG(ret == 0,
+			"start{0x%016lx}, end{0x%016lx}, pa{0x%016lx}, perm{0x%016lx}\n",
+			start, end, (unsigned long)pa, (unsigned long)perm);
+
 		return;
 	}
 
@@ -70,7 +82,10 @@ static void __mm_setup_mappings_cb(const struct dune_procmap_entry *ent)
 
 	/* Other physical mappings. For them we do not add user permission.*/
 	ret = mm_create_phys_mapping(current_mm, start, end, pa, perm);
-	assert(ret == 0);
+	
+	ASSERT_DBG(ret == 0,
+			"start{0x%016lx}, end{0x%016lx}, pa{0x%016lx}, perm{0x%016lx}\n",
+			start, end, (unsigned long)pa, (unsigned long)perm);
 }
 
 /* Init the memory regions.
@@ -81,9 +96,13 @@ int mm_init()
 	int ret;
 	void *start = NULL, *end = NULL, *pa = NULL;
 	unsigned long perm = 0;
-	assert(mm_root != NULL);
+
+	ASSERT_DBG(mm_root != NULL, "mm_root is null.\n");
+	
 	mm_struct *current_mm = memory_get_mm();
-	assert(current_mm == mm_root);
+	
+	ASSERT_DBG(current_mm == mm_root,
+		"current_mm{%p}, mm_root{%p}\n", current_mm, mm_root);
 
 	/* Map the page base. */
 	start = (void*) PAGEBASE;
@@ -107,7 +126,7 @@ int mm_init()
 
 vm_area_struct* mm_find(mm_struct *mm, vm_addrptr addr, bool is_end)
 {
-	assert(mm);
+	ASSERT_DBG(mm, "mm is null.\n");
 	vm_area_struct *res = NULL, *current = NULL;
 
 	/* Fast paths.*/
@@ -144,18 +163,21 @@ vm_area_struct* mm_find(mm_struct *mm, vm_addrptr addr, bool is_end)
 		res = current;
 	}
 ret:
-	assert(res);
+	ASSERT_DBG(res, "Could not find a result.\n");
 	return res;
 }
 
 //TODO: FIXME, this method actually allocates when it is not supposed to.
+//Does it still do that?
 int mm_create_phys_mapping(mm_struct *mm, 
 							vm_addrptr va_start, 
 							vm_addrptr va_end, 
 							void* pa, 
 							unsigned long perm)
 {
-	assert(mm->mmap); assert(va_start < va_end);
+	ASSERT_DBG(mm->mmap, "mm->mmap is null.\n"); 
+	ASSERT_DBG(va_start < va_end,
+		"va_start{0x%016lx}, va_end{0x%016lx}.\n", va_start, va_end);
 	
 	int ret = 0;
 	vm_area_struct *current = NULL;
@@ -207,7 +229,6 @@ int mm_create_phys_mapping(mm_struct *mm,
 		}
 
 		/*Try to insert*/
-		//FIXME: current bug is here.
 		if (current->vm_start >=  va_end) {
 			vm_area_struct *vma = vma_create(mm, va_start, va_end, perm);
 			if (!vma)
@@ -218,30 +239,31 @@ int mm_create_phys_mapping(mm_struct *mm,
 		}
 	}
 	/*Should never come here.*/
-	assert(0);
+	ASSERT_DBG(0, "Should not have reached this.\n");
 	return ret;
 }
 
 int mm_apply_to_pgroot(vm_area_struct *vma, void *pa)
 {
-	assert(vma && vma->vm_mm && vma->vm_mm->pml4);
+	ASSERT_DBG(vma && vma->vm_mm && vma->vm_mm->pml4, "uninitialized element.\n");
 
 	if (pa != NULL) {
 		return dune_vm_map_phys(vma->vm_mm->pml4, (void*)vma->vm_start,
 		(size_t)(vma->vm_end - vma->vm_start), pa, vma->vm_flags);
 	}
 
-	//TODO: allocate new page.
-	//FIXME: should never be called for the moment.
-	assert(0);
+	//FIXME:
+	ASSERT_DBG(0, "Should not have reached this part.\n");
 	return 1;
 }
 
 static int __mm_apply_protect(vm_area_struct *vma, void* perm)
 {
-	assert(perm != NULL);
-	assert(vma && vma->vm_mm && vma->vm_mm->pml4);
-	assert(vma->vm_flags == *((unsigned long*)perm));
+	ASSERT_DBG(perm != NULL, "The permissions are null.\n");
+	ASSERT_DBG(vma && vma->vm_mm && vma->vm_mm->pml4, "Null params.\n");
+	ASSERT_DBG(vma->vm_flags == *((unsigned long*)perm),
+		"vm_flags{0x%016lx}, perm{0x%016lx}.\n",
+		vma->vm_flags, *((unsigned long*)perm));
 
 	return dune_vm_mprotect(vma->vm_mm->pml4,(void*)(vma->vm_start),
 		(size_t)(vma->vm_end - vma->vm_start), vma->vm_flags);
@@ -255,7 +277,7 @@ static int __mm_apply_protect(vm_area_struct *vma, void* perm)
 int mm_mprotect(mm_struct *mm, vm_addrptr start,
 				vm_addrptr end, unsigned long perm)
 {
-	assert(mm);
+	ASSERT_DBG(mm, "mm is null.\n");
 	int ret = -1;
 	vm_area_struct *current = NULL;
 	/* Page align the start and end.*/
@@ -278,13 +300,13 @@ int mm_mprotect(mm_struct *mm, vm_addrptr start,
 	}
 	
 	/* Should never come here.*/
-	assert(0); 
+	ASSERT_DBG(0, "Should not have reached this part.\n"); 
 	return -EINVAL;
 }
 
 static int __mm_unmap(vm_area_struct *vma, void *args)
 {
-	assert(vma != NULL);
+	ASSERT_DBG(vma != NULL, "vma is null.\n");
 	vm_area_struct **pt = ((vm_area_struct**)args);
 	*pt = vma;
 	return 0;
@@ -292,7 +314,7 @@ static int __mm_unmap(vm_area_struct *vma, void *args)
 
 int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end, bool apply)
 {
-	assert(start < end);
+	ASSERT_DBG(start < end, "start{0x%016lx}, end{0x%016lx}\n", start, end);
 	int ret = 0;
 	vm_area_struct *current = NULL, *to_rm = NULL;
 	
@@ -323,7 +345,7 @@ int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end, bool apply)
 	}
 	/* TODO: for debugging remove afterwards.
 	 * Need to decide if we return 0 or it is a fault to unmap invalid addr.*/
-	assert(0);
+	ASSERT_DBG(0, "Should not have reached this part.\n");
 	return -EINVAL;
 }
 
@@ -331,7 +353,10 @@ void mm_apply(mm_struct *mm)
 {
 	vm_area_struct *current = NULL;
 	Q_FOREACH(current, mm->mmap, lk_areas) {
-		assert(current->vm_mm == mm);
+		
+		ASSERT_DBG(current->vm_mm == mm,
+			"current->vm_mm{%p}, mm{%p}.\n", current->vm_mm, mm);
+		
 		if (!vma_is_user(current))
 			continue;
 		if (current->dirty) {

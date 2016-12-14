@@ -30,7 +30,7 @@ int lwc_init()
     Q_INIT_ELEM(lwc_root, lk_ctx);
     Q_INIT_ELEM(lwc_root, lk_parent);
     Q_INIT_HEAD(&(lwc_root->children));
-    assert(mm_root != NULL);
+    ASSERT_DBG(mm_root != NULL, "mm_root is null.\n");
 
     lwc_root->vm_mm = mm_root;
     lwc_root->parent = NULL;
@@ -54,7 +54,7 @@ err:
 
 static int __lwc_validate_mod(vm_area_struct *vma, void* args)
 {
-    assert(vma);
+    ASSERT_DBG(vma, "vma is null.\n");
     if (vma->vm_flags & PERM_U)
         return 0;
     return 1;
@@ -62,8 +62,8 @@ static int __lwc_validate_mod(vm_area_struct *vma, void* args)
 
 static int lwc_validate_mod(lwc_rsrc_spec *mod, mm_struct *o)
 {
-    assert(o);
-    assert(mod);
+    ASSERT_DBG(o, "o is null.\n");
+    ASSERT_DBG(mod, "mod is null.\n");
 
     lwc_rg_struct *prev = NULL, *curr = NULL;
     Q_FOREACH(curr, &(mod->ranges), lk_rg) {
@@ -81,8 +81,11 @@ static int lwc_validate_mod(lwc_rsrc_spec *mod, mm_struct *o)
             return 2;
         }
 
-        if (start != end)
-            assert(start->vm_end <= end->vm_start);
+        if (start != end) {
+            ASSERT_DBG(start->vm_end <= end->vm_start,
+                "start->vm_end{0x%016lx}, end->vm_start{0x%016lx}\n",
+                start->vm_end, end->vm_start);
+        }
         
         /*Check that none is kernel.*/
         if (mm_vmas_walk(start, end, &__lwc_validate_mod, NULL))
@@ -97,7 +100,7 @@ static int lwc_validate_mod(lwc_rsrc_spec *mod, mm_struct *o)
 
 static int __share_mem_helper(ptent_t *pte, void *va, cb_info *args)
 {
-    assert(pte && args);
+    ASSERT_DBG(pte && args, "pte{%p}, args{%p}\n", pte, args);
     int ret;
     ptent_t* pte_c = NULL;
     mm_struct *copy = (mm_struct*)(args->args);
@@ -107,13 +110,13 @@ static int __share_mem_helper(ptent_t *pte, void *va, cb_info *args)
     }
 
     /* Remap the page in the copy.*/
-    assert(*pte & PTE_U);
-    assert(*pte & PTE_P);
-    assert(!(*pte & PTE_COW));
-    assert(*pte_c & PTE_U);
-    assert(*pte_c & PTE_P);
-    assert(*pte_c & PTE_COW);
-    assert(!(*pte_c & PTE_W));
+    ASSERT_DBG(*pte & PTE_U, "user permissions missing.\n");
+    ASSERT_DBG(*pte & PTE_P, "pte not present.\n");
+    ASSERT_DBG(!(*pte & PTE_COW), "pte is cow.\n");
+    ASSERT_DBG(*pte_c & PTE_U, "copy missing user permissions.\n");
+    ASSERT_DBG(*pte_c & PTE_P, "copy not present.\n");
+    ASSERT_DBG(*pte_c & PTE_COW, "pte_c not cow.\n");
+    ASSERT_DBG(!(*pte_c & PTE_W), "pte_c has write permissions.\n");
     struct page *pg = dune_pa2page(PTE_ADDR(*pte_c));
     
     if (dune_page_isfrompool(PTE_ADDR(*pte_c)))
@@ -126,7 +129,7 @@ static int __share_mem_helper(ptent_t *pte, void *va, cb_info *args)
 
 static int __share_mem(mm_struct *o, mm_struct *c, lwc_rg_struct *mod)
 {
-    assert(o && c && mod);
+    ASSERT_DBG(o && c && mod, "o{%p}, c{%p}, mod{%p}.\n", o, c, mod);
     int ret;
     vm_addrptr start, end, curr;
 
@@ -145,7 +148,7 @@ static int __share_mem(mm_struct *o, mm_struct *c, lwc_rg_struct *mod)
 
 static int __unmap_mem(mm_struct *o, mm_struct *c, lwc_rg_struct *mod)
 {
-    assert(o && c && mod);
+    ASSERT_DBG(o && c && mod, "o{%p}, c{%p}, mod{%p}.\n", o, c, mod);
 
     return mm_unmap(c, mod->start, mod->end, true);
 }
@@ -153,7 +156,7 @@ static int __unmap_mem(mm_struct *o, mm_struct *c, lwc_rg_struct *mod)
 //TODO hum for cow might need the original.
 static mm_struct* lwc_apply_mm(mm_struct *o, lwc_rsrc_spec *mod)
 {
-    assert(mod && o);
+    ASSERT_DBG(o && mod, "o{%p}, mod{%p}.\n", o, mod);
     
     mm_struct *copy = NULL;
      if (lwc_validate_mod(mod, o))
@@ -266,17 +269,21 @@ int sys_lwc_switch( struct dune_tf *tf,
                     void *args,
                     lwc_res_t *res)
 {
-    assert(tf);
-    assert(lwc);
+    ASSERT_DBG(tf, "trap frame is null.\n");
+    ASSERT_DBG(lwc, "lwc is null.\n");
     /* Get the current context.*/
     lwc_struct *current = Q_GET_FRONT(contexts);
     
     /* Sanity checks.*/
-    assert(current);
-    assert(current->vm_mm);
+    ASSERT_DBG(current, "current is null.\n");
+    ASSERT_DBG(current->vm_mm, "current->vm_mm is null.\n");
     mm_struct * __current_mm = Q_GET_FRONT(mm_queue);
-    assert(current->vm_mm == __current_mm);
-    assert(__current_mm->pml4 == pgroot);
+    ASSERT_DBG(current->vm_mm == __current_mm,
+        "current->vm_mm{0x%016lx}, __current_mm{0x%016lx}\n",
+        (unsigned long)current->vm_mm,(unsigned long)__current_mm); 
+    ASSERT_DBG(__current_mm->pml4 == pgroot,
+        "__current_mm->pml4{0x%016lx}, pgroot{0x%016lx}\n",
+        (unsigned long)__current_mm->pml4, (unsigned long)pgroot);
 
     Q_REMOVE(contexts, lwc, lk_ctx);
     Q_INSERT_FRONT(contexts, lwc, lk_ctx);
@@ -320,7 +327,7 @@ int sys_fake_println(struct dune_tf *tf, void* arg, int flags, int id)
     if (flags & D_MMMAP) {
         printf("%d__(MMAP) dumping the memory mappings.\n", id);
         mm_struct* current = memory_get_mm();
-        assert(current);
+        ASSERT_DBG(current, "current is null.\n");
         mm_dump(current);
     }
 
@@ -335,7 +342,7 @@ int sys_fake_println(struct dune_tf *tf, void* arg, int flags, int id)
 
 int lwc_free(lwc_struct *lwc)
 {
-    assert(lwc);
+    ASSERT_DBG(lwc, "lwc is null.\n");
     if (lwc->parent) {
         lwc_struct *parent = lwc->parent;
         Q_REMOVE(&(parent->children), lwc, lk_parent);

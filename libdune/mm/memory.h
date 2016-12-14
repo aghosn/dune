@@ -30,25 +30,34 @@ extern l_mm *mm_queue;
 static inline mm_struct* memory_get_mm()
 {
 	mm_struct *current = Q_GET_FRONT(mm_queue);
-	assert(current && current->pml4);
-	assert(current->pml4 == pgroot);
+	ASSERT_DBG(current && current->pml4, "mm not initilized.\n");
+	
+	ASSERT_DBG(current->pml4 == pgroot,
+		"current->pml4{%p}, pgroot{%p}.\n", current->pml4, pgroot);
+
 	return current;
 }
 
 /* Returns the current page root.*/
 static inline ptent_t* memory_get_pgrot() {
 	mm_struct *current = Q_GET_FRONT(mm_queue);
-	assert(current && current->pml4);
-	assert(current->pml4 == pgroot);
+	ASSERT_DBG(current && current->pml4, "mm not initilized.\n");
+	
+	ASSERT_DBG(current->pml4 == pgroot,
+		"current->pml4{%p}, pgroot{%p}.\n", current->pml4, pgroot);
+
 	return current->pml4;
 }
 
 /* Change the current memory mapping*/
 static inline void memory_switch(mm_struct *mm) {
-	assert(mm);
-	assert(mm->pml4);
+	ASSERT_DBG(mm, "mm is null.\n");
+	ASSERT_DBG(mm->pml4, "mm->pml4 is null.\n");
+
 	mm_struct *current = Q_GET_FRONT(mm_queue);
-	assert(pgroot == current->pml4);
+	
+	ASSERT_DBG(pgroot == current->pml4,
+		"current->pml4{%p}, pgroot{%p}.\n", current->pml4, pgroot);
 
 	Q_REMOVE(mm_queue, mm, lk_mms);
 	Q_INSERT_FRONT(mm_queue, mm, lk_mms);

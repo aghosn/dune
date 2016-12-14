@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <assert.h>
-
 
 #include "vma.h"
 
@@ -11,13 +9,8 @@ vm_area_struct *vma_create(	mm_struct *mm,
 							vm_addrptr end,
 							unsigned long perm)
 {
-	assert(start == MM_PGALIGN_DN(start));
-	assert(end == MM_PGALIGN_UP(end));
-
-	/*if (start <= 0x0000007efffff540 && end > 0x0000007efffff540) {
-		printf("We create the vma here.\n");
-		exit(1);
-	}*/
+	ASSERT_DBG(start == MM_PGALIGN_DN(start), "start{0x%016lx}.\n", start);
+	ASSERT_DBG(end == MM_PGALIGN_UP(end), "end{0x%016lx}.\n", end);
 
 	vm_area_struct *vma = malloc(sizeof(vm_area_struct));
 	if (!vma)
@@ -35,14 +28,14 @@ vm_area_struct *vma_create(	mm_struct *mm,
 //FIXME: should we implement the unmapping here instead?
 int vma_free(vm_area_struct *vma)
 {
-	assert(vma);
+	ASSERT_DBG(vma, "vma is null.\n");
 	free(vma);
 	return 0;
 }
 
 vm_area_struct *vma_copy(vm_area_struct *vma, bool cow)
 {
-	assert(vma);
+	ASSERT_DBG(vma, "vma is null.\n");
 	vm_area_struct *copy = malloc(sizeof(vm_area_struct));
 	if (!copy) goto err;
 	
@@ -70,7 +63,7 @@ vm_area_struct *vma_shared_copy(vm_area_struct *vma)
 
 void vma_dump(vm_area_struct *vma)
 {
-	assert(vma);
+	ASSERT_DBG(vma, "vma is null.\n");
 	printf("0x%016lx-0x%016lx,", vma->vm_start, vma->vm_end);
 	printf(" flags: %016lx, ", vma->vm_flags);
 	printf("dirty: %d, user: %d.\n", vma->dirty, vma_is_user(vma));

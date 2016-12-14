@@ -1,7 +1,6 @@
 #ifndef __LIBDUNE_MM_VMA_H__
 #define __LIBDUNE_MM_VMA_H__
 #include <stdbool.h>
-#include <assert.h>
 
 #include "mm_types.h"
 
@@ -13,7 +12,7 @@
 
 static inline bool vma_is_user(vm_area_struct *vma)
 {
-	assert(vma);
+	ASSERT_DBG(vma, "vma is null.\n");
 	return (vma->vm_flags & PERM_U);
 }
 
