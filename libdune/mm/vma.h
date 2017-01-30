@@ -1,5 +1,7 @@
 #ifndef __LIBDUNE_MM_VMA_H__
 #define __LIBDUNE_MM_VMA_H__
+
+#include <stdlib.h>
 #include <stdbool.h>
 
 #include "mm_types.h"
@@ -30,4 +32,4 @@ vm_area_struct *vma_copy(vm_area_struct *vma, bool cow);
 vm_area_struct *vma_cow_copy(vm_area_struct *vma);
 vm_area_struct *vma_shared_copy(vm_area_struct *vma);
 void vma_dump(vm_area_struct *vma);
-#endif /*__LIBDUNE_MM_VMA_H__*/
+#endif
