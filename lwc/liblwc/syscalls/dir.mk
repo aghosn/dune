@@ -21,6 +21,6 @@
 
 # Makefile for the core lwc library.
 
-SRC = umm.c trap.c  usyscalls.c
+SRC = umm.c trap.c  usyscalls.c syscallmap.c
 
 $(eval $(call register_dir, syscalls, $(SRC)))
