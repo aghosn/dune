@@ -134,6 +134,7 @@ typedef SLIST_ENTRY(page) page_entry_t;
 struct page {
 	page_entry_t link;
 	uint64_t ref;
+	uint64_t hva;
 };
 
 extern struct page *pages;
