@@ -98,8 +98,8 @@ static uint64_t *scm_arg(struct dune_tf *tf, char c)
 		return &ARG4(tf);
 	case '5':
 		return &ARG5(tf);
-	//default:
-		//panic("scm_arg - bad argument %d\n", c);
+	default:
+		panic("scm_arg - bad argument %d\n", c);
 	}
 	return (uint64_t *)0;
 }
@@ -131,7 +131,7 @@ syscallmap_checkparams(struct dune_tf *tf,
 	} else {
 
 		//log_err("[syscallmap] not implemented %d\n", nr);
-		//panic("syscallmap_checkparams\n");
+		panic("syscallmap_checkparams\n");
 	}
 
 
@@ -163,7 +163,7 @@ syscallmap_checkparams(struct dune_tf *tf,
 				ret = cb(tf, addr_ptr, len);
 			// then read the IOV vector (not implemnented)
 			// then check the arguments of the IOV (not implemented)
-			//panic("not implemented - IOV SG\n");
+			panic("not implemented - IOV SG\n");
 			check += 3;
 			break;
 		case 'F': /* fixed sized pointer */
@@ -178,8 +178,8 @@ syscallmap_checkparams(struct dune_tf *tf,
 			extra = 1;
 			check += 1;
 			break;
-		//default:
-		//	panic("syscallmap: unknonwn case\n");
+		default:
+			panic("syscallmap: unknonwn case\n");
 
 		}
 		if (ret)
@@ -195,7 +195,7 @@ syscallmap_checkparams(struct dune_tf *tf,
 		default:
 			// implement extra special system calls here
 			//log_err("unhandled extra condition for syscall %d\n", nr);
-			//panic("bad");
+			panic("bad");
 			;
 		}
 	}
@@ -249,8 +249,8 @@ static void scm_defsignature(int nr, const char *name,
 			case 'X':
 				s++;
 				break;
-			//default:
-			//	panic("syscallmap - bad option\n");
+			default:
+				panic("syscallmap - bad option\n");
 			}
 		}
 	}

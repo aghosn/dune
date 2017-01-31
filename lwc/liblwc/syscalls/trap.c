@@ -60,6 +60,7 @@
 #include "mem.h"
 
 #include "lwc_sysnr.h"
+#include "syscallmap.h"
 
 struct thread_arg {
 	pthread_cond_t	ta_cnd;
@@ -244,7 +245,39 @@ static int check_iovec(struct iovec *iov, int num)
 	return 0;
 }
 
+/*TODO aghosn: modify to take into account lwc?*/
+static int syscall_memcheck(struct dune_tf *tf, uintptr_t *start_addr, uintptr_t len)
+{
+	uintptr_t maxlen;
+	uintptr_t ptr = *start_addr;
+	if (len == 0) {
+		if (ptr < MEM_SANDBOX_BASE_ADDR)
+			maxlen = MEM_SANDBOX_BASE_ADDR - ((uintptr_t) ptr);
+		else if (ptr >= MEM_USER_DIRECT_BASE_ADDR) {
+			if (ptr >= MEM_USER_DIRECT_END_ADDR)
+				return -EFAULT;
+			maxlen = MEM_USER_DIRECT_END_ADDR - ((uintptr_t) ptr);
+		} else
+			return -EFAULT;
+
+		void * pos = memchr((void *)ptr, 0, maxlen);
+		if (!pos)
+			return -EFAULT;
+	} else {
+		assert(len > 0);
+		if (!mem_ref_is_safe((const void *)ptr, len))
+			return -EFAULT;
+	}
+	return 0;
+}
+
 static int syscall_check_params(struct dune_tf *tf)
+{
+	return syscallmap_checkparams(tf, syscall_memcheck);
+}
+
+
+static int syscall_check_params_depricated(struct dune_tf *tf)
 {
 	void *ptr = NULL;
 	uint64_t len = 0;
@@ -654,5 +687,6 @@ static void syscall_handler(struct dune_tf *tf)
 int trap_init(void)
 {
 	dune_register_syscall_handler(&syscall_handler);
+	syscallmap_init();
 	return 0;
 }

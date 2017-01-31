@@ -29,4 +29,5 @@ extern void syscallmap_trace(int nr, struct dune_tf *tf, pid_t tid);
 typedef int (*syscallmap_checkmem_cb)(struct dune_tf *tf, uintptr_t *start_addr, uintptr_t len);
 
 extern int syscallmap_checkparams(struct dune_tf *tf, syscallmap_checkmem_cb cb);
+#define panic(fmt, ...) do {printf(fmt, ##__VA_ARGS__); exit(-1); } while (0)
 
