@@ -3,7 +3,7 @@ DUNE_LIB = $(DUNE)/libdune/libdune.a
 CC = gcc
 CFLAGS = -Wall -O3 -pthread -I$(DUNE)/libdune -I../liblwc
 
-APPS = hello shared mmap double_switch registers
+APPS = hello shared mmap double_switch registers gva_hva
 
 all: $(APPS)
 

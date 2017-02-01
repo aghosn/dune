@@ -47,10 +47,7 @@
 
 #include <dune.h>
 
-
 #include "syscallmap.h"
-
-
 
 #define MAX_SYSCALL 425  // allow "new" system calls for libOS
 
@@ -79,8 +76,6 @@ void syscallmap_trace(int syscall_nr, struct dune_tf *tf, pid_t tid)
 		//log_info("SYSCALL unknown %d\n", syscall_nr);
 	}
 }
-
-
 
 static uint64_t *scm_arg(struct dune_tf *tf, char c)
 {
@@ -331,9 +326,4 @@ void syscallmap_init(void)
 
 	/* 400 */ scm_defsignature(400, "backos_init", "strategy=%d", NULL, 0);
 	/* 401 */ scm_defsignature(401, "backos_guess", "n=%d", NULL, 0);
-
-
 }
-
-
-

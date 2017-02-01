@@ -273,16 +273,39 @@ static int check_iovec(struct iovec *iov, int num)
 	return 0;
 }*/
 
-//TODO finish
+/* 1. Check that the address is within the correct boundaries.
+ * 2. Access the guest physical page that corresponds to it.
+ * 3. If not using a page from pool, then everything is fine.
+ * 4. Else, check if falls on the same page. If not refuse.
+ * TODO: not enough?
+ */
 static int syscall_memcheck(struct dune_tf *tf, uintptr_t *start_addr, uint64_t len)
 {
 	lwc_struct *current = Q_GET_FRONT(contexts);
 	ASSERT_DBG(current != NULL, "lwc not found.");
 
-	if (mm_verify_range(current->vm_mm,(vm_addrptr) start_addr, len))
+	/*1.*/
+	if (!mm_verify_range(current->vm_mm,(vm_addrptr) *start_addr, len))
+		return -1;
+
+	ptent_t* pte_out = NULL;
+	if (vm_lookup(current->vm_mm->pml4, (void*) *start_addr, &pte_out, 0, 0))
+		return -1;
+
+	/*2.*/
+	if (!dune_page_isfrompool(PTE_ADDR(*pte_out)))
 		return 0;
 
-	return -1;
+	/*3.*/
+	struct page *p = dune_pa2page(PTE_ADDR(*pte_out));
+	
+	/*4. TODO aghosn*/
+	/*if (len > 0) {
+		return -1;
+	}*/
+
+	*start_addr = PTE_ADDR(*pte_out) | PGOFF(*start_addr);
+	return 0;
 }
 
 static int syscall_check_params(struct dune_tf *tf)

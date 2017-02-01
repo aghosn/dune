@@ -409,6 +409,19 @@ void mm_uncow(mm_struct *mm, vm_addrptr va)
 	mm_verify_mappings(mm);
 }
 
+
+physaddr_t mm_get_physaddr(mm_struct *mm, vm_addrptr va)
+{
+	ASSERT_DBG(mm, "mm is null.\n");
+	ASSERT_DBG(mm_verify_range(mm, va, 0), "address not in vmas.\n");
+	int res = -1;
+	ptent_t* pte_out = NULL;
+	res = vm_lookup(mm->pml4, (void*) va, &pte_out, 0, 0);
+	ASSERT_DBG(res == 0, "error, mapping not found.\n");
+	ASSERT_DBG(pte_out, "mapping not found.\n");
+
+	return ((physaddr_t) pte_out) | PGOFF(va);
+}
 /******************************************************************************/
 /*					Debugging functions										  */
 /******************************************************************************/

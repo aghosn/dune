@@ -49,6 +49,9 @@ int mm_free(mm_struct *mm);
 /* Uncows a mapping.*/
 void mm_uncow(mm_struct *mm, vm_addrptr va);
 
+/* Returns the guest physical address for a guest virtual address.*/
+physaddr_t mm_get_physaddr(mm_struct *mm, vm_addrptr va);
+
 /* Pretty prints the mm regions.*/
 void mm_dump(mm_struct *mm);
 
