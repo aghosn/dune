@@ -59,8 +59,11 @@
 #include <cpu-x86.h>
 #include "mem.h"
 
+#include <mm/mm.h>
 #include "lwc_sysnr.h"
 #include "syscallmap.h"
+#include "../core/lwc.h"
+
 
 struct thread_arg {
 	pthread_cond_t	ta_cnd;
@@ -245,8 +248,7 @@ static int check_iovec(struct iovec *iov, int num)
 	return 0;
 }
 
-/*TODO aghosn: modify to take into account lwc?*/
-static int syscall_memcheck(struct dune_tf *tf, uintptr_t *start_addr, uintptr_t len)
+/*static int syscall_memcheck_depricated(struct dune_tf *tf, uintptr_t *start_addr, uintptr_t len)
 {
 	uintptr_t maxlen;
 	uintptr_t ptr = *start_addr;
@@ -269,6 +271,18 @@ static int syscall_memcheck(struct dune_tf *tf, uintptr_t *start_addr, uintptr_t
 			return -EFAULT;
 	}
 	return 0;
+}*/
+
+//TODO finish
+static int syscall_memcheck(struct dune_tf *tf, uintptr_t *start_addr, uint64_t len)
+{
+	lwc_struct *current = Q_GET_FRONT(contexts);
+	ASSERT_DBG(current != NULL, "lwc not found.");
+
+	if (mm_verify_range(current->vm_mm,(vm_addrptr) start_addr, len))
+		return 0;
+
+	return -1;
 }
 
 static int syscall_check_params(struct dune_tf *tf)

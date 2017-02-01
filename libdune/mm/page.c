@@ -116,7 +116,7 @@ bool dune_page_isfrompool(physaddr_t pa)
 int dune_page_init(void)
 {
 	int i;
-	void *mem, *hva;
+	void *mem;
 
 	SLIST_INIT(&pages_free);
 	num_pages = GROW_SIZE;
@@ -129,11 +129,8 @@ int dune_page_init(void)
 	if (!pages)
 		goto err;
 
-	hva = mem;
 	for (i = 0; i < num_pages; i++) {
 		pages[i].ref = 0;
-		pages[i].hva = (uint64_t) hva;
-		hva += PGSIZE;
 		SLIST_INSERT_HEAD(&pages_free, &pages[i], link);
 	}
 

@@ -367,3 +367,27 @@ void mm_apply(mm_struct *mm)
 		}
 	}
 }
+
+int mm_verify_range(mm_struct *mm, vm_addrptr addr, uint64_t len)
+{
+	vm_area_struct *current = NULL;
+	Q_FOREACH(current, mm->mmap, lk_areas) {
+		if (mm_overlap(current, addr, addr + len)) {
+
+			vm_area_struct *previous = current;
+			vm_area_struct *runner = previous->lk_areas.next;
+			while (runner != NULL && mm_overlap(runner, addr, addr + len)) {
+				if (previous->vm_end < runner->vm_start)
+					return 0;
+
+				previous = runner;
+				runner = runner->lk_areas.next;
+			}
+			ASSERT_DBG(previous != NULL, "mapping not found.");
+			ASSERT_DBG(mm_overlap(previous, addr, addr + len), "error.");
+			return (previous->vm_end > addr + len);
+		}
+	}
+	return 0;
+}
+

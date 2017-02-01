@@ -30,4 +30,6 @@ int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end, bool apply);
 /* Applies mappings to pageroot for user entries marked as dirty.*/
 void mm_apply(mm_struct *mm);
 
+int mm_verify_range(mm_struct *mm, vm_addrptr addr, uint64_t len);
+
 #endif /*__LIBDUNE_MM_MM_H__*/
