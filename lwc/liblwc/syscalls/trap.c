@@ -60,6 +60,7 @@
 #include "mem.h"
 
 #include <mm/mm.h>
+#include <mm/vm.h>
 #include "lwc_sysnr.h"
 #include "syscallmap.h"
 #include "../core/lwc.h"
@@ -297,7 +298,7 @@ static int syscall_memcheck(struct dune_tf *tf, uintptr_t *start_addr, uint64_t 
 		return 0;
 
 	/*3.*/
-	struct page *p = dune_pa2page(PTE_ADDR(*pte_out));
+	//struct page *p = dune_pa2page(PTE_ADDR(*pte_out));
 	
 	/*4. TODO aghosn*/
 	/*if (len > 0) {

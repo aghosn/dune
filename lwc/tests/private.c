@@ -33,7 +33,7 @@ int main(void) {
 		printf("Child attempts to read the private data.\n");
 		char *reader = private;
 		//TODO: doesn't fail with proper error message but fails.
-		while (reader < private + PGSIZE-1) {
+		while (reader < ((char*)private) + PGSIZE-1) {
 			printf("%c", *reader);
 			reader++;
 		}

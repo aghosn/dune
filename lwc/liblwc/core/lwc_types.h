@@ -29,7 +29,8 @@ typedef struct lwc_struct {
 typedef enum lwc_rgopt_e {
 	LWC_COW = 1,
 	LWC_SHARED = 2,
-	LWC_UNMAP = 3
+	LWC_UNMAP = 3,
+	LWC_RO = 4
 } lwc_rgopt_e;
 
 /* Descriptor for a range operator.*/

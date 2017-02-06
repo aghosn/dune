@@ -153,6 +153,12 @@ static int __unmap_mem(mm_struct *o, mm_struct *c, lwc_rg_struct *mod)
     return mm_unmap(c, mod->start, mod->end, true);
 }
 
+static int __ro_mem(mm_struct *o, mm_struct *c, lwc_rg_struct *mod)
+{
+    ASSERT_DBG(o && c && mod, "o{%p}, c{%p}, mod{%p}.\n", o, c, mod);
+    return mm_ro(c, mod->start, mod->end, true);
+}
+
 //TODO hum for cow might need the original.
 static mm_struct* lwc_apply_mm(mm_struct *o, lwc_rsrc_spec *mod)
 {
@@ -181,6 +187,10 @@ static mm_struct* lwc_apply_mm(mm_struct *o, lwc_rsrc_spec *mod)
                 break;
             case LWC_UNMAP:
                 if (__unmap_mem(o, copy, current))
+                    goto err;
+                break;
+            case LWC_RO:
+                if (__ro_mem(o, copy, current))
                     goto err;
                 break;
             default:
@@ -246,7 +256,7 @@ create:
     res->caller = NULL;
     res->args = NULL;
 
-    /* Child get store the result address for now.*/
+    /* Child store the result address for now.*/
     n_lwc->tf.rax = (uint64_t) res;
 
     Q_INIT_ELEM(n_lwc, lk_ctx);

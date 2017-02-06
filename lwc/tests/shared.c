@@ -31,7 +31,7 @@ int main(void) {
 	} else if (i == 0) {
 		printf("Child accessing the shared space.\n");
 		char *reader = shared;
-		while (reader < shared + PGSIZE-1) {
+		while (reader < ((char*)shared) + PGSIZE-1) {
 			if (*reader != 42) {
 				printf("Not the proper value.\n");
 				return -1;

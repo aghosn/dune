@@ -349,6 +349,72 @@ int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end, bool apply)
 	return -EINVAL;
 }
 
+static int __mm_ro(vm_area_struct *vma, void* args)
+{
+	//Nothing to do.
+	return 0;
+}
+
+static int __vm_ro(ptent_t *pte, void *va, cb_info *args)
+{
+	ASSERT_DBG(pte != NULL, "Null pointer.\n");
+	int ret = 0;
+	ASSERT_DBG(pte_present(*pte), "pte not present.\n");
+
+	/**
+	 * check if is cow and uncow.
+	 * check if had write, remove permission.
+	 */
+	if (*pte & PTE_COW) {
+		*pte &= ~PTE_COW;
+		if (dune_page_isfrompool(PTE_ADDR(*pte))) {
+			struct page *p = dune_pa2page(PTE_ADDR(*pte));
+			ASSERT_DBG(p != NULL, "Page not found.\n");
+			ASSERT_DBG(p->ref > 1, "Page in ro is referenced only once.\n");
+			p->ref--;
+		}
+	}
+
+	if (*pte & PTE_W) {
+		*pte &= ~PTE_W;
+	}
+
+	return 0;
+}
+/*TODO fix, doesn't work. Need to uncow and then put ro?*/
+int mm_ro(mm_struct *mm, vm_addrptr start, vm_addrptr end, bool apply)
+{
+	int ret = 0;
+	vm_area_struct *current = NULL;
+	start = MM_PGALIGN_DN(start);
+	end = MM_PGALIGN_UP(end);
+
+	Q_FOREACH(current, mm->mmap, lk_areas){
+		if (mm_overlap(current, start, end)) {
+			ret = mm_split_no_merge(mm, current, start, end, PERM_R | PERM_U, 
+				&__mm_ro, NULL);
+
+			if (ret)
+				return ret;
+
+			ret = vm_pgrot_walk(mm->pml4, (void*) start, (void*) end,
+				&__vm_ro, NULL, NULL);
+			
+			if (ret)
+				return ret;
+			
+			if (apply)
+				mm_apply(mm);
+
+			mm_verify_mappings(mm);
+			return ret;
+		}
+	}
+
+	ASSERT_DBG(0, "Should never have reached this part.\n");
+	return -EINVAL;
+}
+
 void mm_apply(mm_struct *mm)
 {
 	vm_area_struct *current = NULL;

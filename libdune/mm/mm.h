@@ -27,6 +27,8 @@ int mm_mprotect(mm_struct *mm, vm_addrptr start,
 
 int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end, bool apply);
 
+int mm_ro(mm_struct *mm, vm_addrptr start, vm_addrptr end, bool apply);
+
 /* Applies mappings to pageroot for user entries marked as dirty.*/
 void mm_apply(mm_struct *mm);
 

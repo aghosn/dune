@@ -25,7 +25,7 @@ int main(void) {
 		printf("Child attempts to read the data.\n");
 		char *reader = cowed;
 		//TODO: doesn't fail with proper error message but fails.
-		while (reader < cowed + PGSIZE-1) {
+		while (reader < ((char*)cowed) + PGSIZE-1) {
 			if (*reader != 43) {
 				printf("Error, value not correct %c\n", *reader);
 				return -1;
