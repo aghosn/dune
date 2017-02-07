@@ -21,6 +21,6 @@
 
 # Makefile for the core lwc library.
 
-SRC = lwc.c main.c
+SRC = lwc.c main.c lwc_mm.c
 
 $(eval $(call register_dir, core, $(SRC)))

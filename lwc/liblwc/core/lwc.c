@@ -159,7 +159,7 @@ static int __ro_mem(mm_struct *o, mm_struct *c, lwc_rg_struct *mod)
     return mm_ro(c, mod->start, mod->end, true);
 }
 
-//TODO hum for cow might need the original.
+
 static mm_struct* lwc_apply_mm(mm_struct *o, lwc_rsrc_spec *mod)
 {
     ASSERT_DBG(o && mod, "o{%p}, mod{%p}.\n", o, mod);
