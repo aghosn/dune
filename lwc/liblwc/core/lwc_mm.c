@@ -306,7 +306,7 @@ mm_struct* lwc_mm_create(mm_struct *o, lwc_rsrc_spec *mod)
 			range = range->lk_rg.next;
 			current = (end)? end->lk_areas.next : NULL;
 		} else {
-cow:	
+cow:		//TODO should make cow?
 			vma = vma_create(copy, current->vm_start, current->vm_end, 
 															current->vm_flags);
 			if (!vma) goto err;
@@ -315,7 +315,7 @@ cow:
 		}
 	}
 
-	return 0;
+	return copy;
 
 err:
 	return NULL;

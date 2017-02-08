@@ -384,7 +384,7 @@ void mm_uncow(mm_struct *mm, vm_addrptr va)
 		if (current->vm_start == addr &&
 			current->vm_end == (addr + PGSIZE)) {
 			found = current;
-
+		
 			ASSERT_DBG(current->vm_flags & PERM_W, "Missing write perm.\n");
 			ASSERT_DBG(current->vm_flags & PERM_U, "Missing user perm.\n");
 			break;

@@ -11,6 +11,7 @@
 #include <sandbox/sandbox.h>
 
 #include "lwc.h"
+#include "lwc_mm.h"
 #include "lwc_types.h"
 
 /* Global variables for lwc.*/
@@ -52,161 +53,6 @@ err:
     return ret;
 }
 
-static int __lwc_validate_mod(vm_area_struct *vma, void* args)
-{
-    ASSERT_DBG(vma, "vma is null.\n");
-    if (vma->vm_flags & PERM_U)
-        return 0;
-    return 1;
-}
-
-static int lwc_validate_mod(lwc_rsrc_spec *mod, mm_struct *o)
-{
-    ASSERT_DBG(o, "o is null.\n");
-    ASSERT_DBG(mod, "mod is null.\n");
-
-    lwc_rg_struct *prev = NULL, *curr = NULL;
-    Q_FOREACH(curr, &(mod->ranges), lk_rg) {
-        if ((prev && !(prev->end <= prev->start)) ||
-            !(curr->start <= curr->end)) {
-            /* The ranges are not increasing.*/
-            return 1;
-        }
-
-        //FIXME: doesn't work.
-        vm_area_struct *start = mm_find(o, curr->start, false);
-        vm_area_struct *end = mm_find(o, curr->end -1, true);
-        
-        if (!start || !end) {
-            return 2;
-        }
-
-        if (start != end) {
-            ASSERT_DBG(start->vm_end <= end->vm_start,
-                "start->vm_end{0x%016lx}, end->vm_start{0x%016lx}\n",
-                start->vm_end, end->vm_start);
-        }
-        
-        /*Check that none is kernel.*/
-        if (mm_vmas_walk(start, end, &__lwc_validate_mod, NULL))
-            return 4;
-        
-        /* Update prev.*/
-        prev = curr;
-    }
-
-    return 0;
-}
-
-static int __share_mem_helper(ptent_t *pte, void *va, cb_info *args)
-{
-    ASSERT_DBG(pte && args, "pte{%p}, args{%p}\n", pte, args);
-    int ret;
-    ptent_t* pte_c = NULL;
-    mm_struct *copy = (mm_struct*)(args->args);
-    ret = vm_lookup(copy->pml4, va, &pte_c, CREATE_NONE, 0);
-    if (ret != 0) {
-        return ret;
-    }
-
-    /* Remap the page in the copy.*/
-    ASSERT_DBG(*pte & PTE_U, "user permissions missing.\n");
-    ASSERT_DBG(*pte & PTE_P, "pte not present.\n");
-    ASSERT_DBG(!(*pte & PTE_COW), "pte is cow.\n");
-    ASSERT_DBG(*pte_c & PTE_U, "copy missing user permissions.\n");
-    ASSERT_DBG(*pte_c & PTE_P, "copy not present.\n");
-    ASSERT_DBG(*pte_c & PTE_COW, "pte_c not cow.\n");
-    ASSERT_DBG(!(*pte_c & PTE_W), "pte_c has write permissions.\n");
-    struct page *pg = dune_pa2page(PTE_ADDR(*pte_c));
-    
-    if (dune_page_isfrompool(PTE_ADDR(*pte_c)))
-        dune_page_put(pg);
-
-    *pte_c = *pte;
-
-    return ret;
-}
-
-static int __share_mem(mm_struct *o, mm_struct *c, lwc_rg_struct *mod)
-{
-    ASSERT_DBG(o && c && mod, "o{%p}, c{%p}, mod{%p}.\n", o, c, mod);
-    int ret;
-    vm_addrptr start, end, curr;
-
-    /* Uncow in original and remap in the copy.*/
-    start = MM_PGALIGN_DN(mod->start);
-    end = MM_PGALIGN_UP(mod->end);
-    for (curr = start; curr < end; curr += PGSIZE) {
-        mm_uncow(o, curr);
-    }
-
-    ret = vm_pgrot_walk(o->pml4, (void*)(mod->start), (void*)(mod->end -1),
-        &__share_mem_helper, NULL, c);
-    
-    return ret;
-}
-
-static int __unmap_mem(mm_struct *o, mm_struct *c, lwc_rg_struct *mod)
-{
-    ASSERT_DBG(o && c && mod, "o{%p}, c{%p}, mod{%p}.\n", o, c, mod);
-
-    return mm_unmap(c, mod->start, mod->end, true);
-}
-
-static int __ro_mem(mm_struct *o, mm_struct *c, lwc_rg_struct *mod)
-{
-    ASSERT_DBG(o && c && mod, "o{%p}, c{%p}, mod{%p}.\n", o, c, mod);
-    return mm_ro(c, mod->start, mod->end, true);
-}
-
-
-static mm_struct* lwc_apply_mm(mm_struct *o, lwc_rsrc_spec *mod)
-{
-    ASSERT_DBG(o && mod, "o{%p}, mod{%p}.\n", o, mod);
-    
-    mm_struct *copy = NULL;
-     if (lwc_validate_mod(mod, o))
-        goto err;
-    
-    copy = mm_copy(o, true, true);
-    if (!copy)
-        goto err;
-    
-    lwc_rg_struct *current = NULL;
-    Q_FOREACH(current, &(mod->ranges), lk_rg) {
-        switch(current->opt) {
-            case LWC_COW:
-                /* By default everything is cowed. Just check that user is not
-                 * trying to cow some kernel memory.*/
-                //TODO:
-        
-                break;
-            case LWC_SHARED:
-                if (__share_mem(o, copy, current))
-                    goto err;
-                break;
-            case LWC_UNMAP:
-                if (__unmap_mem(o, copy, current))
-                    goto err;
-                break;
-            case LWC_RO:
-                if (__ro_mem(o, copy, current))
-                    goto err;
-                break;
-            default:
-                //TODO: logg error.
-                goto err;
-        }
-    }
-    mm_apply(o);
-    mm_apply(copy);
-    return copy;
-
-err:
-    //TODO: clean up.
-    //and also should retrofit to original mappings?
-    return NULL;
-}
 
 int sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod, lwc_res_t *res)
 {
@@ -238,7 +84,8 @@ int sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod, lwc_res_t *res)
     }
 
     /* Slower copy.*/
-    copy = lwc_apply_mm(current->vm_mm, mod);
+    copy = lwc_mm_create(current->vm_mm, mod);
+    if (!copy) goto err;
     
 create:
     n_lwc = malloc(sizeof(lwc_struct));
