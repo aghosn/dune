@@ -311,26 +311,6 @@ err:
 	return ret;
 }
 
-
-int mm_vmas_walk(	vm_area_struct *start,
-					vm_area_struct *end,
-					mm_cb_ft f,
-					void* args)
-{
-	ASSERT_DBG(start, "start is null.\n");
-	ASSERT_DBG(end, "end is null.\n");
-	int ret;
-	vm_area_struct *current;
-	for (current = start; current != NULL; current = current->lk_areas.next) {
-		if ((ret = f(current, args)))
-			return ret;
-		if (current == end)
-			break;
-	}
-
-	return 0;
-}
-
 /* Removes the vmas between start (not included) and end (not included) for the mm->mmap.
  * Frees the removed vmas.*/
 int mm_delete_region(	mm_struct *mm,
@@ -410,18 +390,27 @@ void mm_uncow(mm_struct *mm, vm_addrptr va)
 	mm_verify_mappings(mm);
 }
 
-
-physaddr_t mm_get_physaddr(mm_struct *mm, vm_addrptr va)
+int mm_verify_range(mm_struct *mm, vm_addrptr addr, uint64_t len)
 {
-	ASSERT_DBG(mm, "mm is null.\n");
-	ASSERT_DBG(mm_verify_range(mm, va, 0), "address not in vmas.\n");
-	int res = -1;
-	ptent_t* pte_out = NULL;
-	res = vm_lookup(mm->pml4, (void*) va, &pte_out, 0, 0);
-	ASSERT_DBG(res == 0, "error, mapping not found.\n");
-	ASSERT_DBG(pte_out, "mapping not found.\n");
+	vm_area_struct *current = NULL;
+	Q_FOREACH(current, mm->mmap, lk_areas) {
+		if (mm_overlap(current, addr, addr + len)) {
 
-	return ((physaddr_t) pte_out) | PGOFF(va);
+			vm_area_struct *previous = current;
+			vm_area_struct *runner = previous->lk_areas.next;
+			while (runner != NULL && mm_overlap(runner, addr, addr + len)) {
+				if (previous->vm_end < runner->vm_start)
+					return 0;
+
+				previous = runner;
+				runner = runner->lk_areas.next;
+			}
+			ASSERT_DBG(previous != NULL, "mapping not found.");
+			ASSERT_DBG(mm_overlap(previous, addr, addr + len), "error.");
+			return (previous->vm_end > addr + len);
+		}
+	}
+	return 0;
 }
 /******************************************************************************/
 /*					Debugging functions										  */

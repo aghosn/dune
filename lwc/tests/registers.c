@@ -31,55 +31,68 @@ int main(int argc, char *argv[]) {
 		uint64_t value;
 		//FIXME: gets changed to 21.
 		asm("mov %%rbx, %0" : "=r" (value));
-		lwc_println((void*)value, D_NORMA, 1);
+		//lwc_printf((void*)value, D_NORMA, 1);
+		printf("Should be 1 %lu\n", value);
 		
 		//stays equal to 2.
 		asm("mov %%rcx, %0" : "=r" (value));
-		lwc_println((void*)value, D_NORMA, 2);
+		//lwc_printf((void*)value, D_NORMA, 2);
+		printf("Should be 2 %lu\n", value);
 		
 		//FIXME: gets changed to 1.
 		asm("mov %%rdx, %0" : "=r" (value));
-		lwc_println((void*)value, D_NORMA, 3);
+		//lwc_printf((void*)value, D_NORMA, 3);
+		printf("Should be 3 %lu\n", value);
 		
 		//FIXME: gets changed another value.
 		asm("mov %%rdi, %0" : "=r" (value));
-		lwc_println((void*)value, D_NORMA, 4);
+		//lwc_printf((void*)value, D_NORMA, 4);
+		printf("Should be 4 %lu\n", value);
 		
 		//FIXME: gets changed to 1.
 		asm("mov %%rsi, %0" : "=r" (value));
-		lwc_println((void*)value, D_NORMA, 5);
+		//lwc_printf((void*)value, D_NORMA, 5);
+		printf("Should be 5 %lu\n", value);
 		
 		//FIXME: gets changed to 0.
 		asm("mov %%r8, %0" : "=r" (value));
-		lwc_println((void*)value, D_NORMA, 8);
+		//lwc_printf((void*)value, D_NORMA, 8);
+		printf("Should be 8 %lu\n", value);
 		
 		//FIXME: gets changed to 0.
 		asm("mov %%r9, %0" : "=r" (value));
-		lwc_println((void*)value, D_NORMA, 9);
+		//lwc_printf((void*)value, D_NORMA, 9);
+		printf("Should be 9 %lu\n", value);
 		
 		//FIXME: gets changed to 0.
 		asm("mov %%r10, %0" : "=r" (value));
-		lwc_println((void*)value, D_NORMA, 10);
+		//lwc_printf((void*)value, D_NORMA, 10);
+		printf("Should be 10 %lu\n", value);
 		
 		//FIXME: gets changed but probably previous call.
 		asm("mov %%r11, %0" : "=r" (value));
-		lwc_println((void*)value, D_NORMA, 11);
+		//lwc_printf((void*)value, D_NORMA, 11);
+		printf("Should be 11 %lu\n", value);
 		
 		//FIXME: gets changed to 32
 		asm("mov %%r12, %0" : "=r" (value));
-		lwc_println((void*)value, D_NORMA, 12);
+		//lwc_printf((void*)value, D_NORMA, 12);
+		printf("Should be 12 %lu\n", value);
 		
 		//FIXME: gets changed to 33
 		asm("mov %%r13, %0" : "=r" (value));
-		lwc_println((void*)value, D_NORMA, 13);
+		//lwc_printf((void*)value, D_NORMA, 13);
+		printf("Should be 13 %lu\n", value);
 		
 		//FIXME: gets changed to 34
 		asm("mov %%r14, %0" : "=r" (value));
-		lwc_println((void*)value, D_NORMA, 14);
-		
+		//lwc_printf((void*)value, D_NORMA, 14);
+		printf("Should be 14 %lu\n", value);
+
 		//FIXME: gets changed to 35
 		asm("mov %%r15, %0" : "=r" (value));
-		lwc_println((void*)value, D_NORMA, 15);
+		//lwc_printf((void*)value, D_NORMA, 15);
+		printf("Should be 15 %lu\n", value);
 	} else if (i == 0) {
 		//TODO: change the registers.
 		asm("mov $21, %%rbx;" : : : "rbx");

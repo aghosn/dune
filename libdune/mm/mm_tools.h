@@ -33,11 +33,6 @@ int mm_split_no_merge(	mm_struct *mm,
 						mm_cb_ft f,
 						void *args);
 
-int mm_vmas_walk(	vm_area_struct *start,
-					vm_area_struct *end,
-					mm_cb_ft f,
-					void* args);
-
 /* Deletes the defined region from the memory mappings.*/
 int mm_delete_region(	mm_struct *mm,
 						vm_area_struct *start,
@@ -49,13 +44,14 @@ int mm_free(mm_struct *mm);
 /* Uncows a mapping.*/
 void mm_uncow(mm_struct *mm, vm_addrptr va);
 
-/* Returns the guest physical address for a guest virtual address.*/
-physaddr_t mm_get_physaddr(mm_struct *mm, vm_addrptr va);
+int mm_verify_range(mm_struct *mm, vm_addrptr addr, uint64_t len);
 
 /* Pretty prints the mm regions.*/
 void mm_dump(mm_struct *mm);
 
 /* Helper function to verify that regions correspond to entries inside pgrot.*/
 int mm_verify_mappings(mm_struct *mm);
+
+/* Compares two memory regions.*/
 int mm_assert_equals(mm_struct *o, mm_struct *c);
 #endif /*__LIBDUNE_MM_MM_TOOLS_H__*/

@@ -19,14 +19,6 @@ static vm_area_struct* __lwc_mm_last_vma(vm_area_struct* vma, lwc_rg_struct *rg)
 	return previous;
 }
 
-static int __lwc_validate_mod(vm_area_struct *vma, void* args)
-{
-    ASSERT_DBG(vma, "vma is null.\n");
-    if (vma->vm_flags & PERM_U)
-        return 0;
-    return 1;
-}
-
 static int lwc_validate_mod(lwc_rsrc_spec *mod, mm_struct *o)
 {
     ASSERT_DBG(o, "o is null.\n");
@@ -36,11 +28,10 @@ static int lwc_validate_mod(lwc_rsrc_spec *mod, mm_struct *o)
     Q_FOREACH(curr, &(mod->ranges), lk_rg) {
         if ((prev && !(prev->end <= prev->start)) ||
             !(curr->start <= curr->end)) {
-            /* The ranges are not increasing.*/
+            /* The ranges are not sorted in increasing order.*/
             return 1;
         }
 
-        //FIXME: doesn't work.
         vm_area_struct *start = mm_find(o, curr->start, false);
         vm_area_struct *end = mm_find(o, curr->end -1, true);
         
@@ -55,8 +46,12 @@ static int lwc_validate_mod(lwc_rsrc_spec *mod, mm_struct *o)
         }
         
         /*Check that none is kernel.*/
-        if (mm_vmas_walk(start, end, &__lwc_validate_mod, NULL))
-            return 4;
+        vm_area_struct *current = NULL;
+       	for (current = start; current != NULL; current = current->lk_areas.next) {
+       		ASSERT_DBG(current->vm_flags & PERM_U, "Trying to modify kernel.\n");
+       		if (current == end)
+       			break;
+       	}
         
         /* Update prev.*/
         prev = curr;
@@ -143,7 +138,8 @@ static int __lwc_unmap(	mm_struct *o,
 
 	/* First one is split.*/
 	if (start && start->vm_start < s) {
-		//TODO aghosn: put asserts that s is within first vma.
+		ASSERT_DBG(s > start->vm_start && s < start->vm_end, 
+			"The aligned start address is not correct.\n");
 		vm_area_struct *fst = vma_create(copy, start->vm_start, s, start->vm_flags);
 		if (!fst) goto err;
 

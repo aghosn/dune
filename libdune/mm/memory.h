@@ -16,8 +16,7 @@
  * FIXME: keep it for backwards compatibility with dune.*/
 extern ptent_t *pgroot;
 
-/* The original memory mapping.
- * TODO: should we really keep that around?*/
+/* The original memory mapping.*/
 extern mm_struct *mm_root;
 
 /* All the memory mappings created.
