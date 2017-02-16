@@ -13,7 +13,10 @@ extern l_lwc *contexts;
 int lwc_init();
 
 /* Create an lwc according to the specified modifiers.*/
-int sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod, lwc_res_t *res);
+int sys_lwc_create(	struct dune_tf *tf,
+					lwc_rg_struct *mod,
+					unsigned int numr,
+					lwc_res_t *res);
 
 /* Switch between current context and target lwc.*/
 int sys_lwc_switch(	struct dune_tf *tf, 

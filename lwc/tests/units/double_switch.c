@@ -7,7 +7,7 @@ int main(int argc, char *argv[]) {
 	int i = -1;
 	lwc_res_t result;
 
-	i = lwc_create(NULL, &result);
+	i = lwc_create(NULL, 0, &result);
 
 	if (i == 1) {
 		printf("1. From the parent.\n");

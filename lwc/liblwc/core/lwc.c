@@ -57,14 +57,19 @@ err:
 }
 
 
-int sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod, lwc_res_t *res)
+int sys_lwc_create( struct dune_tf *tf,
+                    lwc_rg_struct *mod,
+                    unsigned int numr,
+                    lwc_res_t *res)
 {
     mm_struct *copy = NULL;
     lwc_struct *n_lwc = NULL, *current = NULL;
 
     /* Return values require res to be allocated.*/
-    if (!res)
+    if (!res) {
+        printf("No res! %d \n", numr);
         return -1;
+    }
     
     /* The current context.*/
     current = Q_GET_FRONT(contexts);
@@ -81,13 +86,13 @@ int sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod, lwc_res_t *res)
     res->args = NULL;
 
     /* Default copy-on-write behaviour.*/
-    if (!mod || mod->ranges.head == NULL) {
+    if (!mod || numr == 0) {
         copy = mm_copy(current->vm_mm, true, true);
         goto create;
     }
 
     /* Slower copy.*/
-    copy = lwc_mm_create(current->vm_mm, mod);
+    copy = lwc_mm_create(current->vm_mm, mod, numr);
     if (!copy) goto err;
     
 create:

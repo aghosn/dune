@@ -17,7 +17,7 @@ int main(int argc, char *argv[]) {
 	char *p = NULL;
 	int _wi = 0;
 
-	i = lwc_create(NULL, &result);
+	i = lwc_create(NULL, 0, &result);
 
 	if (i == 1) {
 		p = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_PRIVATE

@@ -13,17 +13,13 @@ int main(void) {
 	void *private = mmap(address, (size_t) PGSIZE, PROT_READ | PROT_WRITE,
 		MAP_ANONYMOUS, 0, 0);
 
-	vm_addrptr start = (vm_addrptr)private;
-	vm_addrptr end = start + PGSIZE;
-
-	lwc_rsrc_spec specs;
-	lwc_rg_struct to_share = {start, end, LWC_UNMAP};
-	Q_INIT_HEAD(&(specs.ranges));
-	Q_INIT_ELEM(&to_share, lk_rg);
-	Q_INSERT_FRONT(&(specs.ranges), &(to_share), lk_rg);
+	lwc_rg_struct specs[1];
+	specs[0].start = (vm_addrptr)private;
+	specs[0].end = ((vm_addrptr) private) + PGSIZE;
+	specs[0].opt = LWC_UNMAP;
 
 
-	i = lwc_create(&specs, &result);
+	i = lwc_create(specs, 1, &result);
 	if (i == 1) {
 		printf("Parent is writing secret.\n");
 		memset(private, 42, PGSIZE-1);

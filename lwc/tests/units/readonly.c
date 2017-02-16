@@ -14,19 +14,15 @@ int main(void) {
                     MAP_ANONYMOUS, 0, 0);
     
     printf("Readonly address: %p\n", ro);
-    
-    vm_addrptr start = (vm_addrptr) ro;
-    vm_addrptr end = start + PGSIZE;
-    
-    lwc_rsrc_spec specs;
-    lwc_rg_struct to_ro = {start, end, LWC_RO};
-    Q_INIT_HEAD(&(specs.ranges));
-    Q_INIT_ELEM(&to_ro, lk_rg);
-    Q_INSERT_FRONT(&(specs.ranges), &(to_ro), lk_rg);
+
+    lwc_rg_struct specs[1];
+    specs[0].start = (vm_addrptr)ro;
+    specs[0].end = ((vm_addrptr) ro) + PGSIZE;
+    specs[0].opt = LWC_RO;
 
     memset(ro, 43, PGSIZE);
     
-    i = lwc_create(&specs, &result);
+    i = lwc_create(specs, 1, &result);
     if (i == 1) {
         printf("Parent accessing the readonly space.\n");
         memset(ro, 42, PGSIZE);

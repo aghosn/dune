@@ -19,21 +19,26 @@ static vm_area_struct* __lwc_mm_last_vma(vm_area_struct* vma, lwc_rg_struct *rg)
 	return previous;
 }
 
-static int lwc_validate_mod(lwc_rsrc_spec *mod, mm_struct *o)
+static int lwc_validate_mod(lwc_rg_struct *mod, unsigned int numr, mm_struct *o)
 {
     ASSERT_DBG(o, "o is null.\n");
     ASSERT_DBG(mod, "mod is null.\n");
 
-    lwc_rg_struct *prev = NULL, *curr = NULL;
-    Q_FOREACH(curr, &(mod->ranges), lk_rg) {
-        if ((prev && !(prev->end <= prev->start)) ||
-            !(curr->start <= curr->end)) {
+    /* No modifiers*/
+    if (numr == 0)
+    	return 0;
+
+    lwc_rg_struct *prev = NULL, curr;
+    for (int i = 0; i < numr; i++) {
+    	curr = mod[i];
+        if ((prev && !(prev->end <= curr.start)) ||
+            !(curr.start <= curr.end)) {
             /* The ranges are not sorted in increasing order.*/
             return 1;
         }
 
-        vm_area_struct *start = mm_find(o, curr->start, false);
-        vm_area_struct *end = mm_find(o, curr->end -1, true);
+        vm_area_struct *start = mm_find(o, curr.start, false);
+        vm_area_struct *end = mm_find(o, curr.end -1, true);
         
         if (!start || !end) {
             return 2;
@@ -54,7 +59,7 @@ static int lwc_validate_mod(lwc_rsrc_spec *mod, mm_struct *o)
        	}
         
         /* Update prev.*/
-        prev = curr;
+        prev = &curr;
     }
 
     return 0;
@@ -255,15 +260,16 @@ err:
 	return -EINVAL;
 }
 
-mm_struct* lwc_mm_create(mm_struct *o, lwc_rsrc_spec *mod)
+mm_struct* lwc_mm_create(mm_struct *o, lwc_rg_struct *mod, unsigned int numr)
 {
 	ASSERT_DBG(o && mod, "o{%p}, mod{%p}.\n", o, mod);
 	mm_struct *copy = NULL;
 	
 	vm_area_struct *current = NULL, *vma = NULL;
-	lwc_rg_struct *range = mod->ranges.head;
+	//lwc_rg_struct *range = mod->ranges.head;
+	int index = 0;
 
-	if (lwc_validate_mod(mod, o))
+	if (lwc_validate_mod(mod, numr, o))
 		goto err;
 
 	/*Create the new memory mapping.*/
@@ -277,29 +283,29 @@ mm_struct* lwc_mm_create(mm_struct *o, lwc_rsrc_spec *mod)
 	copy->pml4 = vm_pgrot_copy(o->pml4, true);
 	if (!(copy->pml4)) goto err;
 
-
 	Q_FOREACH(current, o->mmap, lk_areas) {
-		if (range && mm_overlap(current, range->start, range->end)) {
-			vm_area_struct *end = __lwc_mm_last_vma(current, range);
+		lwc_rg_struct range = mod[index];
+		if (index < numr && mm_overlap(current, range.start, range.end)) {
+			vm_area_struct *end = __lwc_mm_last_vma(current, &range);
 
-			switch(range->opt) {
+			switch(range.opt) {
 				case LWC_COW:
-					range = range->lk_rg.next;
+					index++;
 					goto cow;
 					break;
 				case LWC_SHARED:
-					__lwc_shared(o, copy, range, current, end);
+					__lwc_shared(o, copy, &range, current, end);
 					break;
 				case LWC_UNMAP:
-					__lwc_unmap(o, copy, range, current, end);
+					__lwc_unmap(o, copy, &range, current, end);
 					break;
 				case LWC_RO:
-					__lwc_ro(o, copy, range, current, end);
+					__lwc_ro(o, copy, &range, current, end);
 					break;
 				default:
 					goto err;
 			}
-			range = range->lk_rg.next;
+			index++;
 			current = (end)? end->lk_areas.next : NULL;
 		} else {
 cow:		//TODO should make cow?

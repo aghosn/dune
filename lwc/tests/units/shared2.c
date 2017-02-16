@@ -16,19 +16,15 @@ int main(void)
 	
 	// printf("Shared is %p\n", shared);
 	// fflush(stdout);
-	
-	vm_addrptr start = (vm_addrptr)shared;
-	vm_addrptr end = start + PGSIZE;
 
-	lwc_rsrc_spec specs;
-	lwc_rg_struct to_share = {start, end, LWC_SHARED};
-	Q_INIT_HEAD(&(specs.ranges));
-	Q_INIT_ELEM(&to_share, lk_rg);
-	Q_INSERT_FRONT(&(specs.ranges), &(to_share), lk_rg);
+	lwc_rg_struct specs[1];
+	specs[0].start = (vm_addrptr)shared;
+	specs[0].end = specs[0].start + PGSIZE;
+	specs[0].opt = LWC_SHARED;
 
 
 hey:
-	i = lwc_create(&specs, &result);
+	i = lwc_create(specs, 1, &result);
 
 	if (i == 1) {
 		printf("Hello world from the parent.\n");

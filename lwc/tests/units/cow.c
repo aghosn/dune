@@ -15,7 +15,7 @@ int main(void) {
 
 	memset(cowed, 43, PGSIZE-1);
 
-	i = lwc_create(NULL, &result);
+	i = lwc_create(NULL, 0, &result);
 	if (i == 1) {
 		printf("Parent is writing his value.\n");
 		memset(cowed, 42, PGSIZE-1);
