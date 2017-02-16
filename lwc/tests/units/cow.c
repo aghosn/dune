@@ -5,6 +5,7 @@
 #include <sandbox/sandbox.h>
 #include <inc/syscall.h>
 #include <core/lwc_types.h>
+#include "output.h"
 
 int main(void) {
 	int i = -1;
@@ -17,24 +18,24 @@ int main(void) {
 
 	i = lwc_create(NULL, 0, &result);
 	if (i == 1) {
-		printf("Parent is writing his value.\n");
+		
 		memset(cowed, 42, PGSIZE-1);
-		printf("Wrote value.\n");
+		
 		lwc_switch(result.n_lwc, NULL, &result);
 	} else if (i  == 0) {
-		printf("Child attempts to read the data.\n");
+		
 		char *reader = cowed;
 		//TODO: doesn't fail with proper error message but fails.
 		while (reader < ((char*)cowed) + PGSIZE-1) {
 			if (*reader != 43) {
-				printf("Error, value not correct %c\n", *reader);
+				TFAILURE("Error: value not correct\n");
 				return -1;
 			}
 
 			reader++;
 		}
 
-		printf("Done with success.\n");
+		TSUCCESS("Done!\n");
 	}
 
 	return 0;

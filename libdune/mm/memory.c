@@ -88,7 +88,7 @@ static uint64_t read_cr3() {
 void memory_pgflt_handler(uintptr_t addr, uint64_t fec, struct dune_tf *tf)
 {
 	/* We handle only COW page faults.*/
-	ASSERT_DBG(fec & FEC_W, " addr{0x%016lx}, fec{%lx}\n", addr, fec);
+	ASSERT_DBG(fec & FEC_W, " addr{0x%016lx}, fec{%lx}: Illegal read.\n", addr, fec);
 	
 	/* Check that everything is set properly*/
 	mm_struct *current_mm = memory_get_mm();

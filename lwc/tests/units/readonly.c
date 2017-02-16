@@ -5,6 +5,7 @@
 #include <sandbox/sandbox.h>
 #include <inc/syscall.h>
 #include <core/lwc_types.h>
+#include "output.h"
 
 int main(void) {
     int i = -1;
@@ -24,28 +25,25 @@ int main(void) {
     
     i = lwc_create(specs, 1, &result);
     if (i == 1) {
-        printf("Parent accessing the readonly space.\n");
         memset(ro, 42, PGSIZE);
-        printf("The write is done.\n");
+       
         lwc_switch(result.n_lwc, NULL, &result);
     } else if (i == 0) {
-        printf("Child accessing the readonly space.\n");
+        
         char *reader = ro;
         while (reader < ((char*)ro) + PGSIZE) {
             if (*reader != 42) {
-                printf("Not the proper value %d.\n", (int)*reader);
+                TFAILURE("Read incorrect value.\n");
                 return -1;
             }
             reader++;
         }
-        printf("Child read the content. Will try to overwrite.");
-        fflush(stdout);
+        
         reader = (char*) ro;
         *reader = 4;
-        printf("Error, was able to write.\n");
-        fflush(stdout);
+        TFAILURE("Error, was able to write.\n");
     } else {
-        printf("Error\n");
+        TFAILURE("Error\n");
         return -1;
     }
     return 0;

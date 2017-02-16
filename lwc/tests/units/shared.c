@@ -5,6 +5,8 @@
 #include <sandbox/sandbox.h>
 #include <inc/syscall.h>
 #include <core/lwc_types.h>
+#include "output.h"
+
 
 int main(void) {
 	int i = -1;
@@ -20,38 +22,37 @@ int main(void) {
 
 	i = lwc_create(specs, 1, &result);
 	if (i == 1) {
-		printf("Parent accessing the shared space.\n");
 		memset(shared, 42, PGSIZE-1);
-		printf("The write is done.\n");
+		
 		lwc_switch(result.n_lwc, NULL, &result);
-		printf("Parent checks that it can read from child.\n");
+		
 		char *reader = shared;
 		while(reader < ((char*)shared) + PGSIZE-1) {
 			if (*reader != 44) {
-				printf("Error in parent.\n");
+				TFAILURE("Error in parent.\n");
 				return -2;
 			}
 			reader++;
 		}
-		printf("Parent done!\n");
+		TSUCCESS("Done!\n");
 
 	} else if (i == 0) {
-		printf("Child accessing the shared space.\n");
+		
 		char *reader = shared;
 		while (reader < ((char*)shared) + PGSIZE-1) {
 			if (*reader != 42) {
-				printf("Not the proper value.\n");
+				TFAILURE("Not the proper value.\n");
 				return -1;
 			} else {
 				*reader = 44;
 			}
 			reader++;
 		}
-		printf("Child done verifying memory.\n");
+		
 		lwc_switch(result.caller, NULL, &result);
 
 	} else {
-		printf("Error\n");
+		TFAILURE("Could not create context.\n");
 		return -1;
 	}
 	return 0;

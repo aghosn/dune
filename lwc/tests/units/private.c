@@ -5,6 +5,7 @@
 #include <sandbox/sandbox.h>
 #include <inc/syscall.h>
 #include <core/lwc_types.h>
+#include "output.h"
 
 int main(void) {
 	int i = -1;
@@ -21,12 +22,9 @@ int main(void) {
 
 	i = lwc_create(specs, 1, &result);
 	if (i == 1) {
-		printf("Parent is writing secret.\n");
 		memset(private, 42, PGSIZE-1);
-		printf("Wrote secret.\n");
 		lwc_switch(result.n_lwc, NULL, &result);
 	} else if (i  == 0) {
-		printf("Child attempts to read the private data.\n");
 		char *reader = private;
 		//TODO: doesn't fail with proper error message but fails.
 		while (reader < ((char*)private) + PGSIZE-1) {
@@ -34,7 +32,7 @@ int main(void) {
 			reader++;
 		}
 
-		printf("Child done.\n");
+		TFAILURE("Error: Child was able to read!\n");
 	}
 
 	return 0;

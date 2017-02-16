@@ -9,7 +9,7 @@
 int main(int argc, char* argv[])
 {
 	int ret = 0;
-    printf("Welcome to lwc!\n");
+    //printf("Welcome to lwc!\n");
     //TODO: improve error handling.
     if ((ret = dune_init(false)))
     	return ret;
@@ -20,7 +20,7 @@ int main(int argc, char* argv[])
     if ((ret = lwc_init()))
     	return ret;
 
-    printf("Lwc: initialized\n");
+    //printf("Lwc: initialized\n");
 
     assert(lwc_root != NULL && lwc_root->vm_mm == mm_root && mm_root != NULL &&
         mm_root->pml4 == pgroot);
@@ -42,6 +42,6 @@ int main(int argc, char* argv[])
 
     ret = sandbox_run_app(sp, entry);
     
-    printf("Lwc: execution completed. Goodbye!\n");
+    //printf("Lwc: execution completed. Goodbye!\n");
     return ret;
 }
