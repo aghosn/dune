@@ -11,7 +11,10 @@
 #define D_TRAPF 0x0010
 
 /* Defines a list of lwc_structs.*/
-Q_NEW_HEAD(l_lwc, lwc_struct); 
+Q_NEW_HEAD(l_lwc, lwc_struct);
+
+/* Linux TAILQ for lwc_structs*/
+TAILQ_HEAD(lwc_list, lwc_struct);
 
 typedef struct lwc_struct {
 	mm_struct *vm_mm;
@@ -20,9 +23,12 @@ typedef struct lwc_struct {
 	struct lwc_struct *parent;
 	l_lwc children;
 
-	/* For management*/
+	/*TODO old For management*/
 	Q_NEW_LINK(lwc_struct) lk_ctx;
 	Q_NEW_LINK(lwc_struct) lk_parent;
+
+	/*TODO new for management*/
+	TAILQ_ENTRY(lwc_struct) q_ctx;
 } lwc_struct;
 
 /* Modifier types.*/

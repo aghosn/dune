@@ -7,6 +7,8 @@
 extern lwc_struct *lwc_root;
 extern l_lwc *contexts;
 
+extern struct lwc_list *ctxts;
+
 /* lwc API*/
 
 /* Initialize lwc data structures and the root context.*/

@@ -1,4 +1,4 @@
-SUBDIRS = liblwc apps tests
+SUBDIRS = liblwc tests
 CLEANDIRS = $(SUBDIRS:%=clean-%)
 
 all: $(SUBDIRS)

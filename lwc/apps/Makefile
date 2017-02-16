@@ -1,18 +1,14 @@
-DUNE = ../..
-DUNE_LIB = $(DUNE)/libdune/libdune.a
-CC = gcc
-CFLAGS = -Wall -O3 -pthread -I$(DUNE)/libdune -I../liblwc
+SUBDIRS = openssl
+CLEANDIRS = $(SUBDIRS:%=clean-%)
 
-APPS = test app
+all: $(SUBDIRS)
 
-all: $(APPS)
+$(SUBDIRS):
+	$(MAKE) -C $@
 
-$(APPS):
+clean: $(CLEANDIRS)
 
-$(APPS): %: %.o
-	$(CC) $(CFLAGS) $^ -o $@ $(DUNE_LIB)
+$(CLEANDIRS):
+	$(MAKE) -C $(@:clean-%=%) clean
 
-clean:
-	rm -f *.o *.d $(APPS)
-
--include *.d
+.PHONY: all clean $(SUBDIRS) $(CLEANDIRS)

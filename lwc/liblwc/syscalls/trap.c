@@ -282,7 +282,7 @@ static int check_iovec(struct iovec *iov, int num)
  */
 static int syscall_memcheck(struct dune_tf *tf, uintptr_t *start_addr, uint64_t len)
 {
-	lwc_struct *current = Q_GET_FRONT(contexts);
+	lwc_struct *current = TAILQ_FIRST(ctxts);
 	ASSERT_DBG(current != NULL, "lwc not found.");
 
 	/*1.*/
