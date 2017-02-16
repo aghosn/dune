@@ -15,7 +15,10 @@
 #include "lwc_types.h"
 
 /* Global variables for lwc.*/
+
 lwc_struct *lwc_root = NULL;
+
+/* List of contexts that are currently available.*/
 l_lwc *contexts = NULL;
 
 int lwc_init()
@@ -59,7 +62,7 @@ int sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod, lwc_res_t *res)
     mm_struct *copy = NULL;
     lwc_struct *n_lwc = NULL, *current = NULL;
 
-    /* Error.*/
+    /* Return values require res to be allocated.*/
     if (!res)
         return -1;
     
@@ -70,7 +73,7 @@ int sys_lwc_create(struct dune_tf *tf, lwc_rsrc_spec *mod, lwc_res_t *res)
 
 
     //TODO: remove, for debugging.
-    mm_verify_mappings(current->vm_mm);
+    //mm_verify_mappings(current->vm_mm);
 
     /* Set the result for the child.*/
     res->n_lwc = NULL;
@@ -128,6 +131,7 @@ int sys_lwc_switch( struct dune_tf *tf,
 {
     ASSERT_DBG(tf, "trap frame is null.\n");
     ASSERT_DBG(lwc, "lwc is null.\n");
+
     /* Get the current context.*/
     lwc_struct *current = Q_GET_FRONT(contexts);
     
@@ -166,6 +170,7 @@ int sys_lwc_switch( struct dune_tf *tf,
     /* Set return value.*/
     lwc->tf.rax = 0;
     tf->rax = 0;
+    
     return 0;
 }
 

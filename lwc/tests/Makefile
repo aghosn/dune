@@ -1,18 +1,32 @@
-DUNE = ../..
-DUNE_LIB = $(DUNE)/libdune/libdune.a
-CC = gcc
-CFLAGS = -Wall -O3 -pthread -I$(DUNE)/libdune -I../liblwc
+#DUNE = ../..
+#DUNE_LIB = $(DUNE)/libdune/libdune.a
+#CC = gcc
+#CFLAGS = -Wall -O3 -pthread -I$(DUNE)/libdune -I../liblwc
+#
+#APPS = hello shared2 mmap double_switch registers gva_hva shared private cow readonly
+#
+#all: $(APPS)
+#
+#$(APPS):
+#
+#$(APPS): %: %.o
+#	$(CC) $(CFLAGS) $^ -o $@ $(DUNE_LIB)
+#
+#clean:
+#	rm -f *.o *.d $(APPS)
+#
+#-include *.d
+SUBDIRS = units
+CLEANDIRS = $(SUBDIRS:%=clean-%)
 
-APPS = hello shared2 mmap double_switch registers gva_hva shared private cow readonly
+all: $(SUBDIRS)
 
-all: $(APPS)
+$(SUBDIRS):
+	$(MAKE) -C $@
 
-$(APPS):
+clean: $(CLEANDIRS)
 
-$(APPS): %: %.o
-	$(CC) $(CFLAGS) $^ -o $@ $(DUNE_LIB)
+$(CLEANDIRS):
+	$(MAKE) -C $(@:clean-%=%) clean
 
-clean:
-	rm -f *.o *.d $(APPS)
-
--include *.d
+.PHONY: all clean $(SUBDIRS) $(CLEANDIRS)

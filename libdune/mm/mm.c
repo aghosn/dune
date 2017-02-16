@@ -120,7 +120,8 @@ int mm_init()
 	dune_procmap_iterate(&__mm_setup_mappings_cb);
 
 	//TODO: for debugging, remove afterwards.
-	mm_verify_mappings(current_mm);
+	//mm_verify_mappings(current_mm);
+	
 	return 0;
 }
 
@@ -167,8 +168,6 @@ ret:
 	return res;
 }
 
-//TODO: FIXME, this method actually allocates when it is not supposed to.
-//Does it still do that?
 int mm_create_phys_mapping(mm_struct *mm, 
 							vm_addrptr va_start, 
 							vm_addrptr va_end, 
@@ -252,7 +251,7 @@ int mm_apply_to_pgroot(vm_area_struct *vma, void *pa)
 		(size_t)(vma->vm_end - vma->vm_start), pa, vma->vm_flags);
 	}
 
-	//FIXME:
+	//FIXME: function is actually never called without a physical address
 	ASSERT_DBG(0, "Should not have reached this part.\n");
 	return 1;
 }
@@ -272,8 +271,6 @@ static int __mm_apply_protect(vm_area_struct *vma, void* perm)
 /* Modifies the permissions for the vmas that map the provided range.
  * If the virtual memory region is not mapped, it is NOT created.
  * If the start or end address is within a vma, we split it (if possible).*/
-//FIXME: BUG, mm_split_or_merge should not be allocating anything, but it might
-//fill gaps in memory.
 int mm_mprotect(mm_struct *mm, vm_addrptr start,
 				vm_addrptr end, unsigned long perm)
 {
@@ -343,8 +340,7 @@ int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end, bool apply)
 			return ret;
 		}
 	}
-	/* TODO: for debugging remove afterwards.
-	 * Need to decide if we return 0 or it is a fault to unmap invalid addr.*/
+	/* Need to decide if we return 0 or it is a fault to unmap invalid addr.*/
 	ASSERT_DBG(0, "Should not have reached this part.\n");
 	return -EINVAL;
 }
