@@ -30,8 +30,7 @@ int lwc_init()
         goto err;
     }
 
-    Q_INIT_ELEM(lwc_root, lk_parent);
-    Q_INIT_HEAD(&(lwc_root->children));
+    TAILQ_INIT(&(lwc_root->children));
     ASSERT_DBG(mm_root != NULL, "mm_root is null.\n");
 
     lwc_root->vm_mm = mm_root;
@@ -100,7 +99,7 @@ create:
         goto err;
     n_lwc->vm_mm = copy;
     n_lwc->parent = current;
-    Q_INIT_HEAD(&(n_lwc->children));
+    TAILQ_INIT(&(n_lwc->children));
 
     /* Initialize the dune trap frame.*/
     n_lwc->tf = *tf;
@@ -113,9 +112,7 @@ create:
     /* Child store the result address for now.*/
     n_lwc->tf.rax = (uint64_t) res;
 
-    Q_INIT_ELEM(n_lwc, lk_parent);
-    Q_INSERT_TAIL(&(current->children), n_lwc, lk_parent);
-    
+    TAILQ_INSERT_TAIL(&(current->children), n_lwc, q_parent);    
     TAILQ_INSERT_TAIL(ctxts, n_lwc, q_ctx);
 
     Q_INIT_ELEM(n_lwc->vm_mm, lk_mms);
@@ -211,7 +208,7 @@ int lwc_free(lwc_struct *lwc)
     ASSERT_DBG(lwc, "lwc is null.\n");
     if (lwc->parent) {
         lwc_struct *parent = lwc->parent;
-        Q_REMOVE(&(parent->children), lwc, lk_parent);
+        TAILQ_REMOVE(&(parent->children), lwc, q_parent);
     }
 
     TAILQ_REMOVE(ctxts, lwc, q_ctx);

@@ -11,9 +11,6 @@
 #define D_TRAPF 0x0010
 
 /* Defines a list of lwc_structs.*/
-Q_NEW_HEAD(l_lwc, lwc_struct);
-
-/* Linux TAILQ for lwc_structs*/
 TAILQ_HEAD(lwc_list, lwc_struct);
 
 typedef struct lwc_struct {
@@ -21,11 +18,11 @@ typedef struct lwc_struct {
 	struct dune_tf tf;
 	
 	struct lwc_struct *parent;
-	l_lwc children;
+	struct lwc_list children;
 
 	/* For management*/
 	TAILQ_ENTRY(lwc_struct) q_ctx;
-	Q_NEW_LINK(lwc_struct) lk_parent;
+	TAILQ_ENTRY(lwc_struct) q_parent;
 	
 } lwc_struct;
 
