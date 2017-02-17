@@ -119,8 +119,9 @@ int mm_init()
 	/*Map the procmap.*/
 	dune_procmap_iterate(&__mm_setup_mappings_cb);
 
-	//TODO: for debugging, remove afterwards.
-	//mm_verify_mappings(current_mm);
+#ifdef DEBUG
+	mm_verify_mappings(current_mm);
+#endif
 	
 	return 0;
 }

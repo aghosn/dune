@@ -76,8 +76,10 @@ int sys_lwc_create( struct dune_tf *tf,
         goto err;
     }
 
+#ifdef DEBUG
     mm_verify_mappings(current->vm_mm);
-
+#endif
+    
     /* Set the result for the child.*/
     res->n_lwc = NULL;
     res->caller = current;

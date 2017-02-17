@@ -8,16 +8,15 @@
 #include "mm.h"
 #include "mm_tools.h"
 
-#define DEBUG_MM
-
 //FIXME: change the interface, it doesn't make sense to have both apply and cow.
 mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 {
 	ASSERT_DBG(mm, "mm is null.\n");
 	vm_area_struct *current = NULL;
 
-	//TODO: remove, for debugging.
+#ifdef DEBUG
 	mm_verify_mappings(mm);
+#endif
 
 	mm_struct *copy = malloc(sizeof(mm_struct));
 	if (!copy) goto err;
@@ -47,13 +46,12 @@ mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 	copy->pml4 = vm_pgrot_copy(mm->pml4, cow);
 	ASSERT_DBG(copy->pml4, "copy->pml4 is null.\n");
 
-#ifdef DEBUG_MM
+#ifdef DEBUG
 	mm_assert_equals(mm, copy);
 	vm_compare_pgroots(mm->pml4, copy->pml4);
 	mm_verify_mappings(mm);
 	mm_verify_mappings(copy);
 #endif
-
 	return copy;
 err:
 	if (copy)
@@ -385,7 +383,9 @@ void mm_uncow(mm_struct *mm, vm_addrptr va)
 
 	vm_uncow(mm->pml4, (void*) va);
 
+#ifdef DEBUG
 	mm_verify_mappings(mm);
+#endif
 }
 
 int mm_verify_range(mm_struct *mm, vm_addrptr addr, uint64_t len)

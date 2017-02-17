@@ -93,7 +93,9 @@ void memory_pgflt_handler(uintptr_t addr, uint64_t fec, struct dune_tf *tf)
 	ASSERT_DBG(pgroot == cr3, "pgroot{0x%016lx}, cr3{0x%016lx}", 
 			(unsigned long)pgroot, (unsigned long)cr3);
 
+#ifdef DEBUG
 	mm_verify_mappings(current_mm);
+#endif
 	/* Do the uncow for the memory region.*/
 	mm_uncow(current_mm, (vm_addrptr) addr);
 }
