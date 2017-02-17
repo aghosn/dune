@@ -2,7 +2,6 @@
 #define __LWC_CORE_LWC_TYPES_H__
 
 #include <dune.h>
-#include <utils/vq.h>
 #include <mm/mm_types.h>
 
 #define D_NORMA 0x0001
