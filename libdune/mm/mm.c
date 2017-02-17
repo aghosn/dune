@@ -133,21 +133,21 @@ vm_area_struct* mm_find(mm_struct *mm, vm_addrptr addr, bool is_end)
 	/* Fast paths.*/
 
 	/* Before the start.*/
-	if (mm->mmap->head->vm_start >= addr) {
+	if (TAILQ_FIRST(&(mm->mmap))->vm_start >= addr) {
 		if (!is_end)
-			res = mm->mmap->head;
+			res = TAILQ_FIRST(&(mm->mmap));
 		goto ret;
 	}
 
 	/* After the end.*/
-	if (mm->mmap->last->vm_end <= addr) {
+	if (TAILQ_LAST(&(mm->mmap), vm_area_list)->vm_end <= addr) {
 		if (is_end)
-			res = mm->mmap->last;
+			res = TAILQ_LAST(&(mm->mmap), vm_area_list);
 		goto ret;
 	}
 
 	/* Slow path.*/
-	Q_FOREACH(current, mm->mmap, lk_areas) {
+	TAILQ_FOREACH(current, &(mm->mmap), q_areas) {
 		/* Within the vma.*/
 		if (current->vm_start <= addr && current->vm_end > addr) {
 			res = current;
@@ -174,7 +174,6 @@ int mm_create_phys_mapping(mm_struct *mm,
 							void* pa, 
 							unsigned long perm)
 {
-	ASSERT_DBG(mm->mmap, "mm->mmap is null.\n"); 
 	ASSERT_DBG(va_start < va_end,
 		"va_start{0x%016lx}, va_end{0x%016lx}.\n", va_start, va_end);
 	
@@ -185,33 +184,30 @@ int mm_create_phys_mapping(mm_struct *mm,
 	va_start = MM_PGALIGN_DN(va_start);
 	va_end = MM_PGALIGN_UP(va_end);
 	
-	if(!(mm->mmap))
-		return -EINVAL;
-
 	/* Fast paths*/
 
 	/* Insert at the front.*/
-	if (mm->mmap->head == NULL || mm->mmap->head->vm_start >= va_end) {
+	if (TAILQ_FIRST(&(mm->mmap)) == NULL || TAILQ_FIRST(&(mm->mmap))->vm_start >= va_end) {
 		vm_area_struct *vma = vma_create(mm, va_start, va_end, perm);
 		if (!vma)
 			return -ENOMEM;
-		Q_INSERT_FRONT(mm->mmap, vma, lk_areas);
+		TAILQ_INSERT_HEAD(&(mm->mmap), vma, q_areas);
 		ret = mm_apply_to_pgroot(vma, pa);
 		return ret;
 	}
 	
 	/* Insert at the end.*/
-	if (mm->mmap->last->vm_end <= va_start) {
+	if (TAILQ_LAST(&(mm->mmap), vm_area_list)->vm_end <= va_start) {
 		vm_area_struct *vma = vma_create(mm, va_start, va_end, perm);
 		if (!vma)
 			return -ENOMEM;
-		Q_INSERT_TAIL(mm->mmap, vma, lk_areas);
+		TAILQ_INSERT_TAIL(&(mm->mmap), vma, q_areas);
 		ret = mm_apply_to_pgroot(vma, pa);
 		return ret;
 	}
 	
 	/* Slow path*/
-	Q_FOREACH(current, mm->mmap, lk_areas) {
+	TAILQ_FOREACH(current, &(mm->mmap), q_areas) {
 		if (current->vm_start == va_start &&
 			current->vm_end == va_end &&
 			current->vm_flags == perm) {
@@ -232,7 +228,7 @@ int mm_create_phys_mapping(mm_struct *mm,
 			vm_area_struct *vma = vma_create(mm, va_start, va_end, perm);
 			if (!vma)
 				return -ENOMEM;
-			Q_INSERT_BEFORE(mm->mmap, current, vma, lk_areas);
+			TAILQ_INSERT_BEFORE(current, vma, q_areas);
 			ret = mm_apply_to_pgroot(vma, pa);
 			return ret;
 		}
@@ -281,7 +277,7 @@ int mm_mprotect(mm_struct *mm, vm_addrptr start,
 	start = MM_PGALIGN_DN(start);
 	end = MM_PGALIGN_UP(end);
 
-	Q_FOREACH(current, mm->mmap, lk_areas) {
+	TAILQ_FOREACH(current, &(mm->mmap), q_areas) {
 		if (current->vm_start == start &&
 			current->vm_end == end &&
 			current->vm_flags == perm) {
@@ -319,7 +315,7 @@ int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end, bool apply)
 	start = MM_PGALIGN_DN(start);
 	end = MM_PGALIGN_UP(end);
 
-	Q_FOREACH(current, mm->mmap, lk_areas) {
+	TAILQ_FOREACH(current, &(mm->mmap), q_areas) {
 		if (mm_overlap(current, start, end)) {
 			ret = mm_split_and_merge(mm, current, start, end, 0, 
 				&__mm_unmap, &to_rm);
@@ -328,7 +324,7 @@ int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end, bool apply)
 				return ret;
 			
 			assert(to_rm != NULL);
-			Q_REMOVE(mm->mmap, to_rm, lk_areas);
+			TAILQ_REMOVE(&(mm->mmap), to_rm, q_areas);
 		
 			if (apply) {
 				/* Cow pages references are handled at page table level.*/
@@ -348,7 +344,7 @@ int mm_unmap(mm_struct *mm, vm_addrptr start, vm_addrptr end, bool apply)
 void mm_apply(mm_struct *mm)
 {
 	vm_area_struct *current = NULL;
-	Q_FOREACH(current, mm->mmap, lk_areas) {
+	TAILQ_FOREACH(current, &(mm->mmap), q_areas) {
 		
 		ASSERT_DBG(current->vm_mm == mm,
 			"current->vm_mm{%p}, mm{%p}.\n", current->vm_mm, mm);

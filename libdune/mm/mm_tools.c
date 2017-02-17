@@ -14,7 +14,6 @@
 mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 {
 	ASSERT_DBG(mm, "mm is null.\n");
-	ASSERT_DBG(mm->mmap, "mm->mmap is null.\n");
 	vm_area_struct *current = NULL;
 
 	//TODO: remove, for debugging.
@@ -23,13 +22,9 @@ mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 	mm_struct *copy = malloc(sizeof(mm_struct));
 	if (!copy) goto err;
 
-	copy->mmap = malloc(sizeof(l_vm_area));
-	if (!(copy->mmap)) goto err;
+	TAILQ_INIT(&(copy->mmap));
 
-	Q_INIT_ELEM(copy, lk_mms);
-	Q_INIT_HEAD(copy->mmap);
-
-	Q_FOREACH(current, mm->mmap, lk_areas) {
+	TAILQ_FOREACH(current, &(mm->mmap), q_areas) {
 		vm_area_struct *vmcpy = NULL;
 		/* The kernel mappings and read only pages are never cowed.*/
 		if (!vma_is_user(current) || !(current->vm_flags & PERM_W)) {
@@ -41,7 +36,7 @@ mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 		if (vmcpy == NULL) goto err;
 		
 		vmcpy->vm_mm = copy;
-		Q_INSERT_TAIL(copy->mmap, vmcpy, lk_areas);
+		TAILQ_INSERT_TAIL(&(copy->mmap), vmcpy, q_areas);
 	}
 
 	/* Do we have to apply the changes?*/
@@ -86,14 +81,17 @@ int mm_split_and_merge(	mm_struct *mm,
 	vm_area_struct *iter = NULL, *last = NULL;
 	
 	/* Find the last conflicting block.*/
-	for (iter = vma->lk_areas.next; iter != NULL; iter = iter->lk_areas.next) {
+	for (	iter = TAILQ_NEXT(vma, q_areas);
+			iter != NULL;
+			iter = TAILQ_NEXT(iter, q_areas)) {
+		
 		if (!mm_overlap(iter, start, end)) {
-			last = iter->lk_areas.prev;
+			last = TAILQ_PREV(iter, vm_area_list, q_areas);
 			break;
 		}
 	}
 	/* Check that last is correctly set.*/
-	last = (last != NULL)? last : mm->mmap->last;
+	last = (last != NULL)? last : TAILQ_LAST(&(mm->mmap), vm_area_list);
 	ASSERT_DBG(last, "last is null.\n");
 
 	/*1. creates only one vma, it is a merge 
@@ -191,22 +189,23 @@ alloc: ;
 		goto err;
 	
 	/* Clean up the vmas.*/
-	vm_area_struct *in_q = vma->lk_areas.prev;
-	mm_delete_region(mm, vma->lk_areas.prev, last->lk_areas.next);
+	vm_area_struct *in_q = TAILQ_PREV(vma, vm_area_list, q_areas);
+	mm_delete_region(mm, TAILQ_PREV(vma, vm_area_list, q_areas),
+		TAILQ_NEXT(last, q_areas));
 	
 	/* Insert the f_vma*/
 	if (in_q) {
-		Q_INSERT_AFTER(mm->mmap, in_q, f_vma, lk_areas);
+		TAILQ_INSERT_AFTER(&(mm->mmap), in_q, f_vma, q_areas);
 	}
 	else {
-		Q_INSERT_FRONT(mm->mmap, f_vma, lk_areas);
+		TAILQ_INSERT_HEAD(&(mm->mmap), f_vma, q_areas);
 	} 
 		
 	if (s_vma) {
-		Q_INSERT_AFTER(mm->mmap, f_vma, s_vma, lk_areas);
+		TAILQ_INSERT_AFTER(&(mm->mmap), f_vma, s_vma, q_areas);
 	}
 	if (t_vma) {
-		Q_INSERT_AFTER(mm->mmap, s_vma, t_vma, lk_areas);
+		TAILQ_INSERT_AFTER(&(mm->mmap), s_vma, t_vma, q_areas);
 	}
 
 	return 0;
@@ -253,15 +252,18 @@ int mm_split_no_merge(	mm_struct *mm,
 	vm_area_struct *iter = NULL, *last = NULL;
 
 	/* Find last conflicting block.*/
-	for (iter = vma->lk_areas.next; iter != NULL; iter = iter->lk_areas.next) {
+	for (	iter = TAILQ_NEXT(vma, q_areas);
+			iter != NULL;
+			iter = TAILQ_NEXT(iter, q_areas)) {
+
 		if (!mm_overlap(iter, start, end)) {
-			last = iter->lk_areas.prev;
+			last = TAILQ_PREV(iter, vm_area_list, q_areas);
 			break;
 		}
 	}
 
 	/* Check that the last is correctly set.*/
-	last = (last != NULL)? last : mm->mmap->last;
+	last = (last != NULL)? last : TAILQ_LAST(&(mm->mmap), vm_area_list);
 	ASSERT_DBG(last != NULL, "last is null.\n");
 
 	/* Fix the conflict with the last vma.*/
@@ -293,9 +295,9 @@ int mm_split_no_merge(	mm_struct *mm,
 		return 0;
 
 	/* Have vmas to modify in-between.*/
-	for (iter = snm_first.n_head->lk_areas.next; 
+	for (iter = TAILQ_NEXT(snm_first.n_head, q_areas); 
 		iter != NULL; 
-		iter = iter->lk_areas.next) {
+		iter = TAILQ_NEXT(iter, q_areas)) {
 		iter->vm_flags = perm;
 		iter->dirty = 1;
 		if ((ret = f(iter, args)))
@@ -317,12 +319,12 @@ int mm_delete_region(	mm_struct *mm,
 						vm_area_struct *start,
 						vm_area_struct *end)
 {
-	vm_area_struct *iter = (!start)? mm->mmap->head : start->lk_areas.next;
+	vm_area_struct *iter = (!start)? TAILQ_FIRST(&(mm->mmap)) : TAILQ_NEXT(start, q_areas);
 	while (iter != NULL) {
 		vm_area_struct *tmp = iter;
-		iter = iter->lk_areas.next;
+		iter = TAILQ_NEXT(iter, q_areas);
 
-		Q_REMOVE(mm->mmap, tmp, lk_areas);
+		TAILQ_REMOVE(&(mm->mmap), tmp, q_areas);
 		vma_free(tmp);
 		if (iter == end)
 			break;
@@ -335,19 +337,14 @@ int mm_free(mm_struct *mm)
 {
 	ASSERT_DBG(mm, "mm is null.\n");
 	int ret = 0;
-	if (!mm->mmap) {
-		free(mm);
-		return 0;
-	}
 
-	vm_area_struct *iter = mm->mmap->head;
+	vm_area_struct *iter = TAILQ_FIRST(&(mm->mmap));
 	while(iter != NULL) {
 		vm_area_struct *current = iter;
-		iter = iter->lk_areas.next;
+		iter = TAILQ_NEXT(iter, q_areas);
 		vma_free(current);
 	}
 
-	free(mm->mmap);
 	if (mm->pml4)
 		dune_vm_free(mm->pml4);
 	free(mm);
@@ -360,7 +357,7 @@ void mm_uncow(mm_struct *mm, vm_addrptr va)
 	vm_area_struct *found = NULL;
 	vm_addrptr addr = MM_PGALIGN_DN(va);
 
-	Q_FOREACH(current, mm->mmap, lk_areas) {
+	TAILQ_FOREACH(current, &(mm->mmap), q_areas) {
 		if (current->vm_start == addr &&
 			current->vm_end == (addr + PGSIZE)) {
 			found = current;
@@ -394,17 +391,17 @@ void mm_uncow(mm_struct *mm, vm_addrptr va)
 int mm_verify_range(mm_struct *mm, vm_addrptr addr, uint64_t len)
 {
 	vm_area_struct *current = NULL;
-	Q_FOREACH(current, mm->mmap, lk_areas) {
+	TAILQ_FOREACH(current, &(mm->mmap), q_areas) {
 		if (mm_overlap(current, addr, addr + len)) {
 
 			vm_area_struct *previous = current;
-			vm_area_struct *runner = previous->lk_areas.next;
+			vm_area_struct *runner = TAILQ_NEXT(previous, q_areas);
 			while (runner != NULL && mm_overlap(runner, addr, addr + len)) {
 				if (previous->vm_end < runner->vm_start)
 					return 0;
 
 				previous = runner;
-				runner = runner->lk_areas.next;
+				runner = TAILQ_NEXT(runner, q_areas);
 			}
 			ASSERT_DBG(previous != NULL, "mapping not found.");
 			ASSERT_DBG(mm_overlap(previous, addr, addr + len), "error.");
@@ -421,7 +418,7 @@ void mm_dump(mm_struct *mm)
 {
 	ASSERT_DBG(mm, "mm is null.\n");
 	vm_area_struct *current = NULL;
-	Q_FOREACH(current, mm->mmap, lk_areas) {
+	TAILQ_FOREACH(current, &(mm->mmap), q_areas) {
 		vma_dump(current);
 	}
 }
@@ -466,11 +463,10 @@ int mm_verify_mappings(mm_struct *mm)
 {
 	int ret = 0;
 	ASSERT_DBG(mm, "mm is null.\n");
-	ASSERT_DBG(mm->mmap, "mm->mmap is null.\n");
 	ASSERT_DBG(mm->pml4, "mm->pml4 is null.\n");
 	vm_area_struct *current = NULL, *prev = NULL;
 
-	Q_FOREACH(current, mm->mmap, lk_areas) {
+	TAILQ_FOREACH(current, &(mm->mmap), q_areas) {
 		
 		/* Check that it's sorted.*/
 		if (prev) {
@@ -505,10 +501,11 @@ int mm_verify_mappings(mm_struct *mm)
 int mm_assert_equals(mm_struct *o, mm_struct *c)
 {
 	vm_area_struct *o_current = NULL, *c_current = NULL;
-	for (o_current = o->mmap->head, c_current = c->mmap->head;
+	for (o_current = TAILQ_FIRST(&(o->mmap)),
+		c_current = TAILQ_FIRST(&(c->mmap));
 		o_current != NULL && c_current != NULL;
-		o_current = o_current->lk_areas.next,
-		c_current = c_current->lk_areas.next) {
+		o_current = TAILQ_NEXT(o_current, q_areas),
+		c_current = TAILQ_NEXT(c_current, q_areas)) {
 
 		ASSERT_DBG(o_current->vm_start == c_current->vm_start, 
 			"o_current->vm_start{0x%016lx}, c_current->vm_start{0x%016lx}\n",

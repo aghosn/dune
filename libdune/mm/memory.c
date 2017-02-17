@@ -11,7 +11,7 @@
 /*Global variables*/
 ptent_t *pgroot = NULL;
 mm_struct *mm_root = NULL;
-l_mm *mm_queue = NULL;
+struct mm_list *mm_queue = NULL;
 
 
 int dune_memory_init() {
@@ -28,24 +28,18 @@ int dune_memory_init() {
 		ret = -ENOMEM;
 		goto err;
 	}
-	Q_INIT_ELEM(mm_root, lk_mms);
+	
 	mm_root->pml4 = pgroot;
 	mm_root->ref = 1;
-	mm_root->mmap = malloc(sizeof(l_vm_area));
-	Q_INIT_HEAD(mm_root->mmap);
+	TAILQ_INIT(&(mm_root->mmap));
 
-	if(!mm_root->mmap) {
-		ret = -ENOMEM;
-		goto err;
-	}
-
-	mm_queue = malloc(sizeof(l_mm));
+	mm_queue = malloc(sizeof(struct mm_list));
 	if (!mm_queue) {
 		ret = -ENOMEM;
 		goto err;
 	}
-	Q_INIT_HEAD(mm_queue);
-	Q_INSERT_FRONT(mm_queue, mm_root, lk_mms);
+	TAILQ_INIT(mm_queue);
+	TAILQ_INSERT_HEAD(mm_queue, mm_root, q_mms);
 
 	if ((ret = dune_page_init())) {
 		printf("dune: unable to initialize page manager.\n");
@@ -63,8 +57,6 @@ int dune_memory_init() {
 err:
 	if (pgroot)
 		free(pgroot);
-	if (mm_root && mm_root->mmap)
-		free(mm_root->mmap);
 	if (mm_root)
 		free(mm_root);
 	if (mm_queue)

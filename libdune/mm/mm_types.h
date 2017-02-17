@@ -2,12 +2,11 @@
 #define __LIBDUNE_MM_MM_TYPES_H__
 
 #include "../dune.h"
-#include "../utils/vq.h"
 
 typedef unsigned long vm_addrptr;
 
-/*Defines a list of vm_area_struct*/
-Q_NEW_HEAD(l_vm_area, vm_area_struct)
+/* Defines a list of vm_area_struct*/
+TAILQ_HEAD(vm_area_list, vm_area_struct);
 
 typedef struct vm_area_struct {
 
@@ -16,9 +15,9 @@ typedef struct vm_area_struct {
 	/* Address of the first byte after our end address*/
 	vm_addrptr vm_end;
 
-	/*Linked list of VM areas, should be sorted by address*/
-	Q_NEW_LINK(vm_area_struct) lk_areas;
-	
+	/* Linked list of VM areas, sorted by address*/
+	TAILQ_ENTRY(vm_area_struct) q_areas;
+
 	//TODO: implement red-black tree.
 	
 	/* Address space we belong to*/
@@ -33,16 +32,16 @@ typedef struct vm_area_struct {
 } vm_area_struct;
 
 typedef struct mm_struct {
-	l_vm_area *mmap;
+	struct vm_area_list mmap;
 
 	ptent_t* pml4;
 
-	Q_NEW_LINK(mm_struct) lk_mms;
+	TAILQ_ENTRY(mm_struct) q_mms;
 
 	unsigned int ref;
 } mm_struct;
 
-/*List of memory regions*/
-Q_NEW_HEAD(l_mm, mm_struct)
+/* List of memory regions*/
+TAILQ_HEAD(mm_list, mm_struct);
 
 #endif

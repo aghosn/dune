@@ -9,11 +9,11 @@
 
 static vm_area_struct* __lwc_mm_last_vma(vm_area_struct* vma, lwc_rg_struct *rg)
 {
-	vm_area_struct *previous = vma, *current = vma->lk_areas.next;
+	vm_area_struct *previous = vma, *current = TAILQ_NEXT(vma, q_areas);
 	
 	while (current && mm_overlap(current, rg->start, rg->end)) {
 		previous = current;
-		current = current->lk_areas.next;
+		current = TAILQ_NEXT(current, q_areas);
 	}
 
 	return previous;
@@ -52,7 +52,10 @@ static int lwc_validate_mod(lwc_rg_struct *mod, unsigned int numr, mm_struct *o)
         
         /*Check that none is kernel.*/
         vm_area_struct *current = NULL;
-       	for (current = start; current != NULL; current = current->lk_areas.next) {
+       	for (current = start;
+       		current != NULL;
+       		current = TAILQ_NEXT(current, q_areas)) {
+
        		ASSERT_DBG(current->vm_flags & PERM_U, "Trying to modify kernel.\n");
        		if (current == end)
        			break;
@@ -112,12 +115,15 @@ static int __lwc_shared(mm_struct *o,
 
 	/* Copy the vmas in the child.*/
 	vm_area_struct *current = NULL;
-	for (current = start; current != NULL; current = current->lk_areas.next) {
+	for (current = start;
+		current != NULL;
+		current = TAILQ_NEXT(current, q_areas)) {
+
 		vm_area_struct *vmacpy = vma_copy(current, false);
 		if (!vmacpy) goto err;
 
 		vmacpy->vm_mm = copy;
-		Q_INSERT_TAIL(copy->mmap, vmacpy, lk_areas);
+		TAILQ_INSERT_TAIL(&(copy->mmap), vmacpy, q_areas);
 
 		if (current == end)
 			break;
@@ -148,7 +154,7 @@ static int __lwc_unmap(	mm_struct *o,
 		vm_area_struct *fst = vma_create(copy, start->vm_start, s, start->vm_flags);
 		if (!fst) goto err;
 
-		Q_INSERT_TAIL(copy->mmap, fst, lk_areas);
+		TAILQ_INSERT_TAIL(&(copy->mmap), fst, q_areas);
 	}
 
 	/* Last one is split.*/
@@ -156,7 +162,7 @@ static int __lwc_unmap(	mm_struct *o,
 		vm_area_struct *lst = vma_create(copy, e, end->vm_end, end->vm_flags);
 		if (!lst) goto err;
 
-		Q_INSERT_TAIL(copy->mmap, lst, lk_areas);
+		TAILQ_INSERT_TAIL(&(copy->mmap), lst, q_areas);
 	}
 
 	/* Unmap in the pml4.*/
@@ -212,7 +218,7 @@ static int __lwc_ro(mm_struct *o,
 		vm_area_struct *fst = vma_create(copy, start->vm_start, s, start->vm_flags);
 		if (!fst) goto err;
 
-		Q_INSERT_TAIL(copy->mmap, fst, lk_areas);
+		TAILQ_INSERT_TAIL(&(copy->mmap), fst, q_areas);
 	}
 
 	/* Uncow the parent.*/
@@ -226,12 +232,15 @@ static int __lwc_ro(mm_struct *o,
 	vm_area_struct *h = vma_create(copy, nfsts, start->vm_end, start->vm_flags & (~PERM_W));
 	if (!h) goto err;
 
-	Q_INSERT_TAIL(copy->mmap, h, lk_areas);
+	TAILQ_INSERT_TAIL(&(copy->mmap), h, q_areas);
 
 	if (start == end) goto finish;
 
 	vm_area_struct *curr = NULL;
-	for (curr = start->lk_areas.next; curr != NULL; curr = curr->lk_areas.next){
+	for (curr = TAILQ_NEXT(start, q_areas);
+		curr != NULL;
+		curr = TAILQ_NEXT(curr, q_areas)){
+
 		vm_addrptr svma = curr->vm_start;
 		vm_addrptr evma = (curr == end)? e : curr->vm_end;
 		unsigned long flags = curr->vm_flags & (~PERM_W);
@@ -239,7 +248,7 @@ static int __lwc_ro(mm_struct *o,
 		vm_area_struct *vma = vma_create(copy, svma, evma, flags);
 		if (!vma) goto err;
 
-		Q_INSERT_TAIL(copy->mmap, vma, lk_areas);
+		TAILQ_INSERT_TAIL(&(copy->mmap), vma, q_areas);
 		if (curr == end)
 			break;
 	}
@@ -250,7 +259,7 @@ finish:
 		vm_area_struct *lst = vma_create(copy, e, end->vm_end, end->vm_flags);
 		if (!lst) goto err;
 
-		Q_INSERT_TAIL(copy->mmap, lst, lk_areas);
+		TAILQ_INSERT_TAIL(&(copy->mmap), lst, q_areas);
 	}
 
 	
@@ -275,18 +284,15 @@ mm_struct* lwc_mm_create(mm_struct *o, lwc_rg_struct *mod, unsigned int numr)
 	/*Create the new memory mapping.*/
 	copy = malloc(sizeof(mm_struct));
 	if (!copy) goto err;
-	
-	copy->mmap = malloc(sizeof(l_vm_area));
-	if (!copy->mmap) goto err;
 
-	Q_INIT_ELEM(copy, lk_mms);
-	Q_INIT_HEAD(copy->mmap);
+	
+	TAILQ_INIT(&(copy->mmap));
 
 	/*Copy the pml4*/
 	copy->pml4 = vm_pgrot_copy(o->pml4, true);
 	if (!(copy->pml4)) goto err;
 
-	Q_FOREACH(current, o->mmap, lk_areas) {
+	TAILQ_FOREACH(current, &(o->mmap), q_areas) {
 		lwc_rg_struct range = mod[index];
 		if (index < numr && mm_overlap(current, range.start, range.end)) {
 			vm_area_struct *end = __lwc_mm_last_vma(current, &range);
@@ -309,14 +315,14 @@ mm_struct* lwc_mm_create(mm_struct *o, lwc_rg_struct *mod, unsigned int numr)
 					goto err;
 			}
 			index++;
-			current = (end)? end->lk_areas.next : NULL;
+			current = (end)? TAILQ_NEXT(end, q_areas) : NULL;
 		} else {
 cow:		//TODO should make cow?
 			vma = vma_create(copy, current->vm_start, current->vm_end, 
 															current->vm_flags);
 			if (!vma) goto err;
 
-			Q_INSERT_TAIL(copy->mmap, vma, lk_areas);
+			TAILQ_INSERT_TAIL(&(copy->mmap), vma, q_areas);
 		}
 	}
 

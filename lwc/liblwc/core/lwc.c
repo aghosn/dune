@@ -115,8 +115,7 @@ create:
     TAILQ_INSERT_TAIL(&(current->children), n_lwc, q_parent);    
     TAILQ_INSERT_TAIL(ctxts, n_lwc, q_ctx);
 
-    Q_INIT_ELEM(n_lwc->vm_mm, lk_mms);
-    Q_INSERT_TAIL(mm_queue, n_lwc->vm_mm, lk_mms);
+    TAILQ_INSERT_TAIL(mm_queue, n_lwc->vm_mm, q_mms);
 
     return 1;
 err:
@@ -139,7 +138,7 @@ int sys_lwc_switch( struct dune_tf *tf,
     /* Sanity checks.*/
     ASSERT_DBG(current, "current is null.\n");
     ASSERT_DBG(current->vm_mm, "current->vm_mm is null.\n");
-    mm_struct * __current_mm = Q_GET_FRONT(mm_queue);
+    mm_struct * __current_mm = TAILQ_FIRST(mm_queue);
     ASSERT_DBG(current->vm_mm == __current_mm,
         "current->vm_mm{0x%016lx}, __current_mm{0x%016lx}\n",
         (unsigned long)current->vm_mm,(unsigned long)__current_mm); 
