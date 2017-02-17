@@ -275,6 +275,9 @@ mm_struct* lwc_mm_create(mm_struct *o, lwc_rg_struct *mod, unsigned int numr)
 	/*Create the new memory mapping.*/
 	copy = malloc(sizeof(mm_struct));
 	if (!copy) goto err;
+	
+	copy->mmap = malloc(sizeof(l_vm_area));
+	if (!copy->mmap) goto err;
 
 	Q_INIT_ELEM(copy, lk_mms);
 	Q_INIT_HEAD(copy->mmap);

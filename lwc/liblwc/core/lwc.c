@@ -18,9 +18,6 @@
 
 lwc_struct *lwc_root = NULL;
 
-/* List of contexts that are currently available.*/
-l_lwc *contexts = NULL;
-
 struct lwc_list *ctxts = NULL;
 
 int lwc_init()
@@ -33,22 +30,12 @@ int lwc_init()
         goto err;
     }
 
-    Q_INIT_ELEM(lwc_root, lk_ctx);
     Q_INIT_ELEM(lwc_root, lk_parent);
     Q_INIT_HEAD(&(lwc_root->children));
     ASSERT_DBG(mm_root != NULL, "mm_root is null.\n");
 
     lwc_root->vm_mm = mm_root;
     lwc_root->parent = NULL;
-
-    /*TODO remove old.*/
-    contexts = malloc(sizeof(l_lwc));
-    if (!contexts) {
-        ret = -ENOMEM;
-        goto err;
-    }
-    Q_INIT_HEAD(contexts);
-    Q_INSERT_FRONT(contexts, lwc_root, lk_ctx);
 
     /*TODO new*/
     ctxts = malloc(sizeof(struct lwc_list));
@@ -64,8 +51,6 @@ int lwc_init()
 err:
     if (lwc_root)
         free(lwc_root);
-    if (contexts)
-        free(contexts);
     if (ctxts)
         free(ctxts);
     return ret;
@@ -86,14 +71,11 @@ int sys_lwc_create( struct dune_tf *tf,
         return -1;
     }
     
-    /*TODO old The current context.*/
-    current = Q_GET_FRONT(contexts);
-    if (!current)
-        goto err;
-
     current = TAILQ_FIRST(ctxts);
-    if (!current)
+    if (!current) {
+        printf("Current is null.\n");
         goto err;
+    }
 
     mm_verify_mappings(current->vm_mm);
 
@@ -131,14 +113,9 @@ create:
     /* Child store the result address for now.*/
     n_lwc->tf.rax = (uint64_t) res;
 
-    Q_INIT_ELEM(n_lwc, lk_ctx);
     Q_INIT_ELEM(n_lwc, lk_parent);
     Q_INSERT_TAIL(&(current->children), n_lwc, lk_parent);
     
-    //TODO old.
-    Q_INSERT_TAIL(contexts, n_lwc, lk_ctx);
-
-    /*TODO new*/
     TAILQ_INSERT_TAIL(ctxts, n_lwc, q_ctx);
 
     Q_INIT_ELEM(n_lwc->vm_mm, lk_mms);
@@ -160,10 +137,7 @@ int sys_lwc_switch( struct dune_tf *tf,
     ASSERT_DBG(lwc, "lwc is null.\n");
 
     /* Get the current context.*/
-    //TODO old
-    lwc_struct *current = Q_GET_FRONT(contexts);
-
-    current = TAILQ_FIRST(ctxts);
+    lwc_struct *current = TAILQ_FIRST(ctxts);
     
     /* Sanity checks.*/
     ASSERT_DBG(current, "current is null.\n");
@@ -176,11 +150,6 @@ int sys_lwc_switch( struct dune_tf *tf,
         "__current_mm->pml4{0x%016lx}, pgroot{0x%016lx}\n",
         (unsigned long)__current_mm->pml4, (unsigned long)pgroot);
 
-    //TODO old.
-    Q_REMOVE(contexts, lwc, lk_ctx);
-    Q_INSERT_FRONT(contexts, lwc, lk_ctx);
-
-    //TODO new
     TAILQ_REMOVE(ctxts, lwc, q_ctx);
     TAILQ_INSERT_HEAD(ctxts, lwc, q_ctx);
 
@@ -244,10 +213,7 @@ int lwc_free(lwc_struct *lwc)
         lwc_struct *parent = lwc->parent;
         Q_REMOVE(&(parent->children), lwc, lk_parent);
     }
-    //TODO old
-    Q_REMOVE(contexts, lwc, lk_ctx);
 
-    //TODO new
     TAILQ_REMOVE(ctxts, lwc, q_ctx);
 
     mm_free(lwc->vm_mm);

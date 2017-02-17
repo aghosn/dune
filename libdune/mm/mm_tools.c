@@ -383,6 +383,7 @@ void mm_uncow(mm_struct *mm, vm_addrptr va)
 			break;
 		}
 	}
+
 	ASSERT_DBG(found != NULL, "Could not find the mapping to uncow %p.\n", (void*) va);
 
 	vm_uncow(mm->pml4, (void*) va);

@@ -23,12 +23,10 @@ typedef struct lwc_struct {
 	struct lwc_struct *parent;
 	l_lwc children;
 
-	/*TODO old For management*/
-	Q_NEW_LINK(lwc_struct) lk_ctx;
-	Q_NEW_LINK(lwc_struct) lk_parent;
-
-	/*TODO new for management*/
+	/* For management*/
 	TAILQ_ENTRY(lwc_struct) q_ctx;
+	Q_NEW_LINK(lwc_struct) lk_parent;
+	
 } lwc_struct;
 
 /* Modifier types.*/

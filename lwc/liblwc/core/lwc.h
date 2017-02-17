@@ -5,7 +5,6 @@
 
 /* Global variables.*/
 extern lwc_struct *lwc_root;
-extern l_lwc *contexts;
 
 extern struct lwc_list *ctxts;
 
