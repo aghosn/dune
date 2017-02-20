@@ -126,7 +126,7 @@ syscallmap_checkparams(struct dune_tf *tf,
 	} else {
 
 		//log_err("[syscallmap] not implemented %d\n", nr);
-		panic("syscallmap_checkparams\n");
+		panic("syscallmap_checkparams failing\n");
 	}
 
 

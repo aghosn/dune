@@ -34,6 +34,7 @@ INC = -I$(DUNE)/libdune -include$(DUNE)/kern/dune.h
 CC = gcc
 CFLAGS = -g -Wall -fno-dwarf2-cfi-asm -fno-asynchronous-unwind-tables -O3 -mno-red-zone $(INC) -D__KERNEL__ $(EXTRA_CFLAGS)
 
+#TODO: check that.
 DEBUG ?= 1
 ifeq (DEBUG, 1)
     CFLAGS +=-DDEBUG

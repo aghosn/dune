@@ -16,7 +16,7 @@
 #	rm -f *.o *.d $(APPS)
 #
 #-include *.d
-SUBDIRS = units
+SUBDIRS = units benchmarks
 CLEANDIRS = $(SUBDIRS:%=clean-%)
 
 all: $(SUBDIRS)
