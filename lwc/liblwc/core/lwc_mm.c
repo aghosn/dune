@@ -293,7 +293,12 @@ mm_struct* lwc_mm_create(mm_struct *o, lwc_rg_struct *mod, unsigned int numr)
 	if (!(copy->pml4)) goto err;
 
 	TAILQ_FOREACH(current, &(o->mmap), q_areas) {
-		lwc_rg_struct range = mod[index];
+		lwc_rg_struct range;
+
+loop_beg:
+		if (index < numr)		
+			range = mod[index];
+		
 		if (index < numr && mm_overlap(current, range.start, range.end)) {
 			vm_area_struct *end = __lwc_mm_last_vma(current, &range);
 
@@ -316,10 +321,14 @@ mm_struct* lwc_mm_create(mm_struct *o, lwc_rg_struct *mod, unsigned int numr)
 			}
 			index++;
 			current = (end)? TAILQ_NEXT(end, q_areas) : NULL;
+
+			/* Need that to continue with the proper vma.*/
+			if (end != NULL) goto loop_beg;
 		} else {
 cow:		//TODO should make cow?
 			vma = vma_create(copy, current->vm_start, current->vm_end, 
 															current->vm_flags);
+
 			if (!vma) goto err;
 
 			TAILQ_INSERT_TAIL(&(copy->mmap), vma, q_areas);
