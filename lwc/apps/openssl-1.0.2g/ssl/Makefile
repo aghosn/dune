@@ -1,11 +1,14 @@
 #
 # OpenSSL/ssl/Makefile
 #
+#TODO aghosn added.
+DUNE = ../../../..
+LWC_INC = -I$(DUNE)/libdune -I../../../liblwc
 
 DIR=	ssl
 TOP=	..
 CC=	cc
-INCLUDES= -I../crypto -I$(TOP) -I../include $(KRB5_INCLUDES)
+INCLUDES= -I../crypto -I$(TOP) -I../include $(KRB5_INCLUDES) $(LWC_INC)
 CFLAG=-g
 MAKEFILE=	Makefile
 AR=		ar r

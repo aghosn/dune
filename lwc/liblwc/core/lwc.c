@@ -126,10 +126,11 @@ err:
     return -1;
 }
 
-int sys_lwc_switch( struct dune_tf *tf,
-                    lwc_struct *lwc,
-                    void *args,
-                    lwc_res_t *res)
+static int __sys_lwc_switch(struct dune_tf *tf,
+                            lwc_struct *lwc,
+                            void *args,
+                            lwc_res_t *res,
+                            bool discard)
 {
     ASSERT_DBG(tf, "trap frame is null.\n");
     ASSERT_DBG(lwc, "lwc is null.\n");
@@ -172,8 +173,30 @@ int sys_lwc_switch( struct dune_tf *tf,
     /* Set return value.*/
     lwc->tf.rax = 0;
     tf->rax = 0;
+
+    //TODO aghosn: should optimize the creation when we plan to discard something...
+    if (discard) {
+        target_res->caller = NULL;
+        lwc_free(current);
+    }
     
     return 0;
+}
+
+int sys_lwc_switch_discard(struct dune_tf *tf,
+                            lwc_struct *lwc,
+                            void *args,
+                            lwc_res_t *res)
+{
+    return __sys_lwc_switch(tf, lwc, args, res, true);
+}
+
+int sys_lwc_switch( struct dune_tf *tf,
+                    lwc_struct *lwc,
+                    void *args,
+                    lwc_res_t *res)
+{
+    return __sys_lwc_switch(tf, lwc, args, res, false);
 }
 
 int sys_fake_println(struct dune_tf *tf, void* arg, int flags, int id)

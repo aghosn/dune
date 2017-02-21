@@ -170,6 +170,8 @@
 #endif
 #include <openssl/md5.h>
 
+#include <core/lwc_types.h>
+
 #ifndef OPENSSL_NO_SSL3_METHOD
 static const SSL_METHOD *ssl3_get_server_method(int ver);
 

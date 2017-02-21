@@ -13,6 +13,7 @@ bool sys_spawn_cores;
 static lwc_sysfn_t sys_tbl[] = {
     (lwc_sysfn_t) sys_lwc_create,
     (lwc_sysfn_t) sys_lwc_switch,
+    (lwc_sysfn_t) sys_lwc_switch_discard,
     (lwc_sysfn_t) sys_fake_println
 };
 
