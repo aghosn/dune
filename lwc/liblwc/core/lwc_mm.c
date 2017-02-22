@@ -94,7 +94,6 @@ static int __lwc_shared(mm_struct *o,
 			break;
 	}
 
-
 	if (!vm_pgrot_copy_range(o->pml4, copy->pml4,
 		(void*) s, (void*) e, false, CB_SHARE)) {
 		goto err;
@@ -236,7 +235,6 @@ mm_struct* lwc_mm_create(mm_struct *o, lwc_rg_struct *mod, unsigned int numr)
 	/*Create the new memory mapping.*/
 	copy = malloc(sizeof(mm_struct));
 	if (!copy) goto err;
-
 	
 	TAILQ_INIT(&(copy->mmap));
 

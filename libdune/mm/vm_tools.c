@@ -177,8 +177,9 @@ set_entry:
 			memcpy(newPage, (void*)PGADDR(va), PGSIZE);
 			
 			/* map the page.*/
-			if (dune_page_isfrompool(PTE_ADDR(*pte)))
+			if (dune_page_isfrompool(PTE_ADDR(*pte))) {
 				dune_page_put(pg);
+			}
 
 			*pte = PTE_ADDR(newPage) | perm;
 			/* Invalidate address in tlb.*/
@@ -345,8 +346,9 @@ int vm_uncow(ptent_t* root, void *addr)
 	memcpy(newPage, (void*)PGADDR(addr), PGSIZE);
 
 	/* map the page.*/
-	if (dune_page_isfrompool(PTE_ADDR(*pte)))
+	if (dune_page_isfrompool(PTE_ADDR(*pte))) {
 		dune_page_put(pg);
+	}
 	*pte = PTE_ADDR(newPage) | perm;
 
 	/* Invalidate address in tlb.*/

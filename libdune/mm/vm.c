@@ -50,7 +50,10 @@ void * alloc_page(void)
 void put_page(void * page)
 {
 	// XXX: Using PA == VA
+	
 	struct page *pg = dune_pa2page((physaddr_t)page);
+	if (pg < pages || pg >=(pages + num_pages))
+		return;
 
 	dune_page_put(pg);
 }
@@ -341,8 +344,9 @@ static int __dune_vm_free_helper(const void *arg, ptent_t *pte, void *va)
 {
 	struct page *pg = dune_pa2page(PTE_ADDR(*pte));
 
-	if (dune_page_isfrompool(PTE_ADDR(*pte)))
+	if (dune_page_isfrompool(PTE_ADDR(*pte))) {
 		dune_page_put(pg);
+	}
 
 	// Invalidate mapping
 	*pte = 0;
