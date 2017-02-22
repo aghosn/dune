@@ -340,6 +340,7 @@ int mm_free(mm_struct *mm)
 	while(iter != NULL) {
 		vm_area_struct *current = iter;
 		iter = TAILQ_NEXT(iter, q_areas);
+		TAILQ_REMOVE(&(mm->mmap), current, q_areas);
 		vma_free(current);
 	}
 

@@ -29,7 +29,9 @@ vm_area_struct *vma_create(	mm_struct *mm,
 int vma_free(vm_area_struct *vma)
 {
 	ASSERT_DBG(vma, "vma is null.\n");
-	free(vma);
+	//printf("Vma address %p and %p\n", vma, &vma->vm_flags);
+	//TODO aghosn: triggers a bug if I try to free it ...
+	//free(vma);
 	return 0;
 }
 
