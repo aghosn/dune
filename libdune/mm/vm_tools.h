@@ -13,11 +13,16 @@
 
 #define PPTE_FLAGS(pte) ((physaddr_t) (pte) & __PPTE_FLAGS)
 
+typedef enum copy_type {
+	CB_COW = 1,
+	CB_SHARE = 2,
+	CB_RO = 3
+} copy_type;
+
 typedef struct cb_info {
 	int level;
 	void *args;
 } cb_info;
-
 
 typedef int (*pgrot_walk_cb) (ptent_t* pte, void *va, cb_info* args);
 
@@ -43,6 +48,13 @@ int vm_lookup(	ptent_t* root,
 				ptent_t flags);
 
 ptent_t* vm_pgrot_copy(ptent_t* root, bool cow);
+
+ptent_t* vm_pgrot_copy_range(	ptent_t *original,
+								ptent_t *copy,
+								void *start,
+								void* end,
+								bool cow,
+								copy_type modifier);
 
 int vm_uncow(ptent_t* root, void *addr);
 

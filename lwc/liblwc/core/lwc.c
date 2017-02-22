@@ -72,7 +72,7 @@ int sys_lwc_create( struct dune_tf *tf,
     
     current = TAILQ_FIRST(ctxts);
     if (!current) {
-        printf("Current is null.\n");
+        printf("No root lwc!\n");
         goto err;
     }
 

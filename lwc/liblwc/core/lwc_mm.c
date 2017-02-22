@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
 #include <mm/memory.h>
 #include <mm/vm_tools.h>
@@ -68,35 +69,6 @@ static int lwc_validate_mod(lwc_rg_struct *mod, unsigned int numr, mm_struct *o)
     return 0;
 }
 
-static int __share_mem_helper(ptent_t *pte, void *va, cb_info *args)
-{
-	ASSERT_DBG(pte && args, "pte{%p}, args{%p}\n", pte, args);
-    int ret;
-    ptent_t* pte_c = NULL;
-    mm_struct *copy = (mm_struct*)(args->args);
-    ret = vm_lookup(copy->pml4, va, &pte_c, CREATE_NONE, 0);
-    if (ret != 0) {
-        return ret;
-    }
-
-    /* Remap the page in the copy.*/
-    ASSERT_DBG(*pte & PTE_U, "user permissions missing.\n");
-    ASSERT_DBG(*pte & PTE_P, "pte not present.\n");
-    ASSERT_DBG(!(*pte & PTE_COW), "pte is cow.\n");
-    ASSERT_DBG(*pte_c & PTE_U, "copy missing user permissions.\n");
-    ASSERT_DBG(*pte_c & PTE_P, "copy not present.\n");
-    ASSERT_DBG(*pte_c & PTE_COW, "pte_c not cow.\n");
-    ASSERT_DBG(!(*pte_c & PTE_W), "pte_c has write permissions.\n");
-    struct page *pg = dune_pa2page(PTE_ADDR(*pte_c));
-    
-    if (dune_page_isfrompool(PTE_ADDR(*pte_c)))
-        dune_page_put(pg);
-
-    *pte_c = *pte;
-
-    return ret;
-}
-
 static int __lwc_shared(mm_struct *o, 
 						mm_struct* copy,
 						lwc_rg_struct *rg,
@@ -107,16 +79,9 @@ static int __lwc_shared(mm_struct *o,
 	vm_addrptr s = MM_PGALIGN_DN(rg->start);
 	vm_addrptr e = MM_PGALIGN_UP(rg->end);
 
-	/* Uncow in the parent.*/
-	vm_addrptr curr;
-	for (curr = s; curr < e; curr += PGSIZE) {
-		mm_uncow(o, curr);
-	}
-
-	/* Copy the vmas in the child.*/
 	vm_area_struct *current = NULL;
 	for (current = start;
-		current != NULL;
+		current != NULL; 
 		current = TAILQ_NEXT(current, q_areas)) {
 
 		vm_area_struct *vmacpy = vma_copy(current, false);
@@ -128,9 +93,12 @@ static int __lwc_shared(mm_struct *o,
 		if (current == end)
 			break;
 	}
-	
-	ret = vm_pgrot_walk(o->pml4, (void*) (rg->start), (void*)(rg->end-1),
-		&__share_mem_helper, NULL, copy);
+
+
+	if (!vm_pgrot_copy_range(o->pml4, copy->pml4,
+		(void*) s, (void*) e, false, CB_SHARE)) {
+		goto err;
+	}
 
 	return ret;
 err:
@@ -155,6 +123,10 @@ static int __lwc_unmap(	mm_struct *o,
 		if (!fst) goto err;
 
 		TAILQ_INSERT_TAIL(&(copy->mmap), fst, q_areas);
+		if (!vm_pgrot_copy_range(o->pml4, copy->pml4, (void*) fst->vm_start,
+			(void*) fst->vm_end, true, CB_COW)) {
+			goto err;
+		}
 	}
 
 	/* Last one is split.*/
@@ -163,45 +135,16 @@ static int __lwc_unmap(	mm_struct *o,
 		if (!lst) goto err;
 
 		TAILQ_INSERT_TAIL(&(copy->mmap), lst, q_areas);
+		if (!vm_pgrot_copy_range(o->pml4, copy->pml4, (void*) lst->vm_start,
+			(void*) lst->vm_end, true, CB_COW)) {
+			goto err;
+		}
 	}
-
-	/* Unmap in the pml4.*/
-	dune_vm_unmap(copy->pml4, (void*) s, (size_t)(e - s));
 
 	return 0;
 
 err:
 	return -EINVAL;
-}
-
-
-static int __ro_mem_helper(ptent_t *pte, void *va, cb_info *args)
-{
-	ASSERT_DBG(pte && args, "pte{%p}, args{%p}\n", pte, args);
-    int ret;
-    ptent_t* pte_c = NULL;
-    mm_struct *copy = (mm_struct*)(args->args);
-    ret = vm_lookup(copy->pml4, va, &pte_c, CREATE_NONE, 0);
-    if (ret != 0) {
-        return ret;
-    }
-
-    /* Remap the page in the copy.*/
-    ASSERT_DBG(*pte & PTE_U, "user permissions missing.\n");
-    ASSERT_DBG(*pte & PTE_P, "pte not present.\n");
-    ASSERT_DBG(!(*pte & PTE_COW), "pte is cow.\n");
-    ASSERT_DBG(*pte_c & PTE_U, "copy missing user permissions.\n");
-    ASSERT_DBG(*pte_c & PTE_P, "copy not present.\n");
-    ASSERT_DBG(*pte_c & PTE_COW, "pte_c not cow.\n");
-    ASSERT_DBG(!(*pte_c & PTE_W), "pte_c has write permissions.\n");
-    struct page *pg = dune_pa2page(PTE_ADDR(*pte_c));
-    
-    if (dune_page_isfrompool(PTE_ADDR(*pte_c)))
-        dune_page_put(pg);
-
-    *pte_c = *pte & ~(PTE_W);
-
-    return ret;
 }
 
 static int __lwc_ro(mm_struct *o,
@@ -219,11 +162,10 @@ static int __lwc_ro(mm_struct *o,
 		if (!fst) goto err;
 
 		TAILQ_INSERT_TAIL(&(copy->mmap), fst, q_areas);
-	}
-
-	/* Uncow the parent.*/
-	for (vm_addrptr curr = s; curr < e; curr += PGSIZE) {
-		mm_uncow(o, curr);
+		if (!vm_pgrot_copy_range(o->pml4, copy->pml4, (void*)fst->vm_start,
+			(void*)fst->vm_end, true, CB_COW)) {
+			goto err;
+		}
 	}
 
 	/* read only in the child.*/
@@ -233,6 +175,10 @@ static int __lwc_ro(mm_struct *o,
 	if (!h) goto err;
 
 	TAILQ_INSERT_TAIL(&(copy->mmap), h, q_areas);
+	if (!vm_pgrot_copy_range(o->pml4, copy->pml4, (void*) h->vm_start,
+		(void*) h->vm_end, false, CB_RO)) {
+		goto err;
+	}
 
 	if (start == end) goto finish;
 
@@ -249,6 +195,10 @@ static int __lwc_ro(mm_struct *o,
 		if (!vma) goto err;
 
 		TAILQ_INSERT_TAIL(&(copy->mmap), vma, q_areas);
+		if (!vm_pgrot_copy_range(o->pml4, copy->pml4, (void*) vma->vm_start,
+			(void*) vma->vm_end, false, CB_RO)) {
+			goto err;
+		}
 		if (curr == end)
 			break;
 	}
@@ -260,11 +210,13 @@ finish:
 		if (!lst) goto err;
 
 		TAILQ_INSERT_TAIL(&(copy->mmap), lst, q_areas);
+		if (!vm_pgrot_copy_range(o->pml4, copy->pml4, (void*) lst->vm_start,
+			(void*) lst->vm_end, false, CB_RO)) {
+			goto err;
+		}
 	}
-
 	
-	return vm_pgrot_walk(o->pml4, (void*) (s), (void*)(e-1), 
-						&__ro_mem_helper, NULL, copy);
+	return 0;
 err:
 	return -EINVAL;
 }
@@ -289,8 +241,10 @@ mm_struct* lwc_mm_create(mm_struct *o, lwc_rg_struct *mod, unsigned int numr)
 	TAILQ_INIT(&(copy->mmap));
 
 	/*Copy the pml4*/
-	copy->pml4 = vm_pgrot_copy(o->pml4, true);
+	copy->pml4 = memalign(PGSIZE, PGSIZE);
 	if (!(copy->pml4)) goto err;
+
+	memset(copy->pml4, 0, PGSIZE);
 
 	TAILQ_FOREACH(current, &(o->mmap), q_areas) {
 		lwc_rg_struct range;
@@ -325,13 +279,17 @@ loop_beg:
 			/* Need that to continue with the proper vma.*/
 			if (end != NULL) goto loop_beg;
 		} else {
-cow:		//TODO should make cow?
+cow:		
 			vma = vma_create(copy, current->vm_start, current->vm_end, 
 															current->vm_flags);
 
 			if (!vma) goto err;
 
 			TAILQ_INSERT_TAIL(&(copy->mmap), vma, q_areas);
+			if (!vm_pgrot_copy_range(o->pml4, copy->pml4, (void*) vma->vm_start,
+				(void*) vma->vm_end, true, CB_COW)) {
+				goto err;
+			}
 		}
 	}
 

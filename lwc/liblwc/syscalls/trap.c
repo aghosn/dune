@@ -61,6 +61,7 @@
 
 #include <mm/mm.h>
 #include <mm/vm.h>
+#include <mm/vm_tools.h>
 #include "lwc_sysnr.h"
 #include "syscallmap.h"
 #include "../core/lwc.h"

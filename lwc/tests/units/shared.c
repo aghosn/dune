@@ -37,7 +37,6 @@ int main(void) {
 		TSUCCESS("Done!\n");
 
 	} else if (i == 0) {
-		
 		char *reader = shared;
 		while (reader < ((char*)shared) + PGSIZE-1) {
 			if (*reader != 42) {

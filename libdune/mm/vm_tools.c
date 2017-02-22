@@ -71,16 +71,17 @@ int vm_pgrot_walk(	ptent_t *root,
 }
 
 
-struct cow_info {
+struct copy_info {
 	ptent_t* o_root;
 	ptent_t* n_root;
 	bool cow;
+	copy_type type;
 };
 
 static int __vm_pgrot_copy(ptent_t* pte, void *va, cb_info *info)
 {
 	int ret;
-	struct cow_info *inf = (struct cow_info*) (info->args);
+	struct copy_info *inf = (struct copy_info*) (info->args);
 	assert(inf != NULL);
 
 	struct page *pg = dune_pa2page(PTE_ADDR(*pte));
@@ -114,7 +115,7 @@ static int __vm_pgrot_copy(ptent_t* pte, void *va, cb_info *info)
 		goto set_entry;
 
 	/* Do a cow if this is a user mapping with write accesses.*/
-	if (*pte  & PTE_U && (*pte & PTE_W || *pte & PTE_COW)) {
+	if (*pte  & PTE_U && (*pte & PTE_W /*|| *pte & PTE_COW*/)) {
 		*pte &= ~(PTE_W);
 		*pte |= PTE_COW;
 	}
@@ -122,6 +123,10 @@ static int __vm_pgrot_copy(ptent_t* pte, void *va, cb_info *info)
 set_entry:
 	/* Set the actual entry.*/
 	*newPte = *pte;
+
+	/* Increment the ref for the page if from pool*/
+	if (dune_page_isfrompool(PTE_ADDR(*pte)))
+		dune_page_get(dune_pa2page(PTE_ADDR(*pte)));
 
 	/* Fix the entries inside the intermediary entries.*/
 	#define PPTE_ADDR(x) ((ptent_t*) PTE_ADDR(x))
@@ -156,6 +161,41 @@ set_entry:
 		}
 	}
 
+	/* If page must be shared or read-only and is cow.*/
+	if ((inf->type == CB_SHARE || inf->type == CB_RO) && *pte & PTE_COW) {
+
+		*pte &= ~(PTE_COW);
+		*pte |= PTE_W;
+
+		ptent_t perm = PPTE_FLAGS(*pte);
+
+		/* Page from pool is referenced by several contexts.*/
+		if (dune_page_isfrompool(PTE_ADDR(*pte)) && pg->ref > 1) {
+			/* We duplicate the page.*/
+			void *newPage = alloc_page();
+			assert(newPage);
+			memcpy(newPage, (void*)PGADDR(va), PGSIZE);
+			
+			/* map the page.*/
+			if (dune_page_isfrompool(PTE_ADDR(*pte)))
+				dune_page_put(pg);
+
+			*pte = PTE_ADDR(newPage) | perm;
+			/* Invalidate address in tlb.*/
+			dune_flush_tlb_one((unsigned long)va);
+			asm("mov %cr3,%rax; mov %rax,%cr3");
+
+			*newPte = *pte;
+		}
+	}
+
+	/* The mapping is not cowed but need to be made readonly.*/
+	if (inf->type == CB_RO) {
+		*newPte &= ~(PTE_W);
+	}
+
+
+
 	return 0;
 }
 
@@ -171,7 +211,7 @@ ptent_t* vm_pgrot_copy(ptent_t* root, bool cow)
 	memset(newRoot, 0, PGSIZE);
 
 	/* __vm_pgrot_copy copies the flags for intermediary levels for us.*/
-	struct cow_info info = {root, newRoot, cow};
+	struct copy_info info = {root, newRoot, cow, CB_COW};
 	ret = __vm_pgrot_walk(root, VA_START, VA_END, &__vm_pgrot_copy, NULL,
 		&info, 3);
 	if (ret)
@@ -181,6 +221,29 @@ ptent_t* vm_pgrot_copy(ptent_t* root, bool cow)
 err:
 	if (newRoot)
 		dune_vm_free(newRoot);
+	return NULL;
+}
+
+ptent_t* vm_pgrot_copy_range(	ptent_t *original,
+								ptent_t *copy,
+								void *start,
+								void* end,
+								bool cow,
+								copy_type modifier)
+{
+	int ret;
+	if (!copy || !original)
+		goto err;
+
+	struct copy_info info = {original, copy, cow, modifier};
+	ret = __vm_pgrot_walk(original, (void*)MM_PGALIGN_DN((vm_addrptr)start),
+			(void*)MM_PGALIGN_UP((vm_addrptr) end),
+			&__vm_pgrot_copy, NULL, &info, 3);
+	if (ret)
+		goto err;
+
+	return copy;
+err:
 	return NULL;
 }
 
