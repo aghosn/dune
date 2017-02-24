@@ -21,6 +21,10 @@ static inline int lwc_switch_discard(lwc_struct *lwc, void *args, lwc_res_t *res
 {
 	return (int) syscall(SYS_LWC_SWITCH_DISCARD, lwc, args, res);
 }
+static inline lwc_struct* lwc_get_parent()
+{
+	return (lwc_struct *) syscall(SYS_LWC_GET_PARENT);
+}
 static inline int lwc_println(void* arg, int flags, int id)
 {
 	return (int) syscall(SYS_LWC_PRINT, arg, flags, id);

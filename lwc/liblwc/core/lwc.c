@@ -227,6 +227,15 @@ int sys_fake_println(struct dune_tf *tf, void* arg, int flags, int id)
     return 0;
 }
 
+lwc_struct *sys_lwc_get_parent(struct dune_tf *tf)
+{
+    /* Get the current context.*/
+    lwc_struct *current = TAILQ_FIRST(ctxts);
+    ASSERT_DBG(current != NULL, "Current context is null.\n");
+
+    return current->parent;
+}
+
 int lwc_free(lwc_struct *lwc)
 {
     ASSERT_DBG(lwc, "lwc is null.\n");

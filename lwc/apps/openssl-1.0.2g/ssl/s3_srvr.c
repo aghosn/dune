@@ -170,7 +170,156 @@
 #endif
 #include <openssl/md5.h>
 
-#include <core/lwc_types.h>
+
+#include <sys/mman.h>
+#include <sys/types.h>  
+#include <sys/socket.h>
+#include <sys/sem.h>
+#include <sys/ipc.h>
+
+#include <core/lwc.h>
+#include <inc/syscall.h>
+
+int g_sep = -1;
+lwc_struct *g_sep_ctxt = NULL;
+char * g_sep_out = NULL;
+char * g_sep_in = NULL;
+int g_sem_id;
+
+#if 1
+#define LPR(args...) do {     \
+    if (!my_out){ \
+        my_out = fopen("/tmp/killme.txt", "a+"); \
+        setbuf(my_out, NULL); \
+    } fprintf(my_out, "%d: ", getpid()); fprintf(my_out, args); fflush(my_out); \
+    } while(0);
+
+
+
+#else
+#define LPR(...)
+#endif
+FILE *my_out = NULL;
+
+
+
+//#define FORK_SEP
+#define LWC_SEP
+
+
+int do_special_magic(unsigned char *client_random, unsigned char *server_random,
+                     unsigned char *d, int n,
+                      EVP_PKEY *pkey, unsigned char *out, unsigned int *size_out) {
+
+    EVP_MD_CTX md_ctx;
+    const EVP_MD *md = EVP_sha512();
+    int rv = 0;
+
+    EVP_MD_CTX_init(&md_ctx);
+    if (EVP_SignInit_ex(&md_ctx, md, NULL) <= 0
+        || EVP_SignUpdate(&md_ctx, client_random,
+                          SSL3_RANDOM_SIZE) <= 0
+        || EVP_SignUpdate(&md_ctx, server_random,
+                          SSL3_RANDOM_SIZE) <= 0
+        || EVP_SignUpdate(&md_ctx, d, n) <= 0
+        || EVP_SignFinal(&md_ctx, out,
+                         size_out, pkey) <= 0) {
+        rv = 1;
+    }
+
+    return rv;
+
+}
+
+
+
+/* lazy lazy packing */
+struct sep_msg_in {
+    unsigned char client_random[SSL3_RANDOM_SIZE];
+    unsigned char server_random[SSL3_RANDOM_SIZE];
+    int n;
+    unsigned char d[0];
+};
+
+struct sep_msg_out {
+    unsigned int n;
+    unsigned char out[0];
+};
+
+
+#ifdef FORK_SEP
+
+void separation_loop(EVP_PKEY *pkey) {
+
+    if (g_sep_in == NULL || g_sep_out == NULL) {
+        LPR("NULL passing variables\n");
+        exit(-1);
+    }
+
+    struct sep_msg_out *out_msg = (struct sep_msg_out*) g_sep_out;
+    struct sep_msg_in *in_msg = (struct sep_msg_in*) g_sep_in;
+
+    struct sembuf sem;
+
+
+    LPR("Entering separation loop\n");
+    for(;;) {
+        LPR("Awaiting message as sep process\n");
+
+        //LPR("SL getval of sem 0 on %d is %d\n", g_sem_id, semctl(g_sem_id, 0, GETVAL));
+        //LPR("SL getval of sem 1 on %d is %d\n", g_sem_id, semctl(g_sem_id, 1, GETVAL));
+
+        sem.sem_flg = 0;
+        sem.sem_num = 1;
+        sem.sem_op = -1;
+
+        semop(g_sem_id, &sem, 1);
+
+        LPR("Signer in control\n");
+
+        if (do_special_magic(&(in_msg->client_random[0]), &(in_msg->server_random[0]), in_msg->d, in_msg->n, pkey,
+                             out_msg->out, &out_msg->n)) {
+            LPR("Failed to do magic\n");
+        }
+
+        LPR("n in sep loop is %d\n", out_msg->n);
+        LPR("Signer passing control\n");
+
+        sem.sem_flg = 0;
+        sem.sem_num = 0;
+        sem.sem_op = 1;
+
+        semop(g_sem_id, &sem, 1);
+
+    }
+    
+    
+}
+#elif defined(LWC_SEP)
+
+void separation_loop(EVP_PKEY *pkey) {
+
+    struct sep_msg_out *out_msg = (struct sep_msg_out*) g_sep_out;
+    struct sep_msg_in *in_msg = (struct sep_msg_in*) g_sep_in;
+
+    LPR("Entering separation loop as lwc\n");
+    for(;;) {
+
+        LPR("Switched into lwc \n");
+
+        if (do_special_magic(&(in_msg->client_random[0]), &(in_msg->server_random[0]), in_msg->d, in_msg->n, pkey,
+                             out_msg->out, &out_msg->n)) {
+            LPR("Failed to do magic\n");
+        }
+
+        lwc_res_t result;
+        lwc_struct *parent = lwc_get_parent();
+        lwc_switch(parent, NULL, &result);
+    }
+}
+
+#endif
+
 
 #ifndef OPENSSL_NO_SSL3_METHOD
 static const SSL_METHOD *ssl3_get_server_method(int ver);
@@ -211,6 +360,7 @@ static int ssl_check_srp_ext_ClientHello(SSL *s, int *al)
 }
 #endif
 
+
 int ssl3_accept(SSL *s)
 {
     BUF_MEM *buf;
@@ -227,6 +377,8 @@ int ssl3_accept(SSL *s)
         cb = s->info_callback;
     else if (s->ctx->info_callback != NULL)
         cb = s->ctx->info_callback;
+
+    LPR("in ssl3 accept\n");
 
     /* init things to blank */
     s->in_handshake++;
@@ -427,6 +579,8 @@ int ssl3_accept(SSL *s)
                  new_cipher->algorithm_auth & (SSL_aNULL | SSL_aKRB5 |
                                                SSL_aSRP))
 && !(s->s3->tmp.new_cipher->algorithm_mkey & SSL_kPSK)) {
+                
+                LPR("ssl3 send server cert\n");
                 ret = ssl3_send_server_certificate(s);
                 if (ret <= 0)
                     goto end;
@@ -490,6 +644,7 @@ int ssl3_accept(SSL *s)
                     )
                 )
                 ) {
+                LPR("ssl3 send server key xchg\n");
                 ret = ssl3_send_server_key_exchange(s);
                 if (ret <= 0)
                     goto end;
@@ -602,7 +757,9 @@ int ssl3_accept(SSL *s)
 
         case SSL3_ST_SR_KEY_EXCH_A:
         case SSL3_ST_SR_KEY_EXCH_B:
+            LPR("do key exchange\n");
             ret = ssl3_get_client_key_exchange(s);
+            LPR("got %d\n", ret);
             if (ret <= 0)
                 goto end;
             if (ret == 2) {
@@ -1701,14 +1858,18 @@ int ssl3_send_server_key_exchange(SSL *s)
 #ifndef OPENSSL_NO_ECDH
         if (type & SSL_kEECDH) {
             const EC_GROUP *group;
+            LPR("type is SSL_kEECDH\n");
 
             ecdhp = cert->ecdh_tmp;
+            LPR("setting ecdhp to ecdh_tmp\n");
             if (s->cert->ecdh_tmp_auto) {
                 /* Get NID of appropriate shared curve */
                 int nid = tls1_shared_curve(s, -2);
+                LPR("setting ecdhp by curve name %d\n", nid);
                 if (nid != NID_undef)
                     ecdhp = EC_KEY_new_by_curve_name(nid);
             } else if ((ecdhp == NULL) && s->cert->ecdh_tmp_cb) {
+                LPR("setting ecdhp to I don't know, a big function\n");
                 ecdhp = s->cert->ecdh_tmp_cb(s,
                                              SSL_C_IS_EXPORT(s->s3->
                                                              tmp.new_cipher),
@@ -1733,13 +1894,15 @@ int ssl3_send_server_key_exchange(SSL *s)
                 SSLerr(SSL_F_SSL3_SEND_SERVER_KEY_EXCHANGE, ERR_R_ECDH_LIB);
                 goto err;
             }
-            if (s->cert->ecdh_tmp_auto)
+            if (s->cert->ecdh_tmp_auto) {
+                LPR("setting ecdh which will be ephemeral to edchp\n");
                 ecdh = ecdhp;
+            }
             else if ((ecdh = EC_KEY_dup(ecdhp)) == NULL) {
                 SSLerr(SSL_F_SSL3_SEND_SERVER_KEY_EXCHANGE, ERR_R_ECDH_LIB);
                 goto err;
             }
-
+            LPR("Setting tmp.ecdh %d\n", __LINE__);
             s->s3->tmp.ecdh = ecdh;
             if ((EC_KEY_get0_public_key(ecdh) == NULL) ||
                 (EC_KEY_get0_private_key(ecdh) == NULL) ||
@@ -1856,6 +2019,10 @@ int ssl3_send_server_key_exchange(SSL *s)
                    SSL_R_UNKNOWN_KEY_EXCHANGE_TYPE);
             goto f_err;
         }
+
+
+        /* SSL3_ST_SW_KEY_EXCHG_A still */
+        /* okay, now commonish code for this part of the switch */ 
         for (i = 0; i < 4 && r[i] != NULL; i++) {
             nr[i] = BN_num_bytes(r[i]);
 #ifndef OPENSSL_NO_SRP
@@ -1866,6 +2033,7 @@ int ssl3_send_server_key_exchange(SSL *s)
                 n += 2 + nr[i];
         }
 
+        LPR("Calling get sign key\n");
         if (!(s->s3->tmp.new_cipher->algorithm_auth & (SSL_aNULL | SSL_aSRP))
             && !(s->s3->tmp.new_cipher->algorithm_mkey & SSL_kPSK)) {
             if ((pkey = ssl_get_sign_pkey(s, s->s3->tmp.new_cipher, &md))
@@ -1874,7 +2042,91 @@ int ssl3_send_server_key_exchange(SSL *s)
                 goto f_err;
             }
             kn = EVP_PKEY_size(pkey);
+#ifdef FORK_SEP
+            if (g_sep < 0) {
+
+                g_sep = 1;
+                g_sep_in = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
+                g_sep_out = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
+
+                g_sem_id = semget(IPC_PRIVATE, 2, 0666 | IPC_CREAT | IPC_EXCL);
+
+                if (g_sem_id < 0) {
+                    LPR("Can't make semaphores: %s\n", strerror(errno));
+                    exit(-1);
+                }
+
+                union semun init;
+                init.val = 1;
+                if (semctl(g_sem_id, 0, SETVAL, init) < 0) {
+                    LPR("Can't init sem 0: %s\n", strerror(errno));
+                }
+
+                init.val = 0;
+                if (semctl(g_sem_id, 1, SETVAL, init)) {
+                    LPR("Can't init sem 0: %s\n", strerror(errno));
+                }
+
+                LPR("Spawning separation context via fork\n");
+                pid_t res = fork();
+                if (res < 0) {
+                    LPR("I can't fork: %s\n", strerror(errno));
+                    exit(-1);
+                } else if (res > 0) {
+                    /* in parent */
+                    for(;;) {
+                        separation_loop(pkey);
+                    }
+                    exit(0); //never reach */
+                } else {
+                    /* in child */
+                    
+                }
+            }
+            pkey->pkey.ptr = NULL;
+#elif defined(LWC_SEP)
+            if (g_sep < 0) {
+                int ret;
+                int src;
+                /* create child context as suspend only context */
+                lwc_res_t res;
+                ret = lwc_create(NULL, 0, &res);
+                if (ret == 1) {
+                    lwc_switch_discard(res.n_lwc, NULL, &res);
+                    LPR("Should not get here\n");
+                    exit(-1);
+                } else if (ret == 0) {
+                    /* create keying context */
+                    g_sep_in = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
+                    g_sep_out = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_ANON | MAP_SHARED, -1, 0);
+                    if (g_sep_in == MAP_FAILED || g_sep_out == MAP_FAILED) {
+                        LPR("Can't mmap: %s\n", strerror(errno));
+                        exit(-1);
+                    }
+
+                    lwc_res_t res;
+                    int src;
+                    int ret = lwc_create(NULL, 0, &res);
+                    if (ret == 1) {
+                        g_sep = ret;
+                        g_sep_ctxt = res.n_lwc;
+                        pkey->pkey.ptr = NULL;
+                    } else if (ret == 0) {
+                        separation_loop(pkey);
+                        LPR("sep loop exited!\n");
+                        exit(-1);
+                    } else {
+                        exit(0);
+                    }
+                }
+
+            }
+            pkey->pkey.ptr = NULL;
+#endif
+
+
         } else {
+            LPR("PKEY IS NULL!\n");
             pkey = NULL;
             kn = 0;
         }
@@ -1884,7 +2136,7 @@ int ssl3_send_server_key_exchange(SSL *s)
             goto err;
         }
         d = p = ssl_handshake_start(s);
-
+        LPR("call ssl handshake start\n");
         for (i = 0; i < 4 && r[i] != NULL; i++) {
 #ifndef OPENSSL_NO_SRP
             if ((i == 2) && (type & SSL_kSRP)) {
@@ -1941,6 +2193,7 @@ int ssl3_send_server_key_exchange(SSL *s)
             if (pkey->type == EVP_PKEY_RSA && !SSL_USE_SIGALGS(s)) {
                 q = md_buf;
                 j = 0;
+                LPR("some kind of EVP is being done here\n");
                 for (num = 2; num > 0; num--) {
                     EVP_MD_CTX_set_flags(&md_ctx,
                                          EVP_MD_CTX_FLAG_NON_FIPS_ALLOW);
@@ -1963,6 +2216,7 @@ int ssl3_send_server_key_exchange(SSL *s)
                     q += i;
                     j += i;
                 }
+                LPR("RSA sign, yay!\n");
                 if (RSA_sign(NID_md5_sha1, md_buf, j,
                              &(p[2]), &u, pkey->pkey.rsa) <= 0) {
                     SSLerr(SSL_F_SSL3_SEND_SERVER_KEY_EXCHANGE, ERR_LIB_RSA);
@@ -1971,10 +2225,11 @@ int ssl3_send_server_key_exchange(SSL *s)
                 s2n(u, p);
                 n += u + 2;
             } else
-#endif
+#endif /* THIS is the code path we hit */
             if (md) {
                 /* send signature algorithm */
                 if (SSL_USE_SIGALGS(s)) {
+                    LPR("tls12 get sig and hash thing\n");
                     if (!tls12_get_sigandhash(p, pkey, md)) {
                         /* Should never happen */
                         al = SSL_AD_INTERNAL_ERROR;
@@ -1982,23 +2237,118 @@ int ssl3_send_server_key_exchange(SSL *s)
                                ERR_R_INTERNAL_ERROR);
                         goto f_err;
                     }
+                    
                     p += 2;
                 }
 #ifdef SSL_DEBUG
                 fprintf(stderr, "Using hash %s\n", EVP_MD_name(md));
 #endif
+                LPR("Signing something down here, where is this state from?\n");
+
+                /* call do_special_magic here */
+#ifdef NO_SEP
                 if (EVP_SignInit_ex(&md_ctx, md, NULL) <= 0
                         || EVP_SignUpdate(&md_ctx, &(s->s3->client_random[0]),
                                           SSL3_RANDOM_SIZE) <= 0
                         || EVP_SignUpdate(&md_ctx, &(s->s3->server_random[0]),
                                           SSL3_RANDOM_SIZE) <= 0
                         || EVP_SignUpdate(&md_ctx, d, n) <= 0
-                        || EVP_SignFinal(&md_ctx, &(p[2]),
-                                         (unsigned int *)&i, pkey) <= 0) {
+                    || EVP_SignFinal(&md_ctx, &(p[2]),
+                                     (unsigned int *)&i, pkey) <= 0) {
                     SSLerr(SSL_F_SSL3_SEND_SERVER_KEY_EXCHANGE, ERR_LIB_EVP);
                     al = SSL_AD_INTERNAL_ERROR;
                     goto f_err;
                 }
+
+#elif defined(FORK_SEP)
+                LPR("Attempting to talk to child for signing\n");
+
+                if (g_sep_in == NULL || g_sep_out == NULL) {
+                    LPR("NULL passing variables\n");
+                    exit(-1);
+                }
+
+                struct sembuf sem;
+
+                sem.sem_flg = 0;
+                sem.sem_num = 0;
+                sem.sem_op = -1;
+
+                //LPR("ML getval of sem 0 on %d is %d\n", g_sem_id, semctl(g_sem_id, 0, GETVAL));
+                //LPR("ML getval of sem 1 on %d is %d\n", g_sem_id, semctl(g_sem_id, 1, GETVAL));
+
+                if (semop(g_sem_id, &sem, 1) < 0) {
+                    LPR("could not semop: %s\n", strerror(errno));
+                }
+                
+                //LPR("ML getval of sem 0 on %d is %d PO\n", g_sem_id, semctl(g_sem_id, 0, GETVAL));
+                //LPR("ML getval of sem 1 on %d is %d PO\n", g_sem_id, semctl(g_sem_id, 1, GETVAL));
+
+                struct sep_msg_out *out_msg = (struct sep_msg_out*) g_sep_out;
+                struct sep_msg_in *in_msg = (struct sep_msg_in*) g_sep_in;
+                
+                LPR("copying in %d bytes\n", SSL3_RANDOM_SIZE * 2 + n);
+
+                memcpy(in_msg->client_random, &(s->s3->client_random[0]),
+                       SSL3_RANDOM_SIZE);
+                memcpy(in_msg->server_random, &(s->s3->server_random[0]),
+                       SSL3_RANDOM_SIZE);
+                in_msg->n = n;
+                memcpy(in_msg->d, d, n);
+
+                LPR("passing control to signer\n");
+
+                /* okay let him go */
+
+                sem.sem_flg = 0;
+                sem.sem_num = 1;
+                sem.sem_op = 1;
+
+                if (semop(g_sem_id, &sem, 1)  < 0) {
+                    LPR("could not semop: %s\n", strerror(errno));
+                }
+
+                LPR("regained control from signer\n");
+                /* presumably did the work, reacquire exclusion */
+
+                sem.sem_flg = 0;
+                sem.sem_num = 0;
+                sem.sem_op = -1;
+
+                if (semop(g_sem_id, &sem, 1) < 0) {
+                    LPR("Could not semop: %s\n", strerror(errno));
+                }
+                
+                LPR("n is %d\n", out_msg->n);
+                memcpy(&p[2], & (out_msg->out[0]), out_msg->n);
+                i = out_msg->n;
+
+#elif defined(LWC_SEP)
+                if (g_sep_in == NULL || g_sep_out == NULL) {
+                    LPR("NULL passing variables\n");
+                    exit(-1);
+                }
+
+                LPR("Attempting to get signed by the LWC signing context\n");
+                struct sep_msg_out *out_msg = (struct sep_msg_out*) g_sep_out;
+                struct sep_msg_in *in_msg = (struct sep_msg_in*) g_sep_in;
+                
+                LPR("copying in %d bytes\n", SSL3_RANDOM_SIZE * 2 + n);
+
+                memcpy(in_msg->client_random, &(s->s3->client_random[0]),
+                       SSL3_RANDOM_SIZE);
+                memcpy(in_msg->server_random, &(s->s3->server_random[0]),
+                       SSL3_RANDOM_SIZE);
+                in_msg->n = n;
+                memcpy(in_msg->d, d, n);
+                lwc_res_t res3;
+                lwc_switch(g_sep_ctxt, NULL, &res3);
+
+                memcpy(&p[2], & (out_msg->out[0]), out_msg->n);
+                i = out_msg->n;
+
+#endif
+                
                 s2n(i, p);
                 n += i + 2;
                 if (SSL_USE_SIGALGS(s))
@@ -2163,6 +2513,7 @@ int ssl3_get_client_key_exchange(SSL *s)
 
 #ifndef OPENSSL_NO_RSA
     if (alg_k & SSL_kRSA) {
+        LPR("ssl_krsa\n");
         unsigned char rand_premaster_secret[SSL_MAX_MASTER_KEY_LENGTH];
         int decrypt_len;
         unsigned char decrypt_good, version_good;
@@ -2170,6 +2521,7 @@ int ssl3_get_client_key_exchange(SSL *s)
 
         /* FIX THIS UP EAY EAY EAY EAY */
         if (s->s3->tmp.use_rsa_tmp) {
+            LPR("in fix up branch\n");
             if ((s->cert != NULL) && (s->cert->rsa_tmp != NULL))
                 rsa = s->cert->rsa_tmp;
             /*
@@ -2183,6 +2535,7 @@ int ssl3_get_client_key_exchange(SSL *s)
 
             }
         } else {
+            LPR("in other  branch checking RSA nullness\n");
             pkey = s->cert->pkeys[SSL_PKEY_RSA_ENC].privatekey;
             if ((pkey == NULL) ||
                 (pkey->type != EVP_PKEY_RSA) || (pkey->pkey.rsa == NULL)) {
@@ -2191,6 +2544,7 @@ int ssl3_get_client_key_exchange(SSL *s)
                        SSL_R_MISSING_RSA_CERTIFICATE);
                 goto f_err;
             }
+            LPR("pkey is set as rsa 1\n");
             rsa = pkey->pkey.rsa;
         }
 
@@ -2237,6 +2591,7 @@ int ssl3_get_client_key_exchange(SSL *s)
         if (RAND_pseudo_bytes(rand_premaster_secret,
                               sizeof(rand_premaster_secret)) <= 0)
             goto err;
+        LPR("do rsa private decrypt\n");
         decrypt_len =
             RSA_private_decrypt((int)n, p, p, rsa, RSA_PKCS1_PADDING);
         ERR_clear_error();
@@ -2308,6 +2663,7 @@ int ssl3_get_client_key_exchange(SSL *s)
 #endif
 #ifndef OPENSSL_NO_DH
     if (alg_k & (SSL_kEDH | SSL_kDHr | SSL_kDHd)) {
+        LPR("ssl_kdhr*\n");
         int idx = -1;
         EVP_PKEY *skey = NULL;
         if (n > 1) {
@@ -2402,6 +2758,7 @@ int ssl3_get_client_key_exchange(SSL *s)
 #endif
 #ifndef OPENSSL_NO_KRB5
     if (alg_k & SSL_kKRB5) {
+        LPR("ssl_kKRB5*\n");
         krb5_error_code krb5rc;
         krb5_data enc_ticket;
         krb5_data authenticator;
@@ -2502,6 +2859,7 @@ int ssl3_get_client_key_exchange(SSL *s)
         kssl_ctx_show(kssl_ctx);
 # endif                         /* KSSL_DEBUG */
 
+        LPR("Getting enc from kssl thing");
         enc = kssl_map_enc(kssl_ctx->enctype);
         if (enc == NULL)
             goto err;
@@ -2561,7 +2919,7 @@ int ssl3_get_client_key_exchange(SSL *s)
         }
 
         EVP_CIPHER_CTX_cleanup(&ciph_ctx);
-
+        LPR("This master shit is now being set\n");
         s->session->master_key_length =
             s->method->ssl3_enc->generate_master_secret(s,
                                                         s->
@@ -2592,6 +2950,7 @@ int ssl3_get_client_key_exchange(SSL *s)
 
 #ifndef OPENSSL_NO_ECDH
     if (alg_k & (SSL_kEECDH | SSL_kECDHr | SSL_kECDHe)) {
+        LPR("god it never ends\n");
         int ret = 1;
         int field_size = 0;
         const EC_KEY *tkey;
@@ -2601,22 +2960,26 @@ int ssl3_get_client_key_exchange(SSL *s)
         /* initialize structures for server's ECDH key pair */
         if ((srvr_ecdh = EC_KEY_new()) == NULL) {
             SSLerr(SSL_F_SSL3_GET_CLIENT_KEY_EXCHANGE, ERR_R_MALLOC_FAILURE);
+            LPR("exiting from first null\n");
             goto err;
         }
 
         /* Let's get server private key and group information */
         if (alg_k & (SSL_kECDHr | SSL_kECDHe)) {
             /* use the certificate */
+            LPR("get private key from the thing\n");
             tkey = s->cert->pkeys[SSL_PKEY_ECC].privatekey->pkey.ec;
         } else {
             /*
              * use the ephermeral values we saved when generating the
              * ServerKeyExchange msg.
              */
+            LPR("private key is ephemeral hoohaw\n");
             tkey = s->s3->tmp.ecdh;
         }
 
         group = EC_KEY_get0_group(tkey);
+        LPR("got private key with ec thing\n");
         priv_key = EC_KEY_get0_private_key(tkey);
 
         if (!EC_KEY_set_group(srvr_ecdh, group) ||
@@ -2624,6 +2987,7 @@ int ssl3_get_client_key_exchange(SSL *s)
             SSLerr(SSL_F_SSL3_GET_CLIENT_KEY_EXCHANGE, ERR_R_EC_LIB);
             goto err;
         }
+            LPR("private key now set in srvr_ecdh->priv_key probably\n");
 
         /* Let's get client's public key */
         if ((clnt_ecpoint = EC_POINT_new(group)) == NULL) {
@@ -2655,7 +3019,7 @@ int ssl3_get_client_key_exchange(SSL *s)
                        SSL_R_UNABLE_TO_DECODE_ECDH_CERTS);
                 goto f_err;
             }
-
+            LPR("doing ec point copy thing\n");
             if (EC_POINT_copy(clnt_ecpoint,
                               EC_KEY_get0_public_key(clnt_pub_pkey->
                                                      pkey.ec)) == 0) {
@@ -2698,6 +3062,7 @@ int ssl3_get_client_key_exchange(SSL *s)
             SSLerr(SSL_F_SSL3_GET_CLIENT_KEY_EXCHANGE, ERR_R_ECDH_LIB);
             goto err;
         }
+            LPR("srvr has the private key, now used to compute the shared, fuck me\n");
         i = ECDH_compute_key(p, (field_size + 7) / 8, clnt_ecpoint, srvr_ecdh,
                              NULL);
         if (i <= 0) {
@@ -2725,6 +3090,7 @@ int ssl3_get_client_key_exchange(SSL *s)
 #endif
 #ifndef OPENSSL_NO_PSK
     if (alg_k & SSL_kPSK) {
+        LPR("kPSK\n");
         unsigned char *t = NULL;
         unsigned char psk_or_pre_ms[PSK_MAX_PSK_LEN * 2 + 4];
         unsigned int pre_ms_len = 0, psk_len = 0;
@@ -2813,6 +3179,7 @@ int ssl3_get_client_key_exchange(SSL *s)
 #endif
 #ifndef OPENSSL_NO_SRP
     if (alg_k & SSL_kSRP) {
+        LPR("kPRP\n");
         int param_len;
 
         n2s(p, i);
@@ -2853,6 +3220,7 @@ int ssl3_get_client_key_exchange(SSL *s)
     } else
 #endif                          /* OPENSSL_NO_SRP */
     if (alg_k & SSL_kGOST) {
+        LPR("kGOST\n");
         int ret = 0;
         EVP_PKEY_CTX *pkey_ctx;
         EVP_PKEY *client_pub_pkey = NULL, *pk = NULL;
@@ -3064,6 +3432,7 @@ int ssl3_get_cert_verify(SSL *s)
     } else
 #ifndef OPENSSL_NO_RSA
     if (pkey->type == EVP_PKEY_RSA) {
+        LPR("Rsa verify being done here\n");
         i = RSA_verify(NID_md5_sha1, s->s3->tmp.cert_verify_md,
                        MD5_DIGEST_LENGTH + SHA_DIGEST_LENGTH, p, i,
                        pkey->pkey.rsa);
@@ -3339,7 +3708,7 @@ int ssl3_send_server_certificate(SSL *s)
         }
         s->state = SSL3_ST_SW_CERT_B;
     }
-
+    LPR("ssl3 send server 3350 in s3_srvr, hits private, but real private?\n");
     /* SSL3_ST_SW_CERT_B */
     return ssl_do_write(s);
 }

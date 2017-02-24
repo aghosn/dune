@@ -31,6 +31,8 @@ int sys_lwc_switch_discard(	struct dune_tf *tf,
 							void *args,
 							lwc_res_t * res);
 
+lwc_struct *sys_lwc_get_parent(struct dune_tf *tf);
+
 /* TODO: remove, for debugging purposes.*/
 int sys_fake_println(struct dune_tf *tf, void* arg, int flags, int id);
 
