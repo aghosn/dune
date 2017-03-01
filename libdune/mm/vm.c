@@ -373,7 +373,10 @@ void dune_vm_free(ptent_t *root)
 			&__dune_vm_free_helper, NULL,
 			1, CREATE_NONE);
 
-	put_page(root);
+	if (dune_page_isfrompool((physaddr_t)root))
+		put_page(root);
+	else
+		free(root);
 
 	return;
 }

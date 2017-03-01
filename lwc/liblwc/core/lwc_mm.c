@@ -239,7 +239,9 @@ mm_struct* lwc_mm_create(mm_struct *o, lwc_rg_struct *mod, unsigned int numr)
 	TAILQ_INIT(&(copy->mmap));
 
 	/*Copy the pml4*/
-	copy->pml4 = memalign(PGSIZE, PGSIZE);
+	copy->pml4 = (ptent_t*) dune_page2pa(dune_page_alloc());
+	//memalign(PGSIZE, PGSIZE);
+
 	if (!(copy->pml4)) goto err;
 
 	memset(copy->pml4, 0, PGSIZE);

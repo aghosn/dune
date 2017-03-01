@@ -6,7 +6,7 @@
 #include <inc/syscall.h>
 #include <core/lwc_types.h>
 
-#define COUNT 15
+#define COUNT 19
 
 lwc_res_t snapshot(int* shared)
 {
@@ -61,7 +61,6 @@ int main(void)
 	time_t start_t, end_t;
 
 	time(&start_t);
-	time(&end_t);
 
 	lwc_res_t snap = snapshot(shared_buf);
 	shared_buf[0] += 1;

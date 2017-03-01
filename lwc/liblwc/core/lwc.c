@@ -119,6 +119,12 @@ create:
 
     TAILQ_INSERT_TAIL(mm_queue, n_lwc->vm_mm, q_mms);
 
+    /*TODO REMOVE debugging.*/
+    //printf("Parent memory mapping.\n");
+    //mm_dump(current->vm_mm);
+    //printf("-----------------------\n");
+    //mm_dump(n_lwc->vm_mm);
+
     return 1;
 err:
     if (n_lwc)
@@ -239,6 +245,13 @@ lwc_struct *sys_lwc_get_parent(struct dune_tf *tf)
 int lwc_free(lwc_struct *lwc)
 {
     ASSERT_DBG(lwc, "lwc is null.\n");
+    lwc_struct *current = NULL;
+
+    /* Null out the parent in each children.*/
+    TAILQ_FOREACH(current, &(lwc->children), q_parent) {
+        TAILQ_REMOVE(&(lwc->children), current, q_parent);
+        current->parent = NULL;
+    }
     if (lwc->parent) {
         lwc_struct *parent = lwc->parent;
         TAILQ_REMOVE(&(parent->children), lwc, q_parent);
