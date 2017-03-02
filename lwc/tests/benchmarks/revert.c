@@ -6,7 +6,7 @@
 #include <inc/syscall.h>
 #include <core/lwc_types.h>
 
-#define COUNT 19
+#define COUNT 100
 
 lwc_res_t snapshot(int* shared)
 {

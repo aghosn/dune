@@ -31,7 +31,7 @@ int vma_free(vm_area_struct *vma)
 	ASSERT_DBG(vma, "vma is null.\n");
 	//printf("Vma address %p and %p\n", vma, &vma->vm_flags);
 	//TODO aghosn: triggers a bug if I try to free it ...
-	//free(vma);
+	free(vma);
 	return 0;
 }
 
