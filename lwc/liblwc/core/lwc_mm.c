@@ -240,7 +240,6 @@ mm_struct* lwc_mm_create(mm_struct *o, lwc_rg_struct *mod, unsigned int numr)
 
 	/*Copy the pml4*/
 	copy->pml4 = (ptent_t*) dune_page2pa(dune_page_alloc());
-	//memalign(PGSIZE, PGSIZE);
 
 	if (!(copy->pml4)) goto err;
 
@@ -286,7 +285,8 @@ cow:
 			if (!vma) goto err;
 
 			TAILQ_INSERT_TAIL(&(copy->mmap), vma, q_areas);
-			if (!vm_pgrot_copy_range(o->pml4, copy->pml4, (void*) vma->vm_start,
+			if (!vm_pgrot_copy_range(o->pml4, copy->pml4,
+				(void*) vma->vm_start,
 				(void*) vma->vm_end, true, CB_COW)) {
 				goto err;
 			}

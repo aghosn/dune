@@ -25,12 +25,9 @@ vm_area_struct *vma_create(	mm_struct *mm,
 	return vma;
 }
 
-//FIXME: should we implement the unmapping here instead?
 int vma_free(vm_area_struct *vma)
 {
 	ASSERT_DBG(vma, "vma is null.\n");
-	//printf("Vma address %p and %p\n", vma, &vma->vm_flags);
-	//TODO aghosn: triggers a bug if I try to free it ...
 	free(vma);
 	return 0;
 }
@@ -68,7 +65,8 @@ void vma_dump(vm_area_struct *vma)
 	ASSERT_DBG(vma, "vma is null.\n");
 	printf("0x%016lx-0x%016lx,", vma->vm_start, vma->vm_end);
 	printf(" flags: %016lx, ", vma->vm_flags);
-	printf("dirty: %d, user: %d.\n", vma->dirty, vma_is_user(vma));
+	printf("dirty: %d, user: %d, ", vma->dirty, vma_is_user(vma));
+	printf(" perm_w: %d.\n", (PERM_W & vma->vm_flags) >> 1);
 	fflush(stdout);
 }
 

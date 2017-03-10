@@ -1,7 +1,7 @@
 CC	= gcc
 CFLAGS	= -Wall -g -MD -O2 -I ../
 
-all: hello test timetest test_sandbox hugepages hugepages_mod.ko heap_alloc
+all: hello test timetest test_sandbox hugepages hugepages_mod.ko heap_alloc unmap_pml4
 
 hello: hello.o ../libdune/libdune.a
 	$(CC) $(CFLAGS) $(<) -o hello -L ../libdune -ldune -lpthread
@@ -24,6 +24,8 @@ hugepages_mod.ko: hugepages_mod.c
 heap_alloc: heap_alloc.o ../libdune/libdune.a
 	$(CC) $(CFLAGS) $(<) -o heap_alloc -L ../libdune -ldune -lpthread
 
+unmap_pml4: unmap_pml4.o ../libdune/libdune.a
+	$(CC) $(CFLAGS) $(<) -o unmap_pml4 -L ../libdune -ldune -lpthread
 
 clean:
 	rm -f *.o test *.d hello test test_sandbox hugepages heap_alloc

@@ -24,6 +24,13 @@ typedef struct cb_info {
 	void *args;
 } cb_info;
 
+struct copy_info {
+	ptent_t* o_root;
+	ptent_t* n_root;
+	bool cow;
+	copy_type type;
+};
+
 typedef int (*pgrot_walk_cb) (ptent_t* pte, void *va, cb_info* args);
 
 int vm_pgrot_walk(	ptent_t *root,
@@ -49,7 +56,7 @@ int vm_lookup(	ptent_t* root,
 
 ptent_t* vm_pgrot_copy(ptent_t* root, bool cow);
 
-ptent_t* vm_pgrot_copy_range(	ptent_t *original,
+ptent_t *vm_pgrot_copy_range (	ptent_t *original,
 								ptent_t *copy,
 								void *start,
 								void* end,
@@ -59,4 +66,5 @@ ptent_t* vm_pgrot_copy_range(	ptent_t *original,
 int vm_uncow(ptent_t* root, void *addr);
 
 int vm_compare_pgroots(ptent_t* o, ptent_t *c);
+
 #endif /*__LIBDUNE_MM_VM_TOOLS_H__*/

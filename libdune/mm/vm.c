@@ -39,7 +39,7 @@ ptent_t get_pte_perm(int perm)
 }
 
 void * alloc_page(void)
-{
+{	
 	struct page *pg = dune_page_alloc();
 	if (!pg)
 		return NULL;

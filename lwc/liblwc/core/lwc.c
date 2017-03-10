@@ -119,12 +119,6 @@ create:
 
     TAILQ_INSERT_TAIL(mm_queue, n_lwc->vm_mm, q_mms);
 
-    /*TODO REMOVE debugging.*/
-    //printf("Parent memory mapping.\n");
-    //mm_dump(current->vm_mm);
-    //printf("-----------------------\n");
-    //mm_dump(n_lwc->vm_mm);
-
     return 1;
 err:
     if (n_lwc)

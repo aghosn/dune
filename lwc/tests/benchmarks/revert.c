@@ -6,7 +6,7 @@
 #include <inc/syscall.h>
 #include <core/lwc_types.h>
 
-#define COUNT 100
+#define COUNT 10
 
 lwc_res_t snapshot(int* shared)
 {
@@ -58,20 +58,20 @@ int main(void)
 	memset(shared_buf, 0, 4096);
 
 	shared_buf[0] = 0;
-	time_t start_t, end_t;
+	clock_t start_t, end_t;
 
-	time(&start_t);
+	start_t = clock();
 
 	lwc_res_t snap = snapshot(shared_buf);
 	shared_buf[0] += 1;
-
+	//printf("The buf %d \n", shared_buf[0]);
 	if (shared_buf[0] < COUNT) {
 		rollback(&snap);
 	}
 	
-	time(&end_t);
+	end_t = clock();
 	
-	double diff_t = difftime(end_t, start_t);
+	double diff_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
 	
 	printf("Total time for %d rollback is %f seconds\n", COUNT, diff_t);
 	return 0;

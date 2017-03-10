@@ -24,7 +24,6 @@ static int __vm_pgrot_walk(	ptent_t *root,
 		void *n_start_va, *n_end_va;
 		void *cur_va = base_va + PDADDR(level, i); 
 		ptent_t *pte = &root[i];
-		
 		assert(pte != NULL);
 
 		if (alloc && !pte_present(*pte)) {
@@ -70,13 +69,91 @@ int vm_pgrot_walk(	ptent_t *root,
 	return __vm_pgrot_walk(root, start, end, cb, alloc, args, 3);
 }
 
+static int __vm_pgrot_copy_v2(ptent_t *pte, void *va, cb_info *info)
+{
+	int ret;
+	struct copy_info *inf = (struct copy_info*) (info->args);
+	assert(inf != NULL);
+	ptent_t *newRoot = inf->n_root;
 
-struct copy_info {
-	ptent_t* o_root;
-	ptent_t* n_root;
-	bool cow;
-	copy_type type;
-};
+	int create = CREATE_NONE;
+	switch (info->level) {
+		case 0:
+			create = CREATE_NORMAL;
+			break;
+		case 1:
+			create = CREATE_BIG;
+			break;
+		case 2:
+			create = CREATE_BIG_1GB;
+			break;
+		default:
+			/* Error.*/
+			return 1;
+	}
+
+	/* Give all permissions by default.
+	 * Only the final entry matters.*/
+	ptent_t *pte_out = NULL;
+	ptent_t perm = PTE_P | PTE_U | PTE_W;
+	ret = vm_lookup(newRoot, va, &pte_out, create, perm);
+	ASSERT_DBG(ret == 0, "Problem{%d} while looking up address.\n", ret);
+
+	/* TODO: needs this to work, but seems weird.*/
+	if (dune_page_isfrompool(PTE_ADDR(*pte))) {
+		dune_page_get(dune_pa2page(PTE_ADDR(*pte)));
+	}
+
+	if (inf->type != CB_COW || (PPTE_FLAGS(*pte) & PTE_COW)
+		|| !(PPTE_FLAGS(*pte) & PTE_U)) {
+		goto set_entry;
+	}
+		
+
+	/* We COW the mapping.*/
+	*pte &=~(PTE_W);
+	*pte |= PTE_COW;
+	//dune_flush_tlb_one((unsigned long)va);
+
+set_entry:
+	if ((inf->type == CB_RO || inf->type == CB_SHARE)
+		&& (PPTE_FLAGS(*pte) & PTE_COW)) {
+
+		if (dune_page_isfrompool(PTE_ADDR(*pte))) {
+			struct page *pg = dune_pa2page(PTE_ADDR(*pte));
+			/* Need to replace the page.*/
+			if (pg->ref > 1) {
+				/*TODO not handling big pages yet.*/
+				ASSERT_DBG(!pte_big(*pte), "Oups, a big page is cowed.\n");
+				void *newPage = alloc_page();
+				assert(newPage);
+				memcpy(newPage, (void*)PGADDR(va), PGSIZE);
+
+				/* Give back the old page.*/
+				dune_page_put(pg);
+
+				*pte = PTE_ADDR(newPage) | PPTE_FLAGS(*pte);
+				
+				/* Quickly uncow.*/
+				*pte &=~(PTE_COW);
+				*pte |= (PTE_W);
+
+				dune_flush_tlb_one((unsigned long)va);
+			}
+		}
+	}
+
+	*pte_out = *pte;
+
+	/* Add another reference to the page.*/
+	if (dune_page_isfrompool(PTE_ADDR(*pte)))
+		dune_page_get(dune_pa2page(PTE_ADDR(*pte)));
+
+	if (inf->type == CB_RO)
+		*pte_out &=~(PTE_W);
+
+	return 0;
+}
 
 static int __vm_pgrot_copy(ptent_t* pte, void *va, cb_info *info)
 {
@@ -213,7 +290,7 @@ ptent_t* vm_pgrot_copy(ptent_t* root, bool cow)
 
 	/* __vm_pgrot_copy copies the flags for intermediary levels for us.*/
 	struct copy_info info = {root, newRoot, cow, CB_COW};
-	ret = __vm_pgrot_walk(root, VA_START, VA_END, &__vm_pgrot_copy, NULL,
+	ret = __vm_pgrot_walk(root, VA_START, VA_END, &__vm_pgrot_copy_v2, NULL,
 		&info, 3);
 	if (ret)
 		goto err;
@@ -239,14 +316,15 @@ ptent_t* vm_pgrot_copy_range(	ptent_t *original,
 	struct copy_info info = {original, copy, cow, modifier};
 	ret = __vm_pgrot_walk(original, (void*)MM_PGALIGN_DN((vm_addrptr)start),
 			(void*)MM_PGALIGN_UP((vm_addrptr) end),
-			&__vm_pgrot_copy, NULL, &info, 3);
+			&__vm_pgrot_copy_v2, NULL, &info, 3);
 	if (ret)
 		goto err;
-
+	
 	return copy;
 err:
 	return NULL;
 }
+
 
 //NOTE: flags are for intermediary levels.
 int vm_lookup(	ptent_t* root,
