@@ -6,7 +6,7 @@
 #include <inc/syscall.h>
 #include <core/lwc_types.h>
 
-#define COUNT 10
+#define COUNT 100
 
 lwc_res_t snapshot(int* shared)
 {
@@ -64,7 +64,6 @@ int main(void)
 
 	lwc_res_t snap = snapshot(shared_buf);
 	shared_buf[0] += 1;
-	//printf("The buf %d \n", shared_buf[0]);
 	if (shared_buf[0] < COUNT) {
 		rollback(&snap);
 	}

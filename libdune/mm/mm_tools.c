@@ -21,6 +21,12 @@ mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 	mm_struct *copy = malloc(sizeof(mm_struct));
 	if (!copy) goto err;
 
+	copy->pml4 = memalign(PGSIZE, PGSIZE);
+	if (!copy->pml4) goto err;
+
+	/* TODO this modifies the behavior.*/
+	memset(copy->pml4, 0, PGSIZE);
+
 	TAILQ_INIT(&(copy->mmap));
 
 	TAILQ_FOREACH(current, &(mm->mmap), q_areas) {
@@ -28,8 +34,12 @@ mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 		/* The kernel mappings and read only pages are never cowed.*/
 		if (!vma_is_user(current) || !(current->vm_flags & PERM_W)) {
 			vmcpy = vma_copy(current, false);
+
+			vm_pgrot_copy_range(mm->pml4, copy->pml4, vmcpy->vm_start, vmcpy->vm_end, false, CB_SHARE);
 		} else {
 			vmcpy = vma_copy(current, cow);
+
+			vm_pgrot_copy_range(mm->pml4, copy->pml4, vmcpy->vm_start, vmcpy->vm_end, true, CB_COW);
 		}
 		
 		if (vmcpy == NULL) goto err;
@@ -37,14 +47,6 @@ mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 		vmcpy->vm_mm = copy;
 		TAILQ_INSERT_TAIL(&(copy->mmap), vmcpy, q_areas);
 	}
-
-	/* Do we have to apply the changes?*/
-	if (apply && cow) {
-		mm_apply(mm);
-	}
-
-	copy->pml4 = vm_pgrot_copy(mm->pml4, cow);
-	ASSERT_DBG(copy->pml4, "copy->pml4 is null.\n");
 
 #ifdef DEBUG
 	mm_assert_equals(mm, copy);
@@ -380,6 +382,9 @@ void mm_uncow(mm_struct *mm, vm_addrptr va)
 		}
 	}
 
+	if (found == NULL) {
+		printf("Error.\n");
+	}
 	ASSERT_DBG(found != NULL, "Could not find the mapping to uncow %p.\n", (void*) va);
 
 	vm_uncow(mm->pml4, (void*) va);

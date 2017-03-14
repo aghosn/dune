@@ -6,8 +6,6 @@
 
 #include "lwc_mm.h"
 
-
-
 static vm_area_struct* __lwc_mm_last_vma(vm_area_struct* vma, lwc_rg_struct *rg)
 {
 	vm_area_struct *previous = vma, *current = TAILQ_NEXT(vma, q_areas);
@@ -226,7 +224,6 @@ mm_struct* lwc_mm_create(mm_struct *o, lwc_rg_struct *mod, unsigned int numr)
 	mm_struct *copy = NULL;
 	
 	vm_area_struct *current = NULL, *vma = NULL;
-	//lwc_rg_struct *range = mod->ranges.head;
 	int index = 0;
 
 	if (lwc_validate_mod(mod, numr, o))
@@ -240,10 +237,11 @@ mm_struct* lwc_mm_create(mm_struct *o, lwc_rg_struct *mod, unsigned int numr)
 
 	/*Copy the pml4*/
 	copy->pml4 = (ptent_t*) dune_page2pa(dune_page_alloc());
-
 	if (!(copy->pml4)) goto err;
 
 	memset(copy->pml4, 0, PGSIZE);
+
+	TAILQ_INIT(&(copy->mmap));
 
 	TAILQ_FOREACH(current, &(o->mmap), q_areas) {
 		lwc_rg_struct range;
@@ -285,10 +283,11 @@ cow:
 			if (!vma) goto err;
 
 			TAILQ_INSERT_TAIL(&(copy->mmap), vma, q_areas);
-			if (!vm_pgrot_copy_range(o->pml4, copy->pml4,
-				(void*) vma->vm_start,
-				(void*) vma->vm_end, true, CB_COW)) {
-				goto err;
+
+			if (!(current->vm_flags & PERM_U) || !(current->vm_flags & PERM_W)){
+				vm_pgrot_copy_range(o->pml4, copy->pml4, vma->vm_start, vma->vm_end, false, CB_SHARE);
+			} else {
+				vm_pgrot_copy_range(o->pml4, copy->pml4, vma->vm_start, vma->vm_end, true, CB_COW);
 			}
 		}
 	}

@@ -113,7 +113,7 @@ static int __vm_pgrot_copy_v2(ptent_t *pte, void *va, cb_info *info)
 	/* We COW the mapping.*/
 	*pte &=~(PTE_W);
 	*pte |= PTE_COW;
-	//dune_flush_tlb_one((unsigned long)va);
+	dune_flush_tlb_one((unsigned long)va);
 
 set_entry:
 	if ((inf->type == CB_RO || inf->type == CB_SHARE)
@@ -271,8 +271,6 @@ set_entry:
 	if (inf->type == CB_RO) {
 		*newPte &= ~(PTE_W);
 	}
-
-
 
 	return 0;
 }
