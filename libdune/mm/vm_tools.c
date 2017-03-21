@@ -99,16 +99,10 @@ static int __vm_pgrot_copy_v2(ptent_t *pte, void *va, cb_info *info)
 	ret = vm_lookup(newRoot, va, &pte_out, create, perm);
 	ASSERT_DBG(ret == 0, "Problem{%d} while looking up address.\n", ret);
 
-	/* TODO: needs this to work, but seems weird.*/
-	if (dune_page_isfrompool(PTE_ADDR(*pte))) {
-		dune_page_get(dune_pa2page(PTE_ADDR(*pte)));
-	}
-
 	if (inf->type != CB_COW || (PPTE_FLAGS(*pte) & PTE_COW)
 		|| !(PPTE_FLAGS(*pte) & PTE_U)) {
 		goto set_entry;
 	}
-		
 
 	/* We COW the mapping.*/
 	*pte &=~(PTE_W);
@@ -281,7 +275,7 @@ ptent_t* vm_pgrot_copy(ptent_t* root, bool cow)
 	int ret;
 	ptent_t* newRoot;
 
-	newRoot = memalign(PGSIZE, PGSIZE);
+	newRoot = (ptent_t*) dune_page2pa(dune_page_alloc());
 	if (!newRoot)
 		goto err;
 	memset(newRoot, 0, PGSIZE);
@@ -313,7 +307,7 @@ ptent_t* vm_pgrot_copy_range(	ptent_t *original,
 
 	struct copy_info info = {original, copy, cow, modifier};
 	ret = __vm_pgrot_walk(original, (void*)MM_PGALIGN_DN((vm_addrptr)start),
-			(void*)MM_PGALIGN_UP((vm_addrptr) end),
+			(void*)MM_PGALIGN_UP((vm_addrptr) end) - 1,
 			&__vm_pgrot_copy_v2, NULL, &info, 3);
 	if (ret)
 		goto err;
@@ -382,6 +376,7 @@ int vm_lookup(	ptent_t* root,
 	pte = (ptent_t*) PTE_ADDR(pde[k]);
 	
 	*pte_out = &pte[l];
+
 	return 0;
 }
 
@@ -459,3 +454,62 @@ int vm_compare_pgroots(ptent_t* o, ptent_t *c)
 	assert(r == 0);
 	return 0;
 }
+
+int vm_check_references(ptent_t* pml4, uint64_t expect_pte, uint64_t expect_o, uint64_t read_only)
+{
+	int i, j, k, l;
+	ptent_t* pdpte, *pde, *pte;
+
+	for (i = 0; i < NPTENTRIES; i++) {
+		if (!pte_present(pml4[i]))
+			continue;
+
+		pdpte = (ptent_t*) PTE_ADDR(pml4[i]);
+		for (j = 0; j < NPTENTRIES; j++) {
+			if (!pte_present(pdpte[j]) || pte_big(pdpte[j]))
+				continue;
+
+			pde = (ptent_t*) PTE_ADDR(pdpte[j]);
+			for (k = 0; k < NPTENTRIES; k++) {
+				if (!pte_present(pde[k]) || pte_big(pde[k]))
+					continue;
+
+				pte = (ptent_t*) PTE_ADDR(pde[k]);
+				for (l = 0; l < NPTENTRIES; l++) {
+					if (!pte_present(pte[l]))
+						continue;
+
+					struct page *pg = dune_pa2page(PTE_ADDR(pte[l]));
+
+					if (dune_page_isfrompool(PTE_ADDR(pte[l]))) {
+						if (!(pte[l] & PTE_W))
+							ASSERT_DBG(pg->ref == read_only,"PTE bad ref count %lu, user: %d, %d %d %d %d\n", pg->ref, (pte[l] & PTE_W) != 0, i, j, k, l);
+						else
+							ASSERT_DBG(pg->ref == expect_pte, "PTE bad ref count %lu, user: %d\n", pg->ref, (pte[l] & PTE_W) != 0);
+					}
+				}
+
+				struct page *pg = dune_pa2page(PTE_ADDR(pde[k]));
+
+				if (dune_page_isfrompool(PTE_ADDR(pde[k]))) {
+					ASSERT_DBG(pg->ref == expect_o, "PDE bad ref count %lu\n", pg->ref);
+				}
+			}
+
+			struct page *pg = dune_pa2page(PTE_ADDR(pdpte[j]));
+
+			if (dune_page_isfrompool(PTE_ADDR(pdpte[j]))) {
+				ASSERT_DBG(pg->ref == expect_o, "PDPTE bad ref count %lu\n", pg->ref);
+			}
+		}
+
+		struct page *pg = dune_pa2page(PTE_ADDR(pml4[i]));
+
+		if (dune_page_isfrompool(PTE_ADDR(pml4[i]))) {
+			ASSERT_DBG(pg->ref == expect_o, "PML4 bad ref count %lu\n", pg->ref);
+		}
+	}
+
+	return 0;
+}
+

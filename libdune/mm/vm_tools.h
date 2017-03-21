@@ -57,14 +57,53 @@ int vm_lookup(	ptent_t* root,
 ptent_t* vm_pgrot_copy(ptent_t* root, bool cow);
 
 ptent_t *vm_pgrot_copy_range (	ptent_t *original,
-								ptent_t *copy,
-								void *start,
-								void* end,
-								bool cow,
-								copy_type modifier);
+				ptent_t *copy,
+				void *start,
+				void* end,
+				bool cow,
+				copy_type modifier);
 
 int vm_uncow(ptent_t* root, void *addr);
 
 int vm_compare_pgroots(ptent_t* o, ptent_t *c);
+
+int vm_check_references(ptent_t* pml4, uint64_t expect_pte, uint64_t expect_o, uint64_t read_only);
+
+/*TODO for debugging remove afterwards.*/
+static inline void watchpoint_add(int idx, void *addr)
+{
+        unsigned long dr7;
+
+        switch (idx) {
+        case 0:
+                asm("mov %0, %%dr0" : : "r" (addr));
+                break;
+        case 1:
+                asm("mov %0, %%dr1" : : "r" (addr));
+                break;
+        case 2:
+                asm("mov %0, %%dr2" : : "r" (addr));
+                break;
+        case 3:
+                asm("mov %0, %%dr3" : : "r" (addr));
+                break;
+        default:
+                /* Instead of assert(0) because I can't include the header. */
+                asm("ud2");
+        }
+        asm("mov %%dr7, %0": "=r" (dr7));
+        dr7 |= 1 << (idx * 2);
+        dr7 |= 1 << (idx * 4 + 16);
+        dr7 |= 0 << (idx * 4 + 18);
+        asm("mov %0, %%dr7": : "r" (dr7));
+}
+
+static inline void watchpoint_delete(int idx)
+{
+        unsigned long dr7;
+        asm("mov %%dr7, %0": "=r" (dr7));
+        dr7 &= ~(1 << (idx * 2));
+        asm("mov %0, %%dr7": : "r" (dr7));
+}
 
 #endif /*__LIBDUNE_MM_VM_TOOLS_H__*/

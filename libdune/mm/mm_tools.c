@@ -21,7 +21,7 @@ mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 	mm_struct *copy = malloc(sizeof(mm_struct));
 	if (!copy) goto err;
 
-	copy->pml4 = memalign(PGSIZE, PGSIZE);
+	copy->pml4 = (ptent_t*) dune_page2pa(dune_page_alloc());
 	if (!copy->pml4) goto err;
 
 	/* TODO this modifies the behavior.*/
@@ -31,15 +31,18 @@ mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 
 	TAILQ_FOREACH(current, &(mm->mmap), q_areas) {
 		vm_area_struct *vmcpy = NULL;
+		
 		/* The kernel mappings and read only pages are never cowed.*/
 		if (!vma_is_user(current) || !(current->vm_flags & PERM_W)) {
 			vmcpy = vma_copy(current, false);
 
-			vm_pgrot_copy_range(mm->pml4, copy->pml4, vmcpy->vm_start, vmcpy->vm_end, false, CB_SHARE);
+			vm_pgrot_copy_range(mm->pml4, copy->pml4,(void*)vmcpy->vm_start,
+				(void*)vmcpy->vm_end, false, CB_SHARE);
 		} else {
 			vmcpy = vma_copy(current, cow);
 
-			vm_pgrot_copy_range(mm->pml4, copy->pml4, vmcpy->vm_start, vmcpy->vm_end, true, CB_COW);
+			vm_pgrot_copy_range(mm->pml4, copy->pml4,(void*)vmcpy->vm_start,
+				(void*)vmcpy->vm_end, true, CB_COW);
 		}
 		
 		if (vmcpy == NULL) goto err;

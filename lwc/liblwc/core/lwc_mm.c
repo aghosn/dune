@@ -285,12 +285,16 @@ cow:
 			TAILQ_INSERT_TAIL(&(copy->mmap), vma, q_areas);
 
 			if (!(current->vm_flags & PERM_U) || !(current->vm_flags & PERM_W)){
-				vm_pgrot_copy_range(o->pml4, copy->pml4, vma->vm_start, vma->vm_end, false, CB_SHARE);
+				vm_pgrot_copy_range(o->pml4, copy->pml4,(void*) vma->vm_start,
+				(void*) vma->vm_end, false, CB_SHARE);
+
 			} else {
-				vm_pgrot_copy_range(o->pml4, copy->pml4, vma->vm_start, vma->vm_end, true, CB_COW);
+				vm_pgrot_copy_range(o->pml4, copy->pml4,(void*) vma->vm_start,
+				(void*) vma->vm_end, true, CB_COW);
 			}
 		}
 	}
+
 
 	return copy;
 

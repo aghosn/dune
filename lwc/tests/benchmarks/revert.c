@@ -2,11 +2,12 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <sys/time.h>
 #include <sys/mman.h>
 #include <inc/syscall.h>
 #include <core/lwc_types.h>
 
-#define COUNT 100
+#define COUNT 500
 
 lwc_res_t snapshot(int* shared)
 {
@@ -58,9 +59,12 @@ int main(void)
 	memset(shared_buf, 0, 4096);
 
 	shared_buf[0] = 0;
-	clock_t start_t, end_t;
+	//clock_t start_t, end_t;
+	struct timeval tv_s = {0};
+	struct timeval tv_e = {0};
 
-	start_t = clock();
+	//start_t = clock();
+	gettimeofday(&tv_s, NULL);
 
 	lwc_res_t snap = snapshot(shared_buf);
 	shared_buf[0] += 1;
@@ -68,10 +72,13 @@ int main(void)
 		rollback(&snap);
 	}
 	
-	end_t = clock();
+	//end_t = clock();
+	gettimeofday(&tv_e, NULL);
 	
-	double diff_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
+	//double diff_t = (double)(end_t - start_t) / CLOCKS_PER_SEC;
+	//printf("Total time for %d rollback is %f seconds\n", COUNT, diff_t);
 	
-	printf("Total time for %d rollback is %f seconds\n", COUNT, diff_t);
+	printf("Time in microseconds: %ld microseconds for %d rollbacks.\n",
+            ((tv_e.tv_sec - tv_s.tv_sec)*1000000L +tv_e.tv_usec) - tv_s.tv_usec, COUNT);
 	return 0;
 }

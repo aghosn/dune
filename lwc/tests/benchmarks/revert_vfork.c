@@ -29,11 +29,12 @@ int main(void)
 	gettimeofday(&tv_s, NULL);
 
 increment:
-	res = fork();
+	res = vfork();
 	if (res == 0) {
 		shared_buf[0] += 1;
 		exit(2);
 	} else if (res != 0 && shared_buf[0] < COUNT){
+		/*TODO is this needed?*/
 		wait(NULL);
 		goto increment;
 	} else {

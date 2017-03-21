@@ -94,7 +94,7 @@ int sys_lwc_create( struct dune_tf *tf,
     /* Slower copy.*/
     copy = lwc_mm_create(current->vm_mm, mod, numr);
     if (!copy) goto err;
-    
+
 create:
     n_lwc = malloc(sizeof(lwc_struct));
     if (!n_lwc)

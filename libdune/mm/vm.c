@@ -357,7 +357,7 @@ static int __dune_vm_free_helper(const void *arg, ptent_t *pte, void *va)
 /**
  * Free the page table and decrement the reference count on any pages.
  */
-void dune_vm_free(ptent_t *root)
+static void dune_vm_free_v2(ptent_t *root)
 {
 	// XXX: Should only need one page walk
 	// XXX: Hacky - Until I fix ref counting
@@ -379,6 +379,79 @@ void dune_vm_free(ptent_t *root)
 		free(root);
 
 	return;
+}
+
+void dune_vm_free(ptent_t *root)
+{
+	assert(root);
+
+	for (int i = 0; i < NPTENTRIES; i++) {
+		if (!pte_present(root[i]))
+			continue;
+
+		ptent_t* pdpte = (ptent_t*) PTE_ADDR(root[i]);
+
+		for (int j = 0; j < NPTENTRIES; j++) {
+			if (!pte_present(pdpte[j]) || pte_big(pdpte[j]))
+				continue;
+
+			/*TODO: handle huge entries.*/
+			ptent_t *pde = (ptent_t*) PTE_ADDR(pdpte[j]);
+
+			for (int k = 0; k < NPTENTRIES; k++) {
+				/*TODO handle big entries.*/
+				if (!pte_present(pde[k]) || pte_big(pde[k]))
+					continue;
+				
+				ptent_t *pte = (ptent_t*) PTE_ADDR(pde[k]);
+
+				for (int l = 0; l < NPTENTRIES; l++) {
+					if (!pte_present(pte[l]))
+						continue;
+
+					/*Free the entry.*/
+					struct page *pg = dune_pa2page(PTE_ADDR(pte[l]));
+
+					if (dune_page_isfrompool(PTE_ADDR(pte[l]))) {
+						dune_page_put(pg);
+					}
+					
+					// Invalidate mapping
+					pte[l] = 0;
+				}
+
+				struct page *pg = dune_pa2page(PTE_ADDR(pde[k]));
+
+				if (dune_page_isfrompool(PTE_ADDR(pde[k]))) {
+					dune_page_put(pg);
+				}
+
+				pde[k] = 0;
+			}
+
+			struct page *pg = dune_pa2page(PTE_ADDR(pdpte[j]));
+
+			if (dune_page_isfrompool(PTE_ADDR(pdpte[j]))) {
+				dune_page_put(pg);
+			}
+
+			pdpte[j] = 0;
+		}
+
+		struct page *pg = dune_pa2page(PTE_ADDR(root[i]));
+
+		if (dune_page_isfrompool(PTE_ADDR(root[i]))) {
+			dune_page_put(pg);
+		}
+
+		root[i] = 0;
+	}
+
+	struct page *pg = dune_pa2page(PTE_ADDR(root));
+
+	if (dune_page_isfrompool(PTE_ADDR(root))) {
+		dune_page_put(pg);
+	}
 }
 
 void dune_vm_unmap(ptent_t *root, void *va, size_t len)
@@ -482,7 +555,7 @@ int dune_vm_has_mapping(ptent_t *root, void *va)
 	pte = (ptent_t *) PTE_ADDR(pde[k]);
 	// printf("pte is present and is %p.\n", pte);
 	
-	ptent_t* out = &pte[l];
+	//ptent_t* out = &pte[l];
 
 	if (!pte_present(pte[l])) {
 		printf("The missing pte 0x%016lx\n", pte[l]);
