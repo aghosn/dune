@@ -70,7 +70,7 @@ extern int umm_alloc_stack(uintptr_t *stack_top);
 extern void *umm_mremap(void *old_address, size_t old_size,
 			size_t new_size, int flags, void *new_address);
 extern int trap_init(void);
-extern int MEMORY_BASE_ADDR;
+extern uint64_t MEMORY_BASE_ADDR;
 
 int sandbox_init_run(char *loader, int argc, char *argv[]);
 

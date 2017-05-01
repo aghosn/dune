@@ -48,7 +48,7 @@
 #define UMM_ADDR_START	MEM_USER_DIRECT_BASE_ADDR
 #define UMM_ADDR_END	MEM_USER_DIRECT_END_ADDR
 
-int MEMORY_BASE_ADDR = MEM_SANDBOX_BASE_ADDR;
+uint64_t MEMORY_BASE_ADDR = MEM_SANDBOX_BASE_ADDR;
 
 // FIXME: these might need to be made thread safe
 static size_t brk_len;

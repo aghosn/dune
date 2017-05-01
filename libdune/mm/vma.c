@@ -64,9 +64,12 @@ void vma_dump(vm_area_struct *vma)
 {
 	ASSERT_DBG(vma, "vma is null.\n");
 	printf("0x%016lx-0x%016lx,", vma->vm_start, vma->vm_end);
-	printf(" flags: %016lx, ", vma->vm_flags);
-	printf("dirty: %d, user: %d, ", vma->dirty, vma_is_user(vma));
-	printf(" perm_w: %d.\n", (PERM_W & vma->vm_flags) >> 1);
+	//printf(" flags: %016lx, ", vma->vm_flags);
+	//printf("dirty: %d, user: %d, ", vma->dirty, vma_is_user(vma));
+	printf(" user: %d", vma_is_user(vma));
+	//printf(" perm_w: %lu.", (PERM_W & vma->vm_flags) >> 1);
+	printf(" rg: %lu -> %lu", PDX(3, vma->vm_start), PDX(3, vma->vm_end));
+	printf(" rg2: %lu -> %lu\n", PDX(2, vma->vm_start), PDX(2, vma->vm_end));
 	fflush(stdout);
 }
 
