@@ -306,15 +306,6 @@ ptent_t* vm_pgrot_copy_range(	ptent_t *original,
 		goto err;
 
 	struct copy_info info = {original, copy, cow, modifier};
-	
-	int i_s = PDX(3, start); int i_e = PDX(3, end);
-	if ((i_s == i_e && (i_s == 0 || i_s == 511 || i_s == 255)) ||
-		(i_s == 255 && i_e == 256)) {
-		for (int i = i_s; i <= i_e; i++) {
-			copy[i] = original[i];
-		}
-		return copy;
-	}
 
 	ret = __vm_pgrot_walk(original, (void*)MM_PGALIGN_DN((vm_addrptr)start),
 			(void*)MM_PGALIGN_UP((vm_addrptr) end) - 1,

@@ -389,10 +389,6 @@ void dune_vm_free(ptent_t *root)
 		if (!pte_present(root[i]))
 			continue;
 
-		/*TODO aghosn quick test of speed up.*/
-		if (i == 0 || i == 255 || i == 256 || i == 511)
-			continue;
-
 		ptent_t* pdpte = (ptent_t*) PTE_ADDR(root[i]);
 
 		for (int j = 0; j < NPTENTRIES; j++) {
