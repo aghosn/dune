@@ -234,7 +234,7 @@ mm_struct* lwc_mm_create(mm_struct *o, lwc_rg_struct *mod, unsigned int numr)
 	if (!copy) goto err;
 
 	/* For the heap.*/
-	copy->brk_len = 0;
+	copy->brk_len = o->brk_len;
 	
 	TAILQ_INIT(&(copy->mmap));
 

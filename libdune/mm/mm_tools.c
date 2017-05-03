@@ -22,7 +22,7 @@ mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 	if (!copy) goto err;
 
 	/* For the heap.*/
-	copy->brk_len = 0;
+	copy->brk_len = mm->brk_len;
 
 	copy->pml4 = (ptent_t*) dune_page2pa(dune_page_alloc());
 	if (!copy->pml4) goto err;
