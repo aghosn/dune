@@ -149,126 +149,42 @@ set_entry:
 	return 0;
 }
 
-static int __vm_pgrot_copy(ptent_t* pte, void *va, cb_info *info)
+static ptent_t* vm_pgrot_fast_copy(ptent_t* root, bool cow)
 {
 	int ret;
-	struct copy_info *inf = (struct copy_info*) (info->args);
-	assert(inf != NULL);
+	ptent_t* new_root;
 
-	struct page *pg = dune_pa2page(PTE_ADDR(*pte));
-	ptent_t* newRoot = inf->n_root;
-	ptent_t* newPte;
-	int create = CREATE_NONE;
-	switch(info->level) {
-		case 0:
-			create = CREATE_NORMAL;
-			break;
-		case 1: 
-			create = CREATE_BIG;
-			break;
-		case 2:
-			create = CREATE_BIG_1GB;
-			break;
-		default:
-			/* Error.*/
-			return 1;	
+	new_root = (ptent_t*) dune_page2pa(dune_page_alloc());
+	if (!new_root)
+		goto err;
+	memset(new_root, 0, PGSIZE);
+
+	/* pml4 level copy optimization*/
+	for (int i = 0; i < NPTENTRIES; i++) {
+		if (!pte_present(root[i]))
+			continue;
+		
+		/* Kernel entry can be transposed as is.*/
+		if (!(root[i] & PTE_U) || !(root[i] & PTE_W)) {
+			new_root[i] = root[i];
+			continue;
+		}
+
+		struct copy_info info = {root, new_root, true, CB_COW};
+		ret = __vm_pgrot_walk(root,(void*)RPDX(i, 0, 0, 0),(void*)RPDX(i+1, 0, 0, 0) - 1, 
+			&__vm_pgrot_copy_v2, NULL, &info, 3);
+		
+		if (ret)
+			goto err;
+
 	}
 	
-	/* Giving minimal rights for the moment.*/
-	ptent_t perm = PTE_P;
-	ret = vm_lookup(newRoot, va, &newPte, create , perm);
-	assert(ret == 0);
-
-	if (dune_page_isfrompool(PTE_ADDR(*pte)))
-		dune_page_get(pg);
-
-	if (!inf->cow)
-		goto set_entry;
-
-	/* Do a cow if this is a user mapping with write accesses.*/
-	if (*pte  & PTE_U && (*pte & PTE_W /*|| *pte & PTE_COW*/)) {
-		*pte &= ~(PTE_W);
-		*pte |= PTE_COW;
-	}
-
-set_entry:
-	/* Set the actual entry.*/
-	*newPte = *pte;
-
-	/* Increment the ref for the page if from pool*/
-	if (dune_page_isfrompool(PTE_ADDR(*pte)))
-		dune_page_get(dune_pa2page(PTE_ADDR(*pte)));
-
-	/* Fix the entries inside the intermediary entries.*/
-	#define PPTE_ADDR(x) ((ptent_t*) PTE_ADDR(x))
-
-	int i = PDX(3, va), j = PDX(2, va);
-	ptent_t* o_pml4 = inf->o_root, *n_pml4 = inf->n_root;
-	assert(pte_present(n_pml4[i]) && pte_present(o_pml4[i]));
-	n_pml4[i] = PTE_ADDR(n_pml4[i]) | PPTE_FLAGS(o_pml4[i]);
-
-	ptent_t *o_pdpte = PPTE_ADDR(o_pml4[i]), *n_pdpte = PPTE_ADDR(n_pml4[i]);
-	assert(pte_present(o_pdpte[j]) && pte_present(n_pdpte[j]));
-	n_pdpte[j] = PTE_ADDR(n_pdpte[j]) | PPTE_FLAGS(o_pdpte[j]);
-	
-	/* This is a big entry.*/
-	if (info->level == 2)
-		assert(PTE_ADDR(n_pdpte[j]) == PTE_ADDR(o_pdpte[j]));
-
-	if (info->level < 2) {
-		int k = PDX(1, va);
-		ptent_t *o_pde = PPTE_ADDR(o_pdpte[j]), *n_pde = PPTE_ADDR(n_pdpte[j]);
-		assert(pte_present(o_pde[k]) && pte_present(n_pde[k]));
-		n_pde[k] = PTE_ADDR(n_pde[k]) | PPTE_FLAGS(o_pde[k]);
-		if (info->level == 1)
-			assert(PTE_ADDR(n_pde[k]) == PTE_ADDR(o_pde[k]));
-
-		if (info->level == 0) {
-			int l = PDX(0, va);
-			ptent_t *o_pte = PPTE_ADDR(o_pde[k]), *n_pte = PPTE_ADDR(n_pde[k]);
-			assert(pte_present(o_pte[l]) && pte_present(n_pte[l]));
-			assert(PTE_ADDR(n_pte[l]) == PTE_ADDR(o_pte[l]));
-			n_pte[l] = o_pte[l];
-		}
-	}
-
-	/* If page must be shared or read-only and is cow.*/
-	if ((inf->type == CB_SHARE || inf->type == CB_RO) && *pte & PTE_COW) {
-
-		*pte &= ~(PTE_COW);
-		*pte |= PTE_W;
-
-		ptent_t perm = PPTE_FLAGS(*pte);
-
-		/* Page from pool is referenced by several contexts.*/
-		if (dune_page_isfrompool(PTE_ADDR(*pte)) && pg->ref > 1) {
-			/* We duplicate the page.*/
-			void *newPage = alloc_page();
-			assert(newPage);
-			memcpy(newPage, (void*)PGADDR(va), PGSIZE);
-			
-			/* map the page.*/
-			if (dune_page_isfrompool(PTE_ADDR(*pte))) {
-				dune_page_put(pg);
-			}
-
-			*pte = PTE_ADDR(newPage) | perm;
-			/* Invalidate address in tlb.*/
-			dune_flush_tlb_one((unsigned long)va);
-			asm("mov %cr3,%rax; mov %rax,%cr3");
-
-			*newPte = *pte;
-		}
-	}
-
-	/* The mapping is not cowed but need to be made readonly.*/
-	if (inf->type == CB_RO) {
-		*newPte &= ~(PTE_W);
-	}
-
-	return 0;
+	return new_root;
+err:
+	if (new_root)
+		dune_vm_free(new_root);
+	return NULL;
 }
-
 
 ptent_t* vm_pgrot_copy(ptent_t* root, bool cow)
 {

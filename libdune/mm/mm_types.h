@@ -38,6 +38,8 @@ typedef struct mm_struct {
 
 	TAILQ_ENTRY(mm_struct) q_mms;
 
+	size_t brk_len;
+
 	unsigned int ref;
 } mm_struct;
 

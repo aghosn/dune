@@ -43,7 +43,7 @@
 #include "mem.h"
 #include "mm/memory.h"
 
-#define USE_BIG_MEM 1
+#define USE_BIG_MEM 0
 
 #define UMM_ADDR_START	MEM_USER_DIRECT_BASE_ADDR
 #define UMM_ADDR_END	MEM_USER_DIRECT_END_ADDR
