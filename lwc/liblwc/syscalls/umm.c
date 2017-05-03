@@ -51,12 +51,15 @@
 uint64_t MEMORY_BASE_ADDR = MEM_SANDBOX_BASE_ADDR;
 
 // FIXME: these might need to be made thread safe
-static size_t brk_len;
+//static size_t brk_len;
 static size_t mmap_len;
 
 static inline bool umm_space_left(size_t len)
 {
-	return (brk_len + mmap_len + len) <
+	mm_struct* current = memory_get_mm();
+	assert(current);
+
+	return (current->brk_len + mmap_len + len) <
 	       (UMM_ADDR_END - UMM_ADDR_START);
 }
 
@@ -85,6 +88,7 @@ static int umm_mmap_anom_flags(void *addr, size_t len, int prot, bool big, int e
 	void *mem;
 	int flags = MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS;
 	int perm = prot_to_perm(prot);
+	mm_struct *current_mm = memory_get_mm();
 
 	if (big) {
 		flags |= MAP_HUGETLB;
@@ -93,6 +97,13 @@ static int umm_mmap_anom_flags(void *addr, size_t len, int prot, bool big, int e
 
 	flags |= extra_flags;
 
+	/* If it is not the root, we break the one-to-one mapping.*/
+	if (current_mm != mm_root) {
+		ret = mm_create_phys_mapping(current_mm, (vm_addrptr) addr, 
+			((vm_addrptr)addr) + len, NULL, perm);
+		return ret;
+	}
+
 	mem = mmap(addr, len, prot, flags, -1, 0);
 	if (mem != addr)
 		return -errno;
@@ -100,7 +111,7 @@ static int umm_mmap_anom_flags(void *addr, size_t len, int prot, bool big, int e
 	/*ret = dune_vm_map_phys(pgroot, addr, len,
 			       (void *) dune_va_to_pa(addr),
 			       perm);*/
-	mm_struct *current_mm = memory_get_mm();
+	
 	ret = mm_create_phys_mapping(current_mm, (vm_addrptr) addr,
 			((vm_addrptr)addr) + len, (void *) dune_va_to_pa(addr), perm);
 
@@ -150,7 +161,8 @@ unsigned long umm_brk(unsigned long brk)
 	size_t len;
 	int ret;
 
-	printf("Called brk\n");
+	mm_struct* mm = memory_get_mm();
+	assert(mm);
 
 	if (!brk)
 		return UMM_ADDR_START;
@@ -169,27 +181,27 @@ unsigned long umm_brk(unsigned long brk)
 	if (!umm_space_left(len))
 		return -ENOMEM;
 
-	if (len == brk_len) {
+	if (len == mm->brk_len) {
 		return brk;
-	} else if (len < brk_len) {
-		ret = munmap((void *)(UMM_ADDR_START + len), brk_len - len);
+	} else if (len < mm->brk_len) {
+		ret = munmap((void *)(UMM_ADDR_START + len), mm->brk_len - len);
 		if (ret)
 			return -errno;
 
 		/*dune_vm_unmap(pgroot, (void *)(UMM_ADDR_START + len),
 			      brk_len - len);*/
 		vm_addrptr s = UMM_ADDR_START + len;
-		vm_addrptr e = s + (brk_len - len);
+		vm_addrptr e = s + (mm->brk_len - len);
 		mm_unmap(memory_get_mm(), s, e, true);
 	} else {
-		ret = umm_mmap_anom((void *)(UMM_ADDR_START + brk_len),
-				    len - brk_len,
+		ret = umm_mmap_anom((void *)(UMM_ADDR_START + mm->brk_len),
+				    len - mm->brk_len,
 				    PROT_READ | PROT_WRITE, USE_BIG_MEM);
 		if (ret)
 			return ret;
 	}
 
-	brk_len = len;
+	mm->brk_len = len;
 	return brk;
 }
 

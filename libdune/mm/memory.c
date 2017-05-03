@@ -28,6 +28,9 @@ int dune_memory_init() {
 		ret = -ENOMEM;
 		goto err;
 	}
+
+	/* For the heap.*/
+	mm_root->brk_len = 0;
 	
 	mm_root->pml4 = pgroot;
 	mm_root->ref = 1;

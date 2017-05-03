@@ -246,6 +246,9 @@ int mm_apply_to_pgroot(vm_area_struct *vma, void *pa)
 	if (pa != NULL) {
 		return dune_vm_map_phys(vma->vm_mm->pml4, (void*)vma->vm_start,
 		(size_t)(vma->vm_end - vma->vm_start), pa, vma->vm_flags);
+	} else {
+		return dune_vm_map_pages(vma->vm_mm->pml4, (void*) vma->vm_start,
+			(size_t)(vma->vm_end - vma->vm_start), vma->vm_flags);
 	}
 
 	//FIXME: function is actually never called without a physical address

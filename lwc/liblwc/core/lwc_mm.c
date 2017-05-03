@@ -232,6 +232,9 @@ mm_struct* lwc_mm_create(mm_struct *o, lwc_rg_struct *mod, unsigned int numr)
 	/*Create the new memory mapping.*/
 	copy = malloc(sizeof(mm_struct));
 	if (!copy) goto err;
+
+	/* For the heap.*/
+	copy->brk_len = 0;
 	
 	TAILQ_INIT(&(copy->mmap));
 

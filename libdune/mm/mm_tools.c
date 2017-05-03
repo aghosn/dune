@@ -21,6 +21,9 @@ mm_struct* mm_copy(mm_struct *mm, bool apply, bool cow)
 	mm_struct *copy = malloc(sizeof(mm_struct));
 	if (!copy) goto err;
 
+	/* For the heap.*/
+	copy->brk_len = 0;
+
 	copy->pml4 = (ptent_t*) dune_page2pa(dune_page_alloc());
 	if (!copy->pml4) goto err;
 
