@@ -144,10 +144,13 @@ static int umm_mmap_file(void *addr, size_t len, int prot, int flags,
 	return 0;
 }
 
+//TODO aghosn: this is called for the printf.
 unsigned long umm_brk(unsigned long brk)
 {
 	size_t len;
 	int ret;
+
+	printf("Called brk\n");
 
 	if (!brk)
 		return UMM_ADDR_START;
